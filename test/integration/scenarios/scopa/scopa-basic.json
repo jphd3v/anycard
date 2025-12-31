@@ -1,0 +1,31 @@
+{
+  "id": "scopa-basic",
+  "rulesId": "scopa",
+  "seed": "SCOPA-TEST-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-won",
+      "cardId": 4
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "hasDealt": true,
+      "dealNumber": 1,
+      "phase": "playing",
+      "roundNumber": 1,
+      "players": ["P1", "P2"],
+      "lastCapturer": "P1",
+      "scopas": {
+        "P1": 0,
+        "P2": 0
+      },
+      "result": null
+    }
+  }
+}

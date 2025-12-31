@@ -1,0 +1,102 @@
+{
+  "rulesId": "durak",
+  "rows": 4,
+  "cols": 2,
+  "zones": [
+    {
+      "id": "P2-hand-zone",
+      "cell": { "row": 0, "col": 0, "colspan": 2 },
+      "piles": ["P2-hand"],
+      "label": "Player 2"
+    },
+    {
+      "id": "trump-discard-zone",
+      "cell": { "row": 1, "col": 0 },
+      "piles": ["trump-card", "discard"],
+      "label": "Trump / Discard"
+    },
+    {
+      "id": "actions-zone",
+      "cell": { "row": 1, "col": 1 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "table-zone",
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
+      "piles": ["table"],
+      "label": "Table"
+    },
+    {
+      "id": "P1-hand-zone",
+      "cell": { "row": 3, "col": 0, "colspan": 2 },
+      "piles": ["P1-hand"],
+      "label": "Player 1 (You)"
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "rank-asc",
+            "label": "Rank (6 to A)",
+            "type": "byRank",
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          },
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "rank-asc",
+            "label": "Rank (6 to A)",
+            "type": "byRank",
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          },
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          }
+        ]
+      }
+    },
+    "table": {
+      "layout": "spread"
+    },
+    "trump-card": {
+      "layout": "complete",
+      "label": "Trump"
+    },
+    "discard": {
+      "layout": "complete",
+      "label": "Discard"
+    }
+  }
+}

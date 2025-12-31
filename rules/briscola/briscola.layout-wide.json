@@ -1,0 +1,39 @@
+{
+  "rulesId": "briscola",
+  "rows": 3,
+  "cols": 5,
+  "zones": [
+    {
+      "id": "p2-area",
+      "label": "Player 2",
+      "cell": { "row": 0, "col": 0, "rowspan": 1, "colspan": 5 },
+      "piles": ["P2-hand", "P2-won"]
+    },
+    {
+      "id": "trump-area",
+      "label": "Trump",
+      "cell": { "row": 1, "col": 4 },
+      "piles": ["briscola"]
+    },
+    {
+      "id": "trick-area",
+      "label": "Trick",
+      "cell": { "row": 1, "col": 0, "rowspan": 1, "colspan": 4 },
+      "piles": ["trick"]
+    },
+    {
+      "id": "p1-area",
+      "label": "Player 1",
+      "cell": { "row": 2, "col": 0, "rowspan": 1, "colspan": 5 },
+      "piles": ["P1-hand", "P1-won"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": { "layout": "horizontal" },
+    "P2-hand": { "layout": "horizontal" },
+    "briscola": { "layout": "complete", "label": "Trump" },
+    "trick": { "layout": "horizontal" },
+    "P1-won": { "layout": "horizontal", "showDetails": true },
+    "P2-won": { "layout": "horizontal", "showDetails": true }
+  }
+}

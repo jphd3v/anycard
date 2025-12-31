@@ -1,0 +1,23 @@
+<svg width="159" height="319" viewBox="0 0 159 319" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Geometric Pattern (Tarocchi Style) -->
+        <pattern id="BackPattern" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+          <rect width="16" height="16" fill="#003366"/>
+          <!-- Simple Geometric Cross/Lattice -->
+          <path d="M8 0 L16 8 L8 16 L0 8 Z" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>
+          <circle cx="8" cy="8" r="1.5" fill="#ffffff"/>
+          <path d="M0 0 L16 16 M16 0 L0 16" stroke="#ffffff" stroke-width="0.5" opacity="0.4"/>
+        </pattern>
+      </defs>
+
+      <!-- 1. Card Base (Paper) -->
+      <!-- Adjusted to 159x319 to match the 2C.svg aspect ratio -->
+      <rect x="0.5" y="0.5" width="158" height="318" rx="12" ry="12" 
+            fill="#f2f2f2" stroke="#000000" stroke-width="1" />
+
+      <!-- 2. Inner Frame (Pattern Area) -->
+      <!-- Defines the white/grey margin between the edge and the pattern -->
+      <rect x="10" y="10" width="139" height="299" rx="6.0" ry="6.0" 
+            fill="url(#BackPattern)" stroke="#000000" stroke-width="1" />
+    </svg>
+    

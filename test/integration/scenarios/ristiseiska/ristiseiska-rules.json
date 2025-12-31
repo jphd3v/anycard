@@ -1,0 +1,44 @@
+{
+  "id": "ristiseiska-rules",
+  "rulesId": "ristiseiska",
+  "seed": "RISTISEISKA-TEST",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 6
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "hearts-table",
+      "cardId": 32
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 7,
+      "expectedError": "This card cannot be played yet. You must play a 7 or extend an existing sequence."
+    },
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "pass",
+      "expectedError": "You must play a card if you have a legal move."
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 13,
+      "expectedError": "This card cannot be played yet. You must play a 7 or extend an existing sequence."
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "rulesId": "pinnacola",
+  "zones": [
+    {
+      "id": "P2-hand",
+      "cell": { "row": 0, "col": 0, "colspan": 2 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "P2-melds",
+      "cell": { "row": 0, "col": 3, "rowspan": 3 },
+      "piles": [
+        "P2-meld-0",
+        "P2-meld-1",
+        "P2-meld-2",
+        "P2-meld-3",
+        "P2-meld-4",
+        "P2-meld-5"
+      ]
+    },
+    {
+      "id": "table",
+      "cell": { "row": 1, "col": 0, "colspan": 2 },
+      "piles": ["deck", "discard"]
+    },
+    {
+      "id": "P1-melds",
+      "cell": { "row": 0, "col": 2, "rowspan": 3 },
+      "piles": [
+        "P1-meld-0",
+        "P1-meld-1",
+        "P1-meld-2",
+        "P1-meld-3",
+        "P1-meld-4",
+        "P1-meld-5"
+      ]
+    },
+    {
+      "id": "P1-hand",
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
+      "piles": ["P1-hand"]
+    }
+  ],
+  "rows": 3,
+  "cols": 4,
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "allowViewerToggle": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "allowViewerToggle": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "deck": { "layout": "complete" },
+    "discard": { "layout": "horizontal" },
+    "P1-meld-0": { "layout": "horizontal", "label": "Meld 1" },
+    "P1-meld-1": { "layout": "horizontal", "label": "Meld 2" },
+    "P1-meld-2": { "layout": "horizontal", "label": "Meld 3" },
+    "P1-meld-3": { "layout": "horizontal", "label": "Meld 4" },
+    "P1-meld-4": { "layout": "horizontal", "label": "Meld 5" },
+    "P1-meld-5": { "layout": "horizontal", "label": "Meld 6" },
+    "P2-meld-0": { "layout": "horizontal", "label": "Meld 1" },
+    "P2-meld-1": { "layout": "horizontal", "label": "Meld 2" },
+    "P2-meld-2": { "layout": "horizontal", "label": "Meld 3" },
+    "P2-meld-3": { "layout": "horizontal", "label": "Meld 4" },
+    "P2-meld-4": { "layout": "horizontal", "label": "Meld 5" },
+    "P2-meld-5": { "layout": "horizontal", "label": "Meld 6" }
+  }
+}

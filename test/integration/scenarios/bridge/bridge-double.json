@@ -1,0 +1,99 @@
+{
+  "id": "bridge-double",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-TEST-DOUBLE",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "N", "action": "1H" },
+    { "type": "action", "playerId": "E", "action": "double" },
+    { "type": "action", "playerId": "S", "action": "redouble" },
+    { "type": "action", "playerId": "W", "action": "pass" },
+    { "type": "action", "playerId": "N", "action": "pass" },
+    { "type": "action", "playerId": "E", "action": "pass" },
+    {
+      "type": "move",
+      "playerId": "E",
+      "fromPileId": "E-hand",
+      "toPileId": "trick",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "N",
+      "fromPileId": "S-hand",
+      "toPileId": "trick",
+      "cardId": 5
+    },
+    {
+      "type": "move",
+      "playerId": "W",
+      "fromPileId": "W-hand",
+      "toPileId": "trick",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "N",
+      "fromPileId": "N-hand",
+      "toPileId": "trick",
+      "cardId": 12
+    }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "rulesState": {
+      "aboveEW": 0,
+      "aboveNS": 0,
+      "belowEW": 0,
+      "belowNS": 0,
+      "bidding": {
+        "highestBid": {
+          "bidder": "N",
+          "denomination": "hearts",
+          "level": 1,
+          "doubled": true,
+          "redoubled": true
+        },
+        "history": [
+          { "call": "1H", "player": "N" },
+          { "call": "double", "player": "E" },
+          { "call": "redouble", "player": "S" },
+          { "call": "pass", "player": "W" },
+          { "call": "pass", "player": "N" },
+          { "call": "pass", "player": "E" }
+        ],
+        "passesInRow": 3
+      },
+      "contract": {
+        "declarer": "N",
+        "declarerSide": "NS",
+        "doubled": true,
+        "level": 1,
+        "redoubled": true,
+        "targetTricks": 7,
+        "trumpSuit": "hearts"
+      },
+      "currentTrick": {
+        "cards": [],
+        "leadSuit": null
+      },
+      "currentTrickNumber": 2,
+      "dealNumber": 1,
+      "dealerSeat": "N",
+      "gamesEW": 0,
+      "gamesNS": 0,
+      "hasDealt": true,
+      "phase": "play",
+      "play": {
+        "dummyRevealed": true,
+        "dummySeat": "S",
+        "turnSeat": "E"
+      },
+      "result": null,
+      "rubberFinished": false,
+      "trickLeader": "E",
+      "tricksEW": 1,
+      "tricksNS": 0
+    }
+  }
+}

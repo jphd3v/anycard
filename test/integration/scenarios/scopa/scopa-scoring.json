@@ -1,0 +1,26 @@
+{
+  "id": "scopa-scoring",
+  "rulesId": "scopa",
+  "seed": "SCOPA-TEST-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1000
+  },
+  "expect": {
+    "winner": "P1",
+    "rulesState": {
+      "hasDealt": false,
+      "dealNumber": 1,
+      "phase": "ended",
+      "roundNumber": 1,
+      "players": ["P1", "P2"],
+      "lastCapturer": "P1",
+      "scopas": {
+        "P1": 0,
+        "P2": 0
+      },
+      "result": "Hand 1 Result: P1: 4 pts, P2: 0 pts."
+    }
+  }
+}

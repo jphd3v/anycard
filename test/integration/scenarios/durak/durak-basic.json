@@ -1,0 +1,41 @@
+{
+  "id": "durak-basic",
+  "rulesId": "durak",
+  "seed": "DURAK-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "table",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "table",
+      "cardId": 33
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "table",
+      "cardId": 15
+    },
+    { "type": "action", "playerId": "P2", "action": "take" }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "rulesState": {
+      "hasDealt": true,
+      "trumpSuit": "diamonds",
+      "attackerId": "P1",
+      "defenderId": "P2",
+      "result": null,
+      "bout": []
+    }
+  }
+}

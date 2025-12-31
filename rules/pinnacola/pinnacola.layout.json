@@ -1,0 +1,202 @@
+{
+  "rulesId": "pinnacola",
+  "zones": [
+    {
+      "id": "P2-hand",
+      "cell": { "row": 0, "col": 0, "colspan": 6 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "P2-melds-top",
+      "cell": { "row": 1, "col": 0, "colspan": 6 },
+      "piles": [
+        "P2-meld-0",
+        "P2-meld-1",
+        "P2-meld-2",
+        "P2-meld-3",
+        "P2-meld-4",
+        "P2-meld-5"
+      ]
+    },
+    {
+      "id": "P2-melds-bottom",
+      "cell": { "row": 2, "col": 0, "colspan": 6 },
+      "piles": [
+        "P2-meld-6",
+        "P2-meld-7",
+        "P2-meld-8",
+        "P2-meld-9",
+        "P2-meld-10",
+        "P2-meld-11"
+      ]
+    },
+    {
+      "id": "table",
+      "cell": { "row": 3, "col": 0, "colspan": 6 },
+      "piles": ["deck", "discard"]
+    },
+    {
+      "id": "P1-melds-top",
+      "cell": { "row": 4, "col": 0, "colspan": 6 },
+      "piles": [
+        "P1-meld-0",
+        "P1-meld-1",
+        "P1-meld-2",
+        "P1-meld-3",
+        "P1-meld-4",
+        "P1-meld-5"
+      ]
+    },
+    {
+      "id": "P1-melds-bottom",
+      "cell": { "row": 5, "col": 0, "colspan": 6 },
+      "piles": [
+        "P1-meld-6",
+        "P1-meld-7",
+        "P1-meld-8",
+        "P1-meld-9",
+        "P1-meld-10",
+        "P1-meld-11"
+      ]
+    },
+    {
+      "id": "P1-hand",
+      "cell": { "row": 6, "col": 0, "colspan": 6 },
+      "piles": ["P1-hand"]
+    }
+  ],
+  "rows": 7,
+  "cols": 6,
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "allowViewerToggle": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "allowViewerToggle": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "deck": { "layout": "complete" },
+    "discard": { "layout": "horizontal" },
+    "P1-meld-0": { "layout": "horizontal", "label": "M1" },
+    "P1-meld-1": { "layout": "horizontal", "label": "M2" },
+    "P1-meld-2": { "layout": "horizontal", "label": "M3" },
+    "P1-meld-3": { "layout": "horizontal", "label": "M4" },
+    "P1-meld-4": { "layout": "horizontal", "label": "M5" },
+    "P1-meld-5": { "layout": "horizontal", "label": "M6" },
+    "P1-meld-6": { "layout": "horizontal", "label": "M7" },
+    "P1-meld-7": { "layout": "horizontal", "label": "M8" },
+    "P1-meld-8": { "layout": "horizontal", "label": "M9" },
+    "P1-meld-9": { "layout": "horizontal", "label": "M10" },
+    "P1-meld-10": { "layout": "horizontal", "label": "M11" },
+    "P1-meld-11": { "layout": "horizontal", "label": "M12" },
+    "P2-meld-0": { "layout": "horizontal", "label": "M1" },
+    "P2-meld-1": { "layout": "horizontal", "label": "M2" },
+    "P2-meld-2": { "layout": "horizontal", "label": "M3" },
+    "P2-meld-3": { "layout": "horizontal", "label": "M4" },
+    "P2-meld-4": { "layout": "horizontal", "label": "M5" },
+    "P2-meld-5": { "layout": "horizontal", "label": "M6" },
+    "P2-meld-6": { "layout": "horizontal", "label": "M7" },
+    "P2-meld-7": { "layout": "horizontal", "label": "M8" },
+    "P2-meld-8": { "layout": "horizontal", "label": "M9" },
+    "P2-meld-9": { "layout": "horizontal", "label": "M10" },
+    "P2-meld-10": { "layout": "horizontal", "label": "M11" },
+    "P2-meld-11": { "layout": "horizontal", "label": "M12" }
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "rulesId": "gin-rummy",
+  "rows": 3,
+  "cols": 2,
+  "zones": [
+    {
+      "id": "p2-area",
+      "label": "Player 2",
+      "cell": { "row": 0, "col": 0, "colspan": 2 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "center-area",
+      "label": "Center",
+      "cell": { "row": 1, "col": 0, "colspan": 1 },
+      "piles": ["deck", "discard"]
+    },
+    {
+      "id": "actions-area",
+      "cell": { "row": 1, "col": 1, "colspan": 1 },
+      "piles": [],
+      "widget": "actions",
+      "actionOrientation": "vertical"
+    },
+    {
+      "id": "p1-area",
+      "label": "Player 1",
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
+      "piles": ["P1-hand"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "deck": { "layout": "complete" },
+    "discard": { "layout": "complete", "showTopOnly": true }
+  }
+}

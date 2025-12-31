@@ -1,0 +1,49 @@
+{
+  "id": "briscola-basic",
+  "rulesId": "briscola",
+  "seed": "BRISCOLA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 15
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 34
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 39
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "rulesState": {
+      "phase": "playing",
+      "briscolaSuit": "spades",
+      "currentTrick": null,
+      "dealNumber": 1,
+      "hasDealt": true,
+      "players": ["P1", "P2"],
+      "result": null,
+      "roundNumber": 1
+    }
+  }
+}

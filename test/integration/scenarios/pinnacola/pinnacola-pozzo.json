@@ -1,0 +1,66 @@
+{
+  "id": "pinnacola-pozzo",
+  "rulesId": "pinnacola",
+  "seed": "PINNACOLA-SEED-1",
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "discard",
+      "toPileId": "P2-hand",
+      "cardId": 107
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P1-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 107,
+      "expectedError": "Card not in source pile."
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 85,
+      "expectedError": "You must use the card JOKERblack first."
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 107
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 85
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 86
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 1
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1"
+  }
+}

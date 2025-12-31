@@ -1,0 +1,90 @@
+{
+  "id": "katko-basic",
+  "rulesId": "katko",
+  "seed": "KATKO-TEST-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 27
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 4
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 5
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 8
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 51
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 47
+    }
+  ],
+  "expect": {
+    "rulesState": {
+      "hasDealt": false,
+      "dealNumber": 1,
+      "phase": "deal",
+      "scores": { "P1": 1, "P2": 0 },
+      "dealer": "P1",
+      "leadSuit": null,
+      "trickCount": 0,
+      "result": "Hand 1 Result: P1 won the point. Scores: P1=1, P2=0."
+    }
+  }
+}

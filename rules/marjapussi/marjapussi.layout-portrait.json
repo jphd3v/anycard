@@ -1,0 +1,133 @@
+{
+  "rulesId": "marjapussi",
+  "rows": 5,
+  "cols": 4,
+  "zones": [
+    {
+      "id": "north",
+      "label": "Player 1",
+      "cell": { "row": 0, "col": 0, "colspan": 4 },
+      "piles": ["P1-hand"]
+    },
+    {
+      "id": "west",
+      "label": "Player 4",
+      "cell": { "row": 1, "col": 0, "rowspan": 3 },
+      "piles": ["P4-hand"]
+    },
+    {
+      "id": "trick",
+      "cell": { "row": 1, "col": 1, "colspan": 2, "rowspan": 1 },
+      "piles": ["trick"]
+    },
+    {
+      "id": "won",
+      "cell": { "row": 2, "col": 1, "colspan": 2, "rowspan": 1 },
+      "piles": ["TEAM-A-WON", "TEAM-B-WON"]
+    },
+    {
+      "id": "actions",
+      "cell": { "row": 3, "col": 1, "colspan": 2, "rowspan": 1 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "east",
+      "label": "Player 2",
+      "cell": { "row": 1, "col": 3, "rowspan": 3 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "south",
+      "label": "Player 3",
+      "cell": { "row": 4, "col": 0, "colspan": 4 },
+      "piles": ["P3-hand"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "by-suit",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "by-suit",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "vertical",
+      "sort": {
+        "default": "by-suit",
+        "options": [
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "by-suit",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          }
+        ]
+      }
+    },
+    "P3-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "by-suit",
+        "options": [
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "by-suit",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          }
+        ]
+      }
+    },
+    "P4-hand": {
+      "layout": "vertical",
+      "sort": {
+        "default": "by-suit",
+        "options": [
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "by-suit",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": ["6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+          }
+        ]
+      }
+    },
+    "TEAM-A-WON": { "layout": "complete", "showDetails": false },
+    "TEAM-B-WON": { "layout": "complete", "showDetails": false },
+    "trick": { "layout": "horizontal" }
+  }
+}

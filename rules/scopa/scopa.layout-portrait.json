@@ -1,0 +1,30 @@
+{
+  "rulesId": "scopa",
+  "rows": 3,
+  "cols": 1,
+  "zones": [
+    {
+      "id": "P2-zone",
+      "label": "Player 2",
+      "cell": { "row": 0, "col": 0 },
+      "piles": ["P2-hand", "P2-won"]
+    },
+    {
+      "id": "table-zone",
+      "label": "Table",
+      "cell": { "row": 1, "col": 0 },
+      "piles": ["table"]
+    },
+    {
+      "id": "P1-zone",
+      "label": "Player 1",
+      "cell": { "row": 2, "col": 0 },
+      "piles": ["P1-hand", "P1-won"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": { "layout": "horizontal" },
+    "P2-hand": { "layout": "horizontal" },
+    "table": { "layout": "spread" }
+  }
+}

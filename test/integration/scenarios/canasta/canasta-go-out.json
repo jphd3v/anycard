@@ -1,0 +1,125 @@
+{
+  "id": "canasta-go-out",
+  "rulesId": "canasta",
+  "seed": "CANASTA-GO-OUT-2399",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 97
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 71
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 58
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 84
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 97
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 41
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 28
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-K",
+      "cardId": 26
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-K",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-K",
+      "cardId": 93
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-K",
+      "cardId": 107
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 77
+    }
+  ],
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "setup",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "dealerIndex": 1,
+      "players": ["P1", "P2", "P3", "P4"],
+      "turnPhase": "must-draw",
+      "turnStartTeamHadMeld": { "A": false, "B": false },
+      "tookDiscardThisTurn": false,
+      "pickedUpFromDiscardCardIds": [],
+      "cardsPlayedToMeldsThisTurn": [
+        71, 58, 84, 30, 97, 41, 28, 26, 52, 93, 107
+      ],
+      "meldHistory": {
+        "P2": {
+          "hasMeldedEver": true,
+          "hasAddedToExistingMeldEver": true
+        }
+      },
+      "gameScore": { "A": -215, "B": 645 },
+      "lastHandScore": { "A": -215, "B": 645 },
+      "result": "Hand 1 Result: P2 went out. Team A: -215, Team B: 645."
+    }
+  }
+}

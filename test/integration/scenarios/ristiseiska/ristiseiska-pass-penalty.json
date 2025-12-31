@@ -1,0 +1,311 @@
+{
+  "id": "ristiseiska-pass-penalty",
+  "rulesId": "ristiseiska",
+  "seed": "RISTISEISKA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 6
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "hearts-table",
+      "cardId": 32
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "spades-table",
+      "cardId": 45
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "clubs-table",
+      "cardId": 5
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 4
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "clubs-table",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 19
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "clubs-table",
+      "cardId": 8
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "spades-table",
+      "cardId": 44
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "hearts-table",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "spades-table",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "hearts-table",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 3
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "spades-table",
+      "cardId": 47
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 20
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "spades-table",
+      "cardId": 48
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 21
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 22
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 16
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 23
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 24
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 15
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 9
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "spades-table",
+      "cardId": 49
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "clubs-table",
+      "cardId": 11
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "spades-table",
+      "cardId": 50
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 25
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "clubs-table",
+      "cardId": 12
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "diamonds-table",
+      "cardId": 26
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "clubs-table",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "spades-table",
+      "cardId": 51
+    },
+    { "type": "action", "playerId": "P2", "action": "pass" }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "scoreboards": [
+      {
+        "id": "ristiseiska-counts",
+        "title": "Cards in hand",
+        "rows": 3,
+        "cols": 2,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Cards",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "P1",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "6", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "P2",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "9", "align": "right" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "kasino-complete",
+  "rulesId": "kasino",
+  "seed": "KASINO-COMPLETE-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1000
+  }
+}

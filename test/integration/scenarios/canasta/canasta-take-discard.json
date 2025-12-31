@@ -1,0 +1,61 @@
+{
+  "id": "canasta-take-discard",
+  "rulesId": "canasta",
+  "seed": "CANASTA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 71
+    },
+
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "discard",
+      "toPileId": "A-meld-4",
+      "cardId": 71
+    },
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "P3-hand",
+      "toPileId": "A-meld-4",
+      "cardId": 53
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P3",
+    "rulesState": {
+      "phase": "playing",
+      "hasDealt": true,
+      "dealNumber": 1,
+      "dealerIndex": 0,
+      "players": ["P1", "P2", "P3", "P4"],
+      "turnPhase": "meld-or-discard",
+      "turnStartTeamHadMeld": { "A": false, "B": false },
+      "tookDiscardThisTurn": true,
+      "pickedUpFromDiscardCardIds": [59],
+      "cardsPlayedToMeldsThisTurn": [71, 30, 84, 53],
+      "meldHistory": {
+        "P3": {
+          "hasMeldedEver": true,
+          "hasAddedToExistingMeldEver": true
+        }
+      },
+      "gameScore": { "A": 0, "B": 0 },
+      "lastHandScore": { "A": 0, "B": 0 },
+      "result": null
+    }
+  }
+}

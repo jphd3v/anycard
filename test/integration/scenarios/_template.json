@@ -1,0 +1,13 @@
+{
+  "id": "example",
+  "rulesId": "your-game",
+  "seed": "INTEGRATION-SEED",
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "intents": [{ "type": "action", "playerId": "P1", "action": "TODO" }],
+  "expect": {
+    "winner": null
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "pinnacola-poker-of-jokers",
+  "rulesId": "pinnacola",
+  "seed": "PINNACOLA-JOKER-3032",
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 75
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 105
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 106
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 107
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-0",
+      "cardId": 108
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 75
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "kasino-special-10d",
+  "rulesId": "kasino",
+  "seed": "KASINO-SPECIAL-26",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-won",
+      "cardId": 22
+    }
+  ],
+  "expect": {
+    "rulesState": {
+      "dealNumber": 1,
+      "handPoints": {
+        "P1": 2,
+        "P2": 0
+      },
+      "hasDealt": true,
+      "isLastDeal": false,
+      "lastCapturer": "P1",
+      "phase": "playing",
+      "result": null,
+      "players": ["P1", "P2"],
+      "roundNumber": 1,
+      "scores": {
+        "P1": 0,
+        "P2": 0
+      },
+      "sweeps": {
+        "P1": 0,
+        "P2": 0
+      }
+    }
+  }
+}

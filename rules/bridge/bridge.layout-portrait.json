@@ -1,0 +1,185 @@
+{
+  "rulesId": "bridge",
+  "rows": 5,
+  "cols": 4,
+  "zones": [
+    {
+      "id": "north",
+      "label": "North",
+      "cell": { "row": 0, "col": 0, "colspan": 4 },
+      "piles": ["N-hand"]
+    },
+    {
+      "id": "west",
+      "label": "West",
+      "cell": { "row": 1, "col": 0, "rowspan": 3 },
+      "piles": ["W-hand"]
+    },
+    {
+      "id": "center",
+      "cell": { "row": 1, "col": 1, "colspan": 2 },
+      "piles": ["trick"]
+    },
+    {
+      "id": "east",
+      "label": "East",
+      "cell": { "row": 1, "col": 3, "rowspan": 3 },
+      "piles": ["E-hand"]
+    },
+    {
+      "id": "actions-area",
+      "cell": { "row": 2, "col": 1, "colspan": 2, "rowspan": 2 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "south",
+      "label": "South",
+      "cell": { "row": 4, "col": 0, "colspan": 4 },
+      "piles": ["S-hand"]
+    }
+  ],
+  "pileStyles": {
+    "N-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, 2..A",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "S-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, 2..A",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "W-hand": {
+      "layout": "vertical",
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, 2..A",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "E-hand": {
+      "layout": "vertical",
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, 2..A",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "trick": { "layout": "horizontal" }
+  }
+}

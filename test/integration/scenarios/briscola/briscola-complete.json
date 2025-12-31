@@ -1,0 +1,22 @@
+{
+  "id": "briscola-complete",
+  "rulesId": "briscola",
+  "seed": "BRISCOLA-AUTO-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100
+  },
+  "expect": {
+    "rulesState": {
+      "phase": "ended",
+      "hasDealt": false,
+      "briscolaSuit": "hearts",
+      "currentTrick": null,
+      "dealNumber": 1,
+      "players": ["P1", "P2"],
+      "result": "Hand 1 Result: P1: 26 pts, P2: 94 pts.",
+      "roundNumber": 1
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "rulesId": "katko",
+  "rows": 3,
+  "cols": 4,
+  "zones": [
+    {
+      "id": "P2-area",
+      "cell": { "row": 0, "col": 0, "rowspan": 1, "colspan": 3 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "table",
+      "cell": { "row": 1, "col": 0, "rowspan": 1, "colspan": 3 },
+      "piles": ["trick", "discard"]
+    },
+    {
+      "id": "P1-area",
+      "cell": { "row": 2, "col": 0, "rowspan": 1, "colspan": 3 },
+      "piles": ["P1-hand"]
+    },
+    {
+      "id": "scoreboards",
+      "cell": { "row": 1, "col": 3, "rowspan": 2, "colspan": 1 },
+      "piles": [],
+      "widget": "scoreboards"
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By suit, then rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By suit, then rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "bySuitRank"
+          }
+        ]
+      }
+    },
+    "trick": { "layout": "horizontal" },
+    "discard": { "layout": "complete" }
+  }
+}

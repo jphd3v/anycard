@@ -1,0 +1,70 @@
+{
+  "id": "briscola-scoring",
+  "rulesId": "briscola",
+  "seed": "BRISCOLA-AUTO-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100
+  },
+  "expect": {
+    "winner": "P2",
+    "scoreboards": [
+      {
+        "id": "briscola-main",
+        "title": "Briscola score",
+        "rows": 4,
+        "cols": 3,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Points",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Cards",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "P1",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "26", "align": "right" },
+          { "row": 1, "col": 2, "text": "16", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "P2",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "94", "align": "right" },
+          { "row": 2, "col": 2, "text": "24", "align": "right" },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "Trump Suit",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 3, "col": 1, "text": "♥️", "colspan": 2, "align": "center" }
+        ]
+      }
+    ]
+  }
+}

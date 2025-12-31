@@ -1,0 +1,10 @@
+{
+  "rulesId": "canasta",
+  "gameName": "Canasta",
+  "description": "Classic 4-player partnership Rummy. Use wild cards and big melds to build canastas and reach 5000 points before your opponents.",
+  "requiresJokers": true,
+  "minPlayers": 4,
+  "maxPlayers": 4,
+  "category": "Rummy",
+  "supportsActions": true
+}

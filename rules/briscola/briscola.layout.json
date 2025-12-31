@@ -1,0 +1,95 @@
+{
+  "rulesId": "briscola",
+  "rows": 4,
+  "cols": 3,
+  "zones": [
+    {
+      "id": "P2-hand-zone",
+      "cell": { "row": 0, "col": 0, "colspan": 3 },
+      "piles": ["P2-hand"],
+      "label": "Player 2"
+    },
+    {
+      "id": "briscola-area",
+      "cell": { "row": 2, "col": 2 },
+      "piles": ["briscola"],
+      "label": "Briscola"
+    },
+    {
+      "id": "trick-area",
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
+      "piles": ["trick"],
+      "label": "Trick"
+    },
+    {
+      "id": "won-area",
+      "cell": { "row": 1, "col": 0, "colspan": 3 },
+      "piles": ["P2-won", "P1-won"],
+      "label": "Captured Cards"
+    },
+    {
+      "id": "P1-hand-zone",
+      "cell": { "row": 3, "col": 0, "colspan": 3 },
+      "piles": ["P1-hand"],
+      "label": "Player 1 (You)"
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "rank-asc",
+            "label": "Rank (Point Order)",
+            "type": "byRank",
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "byRank"
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "rank-asc",
+            "label": "Rank (Point Order)",
+            "type": "byRank",
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "byRank"
+          }
+        ]
+      }
+    },
+    "briscola": { "layout": "complete", "label": "Trump" },
+    "trick": { "layout": "horizontal" },
+    "P1-won": { "layout": "complete", "showDetails": false, "label": "P1 Won" },
+    "P2-won": { "layout": "complete", "showDetails": false, "label": "P2 Won" }
+  }
+}

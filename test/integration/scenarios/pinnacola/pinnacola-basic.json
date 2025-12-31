@@ -1,0 +1,87 @@
+{
+  "id": "pinnacola-basic",
+  "rulesId": "pinnacola",
+  "seed": "PINNACOLA-SEED-1",
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 26
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 91
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-meld-0",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-meld-0",
+      "cardId": 108
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-meld-0",
+      "cardId": 61
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-meld-0",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 4
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "scoreboards": [
+      {
+        "id": "pinnacola-score",
+        "title": "Score",
+        "rows": 3,
+        "cols": 2,
+        "cells": [
+          { "row": 0, "col": 0, "text": "Player", "role": "header" },
+          { "row": 0, "col": 1, "text": "Score", "role": "header" },
+          { "row": 1, "col": 0, "text": "P1", "role": "body" },
+          { "row": 1, "col": 1, "text": "0", "role": "body" },
+          { "row": 2, "col": 0, "text": "P2", "role": "body" },
+          { "row": 2, "col": 1, "text": "0", "role": "body" }
+        ]
+      }
+    ]
+  }
+}

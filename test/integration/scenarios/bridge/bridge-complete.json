@@ -1,0 +1,13 @@
+{
+  "id": "bridge-complete",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-INTEGRATION-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 10000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  }
+}

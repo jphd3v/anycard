@@ -1,0 +1,10 @@
+{
+  "id": "ristiseiska-auto",
+  "rulesId": "ristiseiska",
+  "seed": "RISTISEISKA-AUTO-TEST",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 200
+  }
+}

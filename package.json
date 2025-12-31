@@ -1,0 +1,43 @@
+{
+  "name": "card-game",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build && npm --prefix backend run build",
+    "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:backend": "npm --prefix backend run lint",
+    "format": "prettier --write .",
+    "test:ui-smoke": "playwright test --config=playwright.config.ts test/ui-smoke/",
+    "test:ui-report": "playwright show-report test-artifacts/playwright-report",
+    "test:ui-smoke:dev": "concurrently -k -n backend,frontend,tests \"npm:dev:backend-slow\" \"npm:dev:frontend-test\" \"sleep 15 && npm run test:ui-smoke\"",
+    "dev:backend-slow": "PORT=3010 CLIENT_ORIGIN=http://localhost:5175,http://127.0.0.1:5175 npm --prefix backend run dev",
+    "dev:frontend-test": "VITE_SERVER_URL=http://localhost:3010 npm --prefix frontend run dev -- --port 5175",
+    "test:integration": "npm --prefix backend exec -- tsx ./test/integration/runner/run.ts",
+    "test:integration:inspect": "npm --prefix backend exec -- tsx ./test/integration/runner/inspect.ts",
+    "semgrep": "if command -v semgrep > /dev/null 2>&1; then semgrep scan --config auto --error; else echo \"⚠️  Semgrep not found, skipping security scan.\"; fi",
+    "verify": "npm run format && npm run lint && npm run build && npm run test:integration && npm run test:ui-smoke && npm run semgrep && echo \"\\n✅ VERIFICATION SUCCESSFUL\" || (echo \"\\n❌ VERIFICATION FAILED\" && exit 1)",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@playwright/test": "^1.57.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^17.10.0",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.9",
+    "globals": "^15.9.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.7.4",
+    "typescript-eslint": "^8.0.1",
+    "zod": "^3.23.8"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}

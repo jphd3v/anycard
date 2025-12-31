@@ -1,0 +1,10 @@
+{
+  "id": "katko-auto-full",
+  "rulesId": "katko",
+  "seed": "KATKO-AUTO-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100
+  }
+}

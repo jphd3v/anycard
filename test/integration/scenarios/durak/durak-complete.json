@@ -1,0 +1,10 @@
+{
+  "id": "durak-complete",
+  "rulesId": "durak",
+  "seed": "DURAK-INTEGRATION-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1000
+  }
+}

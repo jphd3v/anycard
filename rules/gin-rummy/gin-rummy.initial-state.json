@@ -1,0 +1,152 @@
+{
+  "rulesId": "gin-rummy",
+  "cards": {
+    "1": { "id": 1, "rank": "A", "suit": "clubs", "label": "A♣" },
+    "2": { "id": 2, "rank": "2", "suit": "clubs", "label": "2♣" },
+    "3": { "id": 3, "rank": "3", "suit": "clubs", "label": "3♣" },
+    "4": { "id": 4, "rank": "4", "suit": "clubs", "label": "4♣" },
+    "5": { "id": 5, "rank": "5", "suit": "clubs", "label": "5♣" },
+    "6": { "id": 6, "rank": "6", "suit": "clubs", "label": "6♣" },
+    "7": { "id": 7, "rank": "7", "suit": "clubs", "label": "7♣" },
+    "8": { "id": 8, "rank": "8", "suit": "clubs", "label": "8♣" },
+    "9": { "id": 9, "rank": "9", "suit": "clubs", "label": "9♣" },
+    "10": { "id": 10, "rank": "10", "suit": "clubs", "label": "10♣" },
+    "11": { "id": 11, "rank": "J", "suit": "clubs", "label": "J♣" },
+    "12": { "id": 12, "rank": "Q", "suit": "clubs", "label": "Q♣" },
+    "13": { "id": 13, "rank": "K", "suit": "clubs", "label": "K♣" },
+
+    "14": { "id": 14, "rank": "A", "suit": "diamonds", "label": "A♦" },
+    "15": { "id": 15, "rank": "2", "suit": "diamonds", "label": "2♦" },
+    "16": { "id": 16, "rank": "3", "suit": "diamonds", "label": "3♦" },
+    "17": { "id": 17, "rank": "4", "suit": "diamonds", "label": "4♦" },
+    "18": { "id": 18, "rank": "5", "suit": "diamonds", "label": "5♦" },
+    "19": { "id": 19, "rank": "6", "suit": "diamonds", "label": "6♦" },
+    "20": { "id": 20, "rank": "7", "suit": "diamonds", "label": "7♦" },
+    "21": { "id": 21, "rank": "8", "suit": "diamonds", "label": "8♦" },
+    "22": { "id": 22, "rank": "9", "suit": "diamonds", "label": "9♦" },
+    "23": { "id": 23, "rank": "10", "suit": "diamonds", "label": "10♦" },
+    "24": { "id": 24, "rank": "J", "suit": "diamonds", "label": "J♦" },
+    "25": { "id": 25, "rank": "Q", "suit": "diamonds", "label": "Q♦" },
+    "26": { "id": 26, "rank": "K", "suit": "diamonds", "label": "K♦" },
+
+    "27": { "id": 27, "rank": "A", "suit": "hearts", "label": "A♥" },
+    "28": { "id": 28, "rank": "2", "suit": "hearts", "label": "2♥" },
+    "29": { "id": 29, "rank": "3", "suit": "hearts", "label": "3♥" },
+    "30": { "id": 30, "rank": "4", "suit": "hearts", "label": "4♥" },
+    "31": { "id": 31, "rank": "5", "suit": "hearts", "label": "5♥" },
+    "32": { "id": 32, "rank": "6", "suit": "hearts", "label": "6♥" },
+    "33": { "id": 33, "rank": "7", "suit": "hearts", "label": "7♥" },
+    "34": { "id": 34, "rank": "8", "suit": "hearts", "label": "8♥" },
+    "35": { "id": 35, "rank": "9", "suit": "hearts", "label": "9♥" },
+    "36": { "id": 36, "rank": "10", "suit": "hearts", "label": "10♥" },
+    "37": { "id": 37, "rank": "J", "suit": "hearts", "label": "J♥" },
+    "38": { "id": 38, "rank": "Q", "suit": "hearts", "label": "Q♥" },
+    "39": { "id": 39, "rank": "K", "suit": "hearts", "label": "K♥" },
+
+    "40": { "id": 40, "rank": "A", "suit": "spades", "label": "A♠" },
+    "41": { "id": 41, "rank": "2", "suit": "spades", "label": "2♠" },
+    "42": { "id": 42, "rank": "3", "suit": "spades", "label": "3♠" },
+    "43": { "id": 43, "rank": "4", "suit": "spades", "label": "4♠" },
+    "44": { "id": 44, "rank": "5", "suit": "spades", "label": "5♠" },
+    "45": { "id": 45, "rank": "6", "suit": "spades", "label": "6♠" },
+    "46": { "id": 46, "rank": "7", "suit": "spades", "label": "7♠" },
+    "47": { "id": 47, "rank": "8", "suit": "spades", "label": "8♠" },
+    "48": { "id": 48, "rank": "9", "suit": "spades", "label": "9♠" },
+    "49": { "id": 49, "rank": "10", "suit": "spades", "label": "10♠" },
+    "50": { "id": 50, "rank": "J", "suit": "spades", "label": "J♠" },
+    "51": { "id": 51, "rank": "Q", "suit": "spades", "label": "Q♠" },
+    "52": { "id": 52, "rank": "K", "suit": "spades", "label": "K♠" }
+  },
+  "piles": {
+    "deck": {
+      "id": "deck",
+      "ownerId": null,
+      "visibility": "hidden",
+      "shuffle": true,
+      "cardIds": [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+        39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52
+      ]
+    },
+    "discard": {
+      "id": "discard",
+      "ownerId": null,
+      "visibility": "public",
+      "cardIds": []
+    },
+    "P1-hand": {
+      "id": "P1-hand",
+      "ownerId": "P1",
+      "visibility": "owner",
+      "cardIds": []
+    },
+    "P2-hand": {
+      "id": "P2-hand",
+      "ownerId": "P2",
+      "visibility": "owner",
+      "cardIds": []
+    }
+  },
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "currentPlayer": null,
+  "winner": null,
+  "actions": {
+    "rows": 0,
+    "cols": 0,
+    "cells": []
+  },
+  "rulesState": {
+    "phase": "dealing",
+    "players": ["P1", "P2"],
+    "hasDealt": false,
+    "turnPhase": "must-draw",
+    "lastDrawnCardId": null,
+    "lastDrawSource": null,
+    "knockPlayer": null,
+    "knockType": "none"
+  },
+  "scoreboards": [
+    {
+      "id": "gin-rummy-hand",
+      "title": "Gin Rummy (hand)",
+      "rows": 4,
+      "cols": 3,
+      "cells": [
+        { "row": 0, "col": 0, "text": "Category", "role": "header" },
+        {
+          "row": 0,
+          "col": 1,
+          "text": "P1",
+          "role": "header",
+          "align": "center"
+        },
+        {
+          "row": 0,
+          "col": 2,
+          "text": "P2",
+          "role": "header",
+          "align": "center"
+        },
+        { "row": 1, "col": 0, "text": "Deadwood", "role": "body" },
+        { "row": 1, "col": 1, "text": "0", "align": "center", "role": "body" },
+        { "row": 1, "col": 2, "text": "0", "align": "center", "role": "body" },
+        { "row": 2, "col": 0, "text": "Hand points", "role": "total" },
+        { "row": 2, "col": 1, "text": "0", "align": "center", "role": "total" },
+        { "row": 2, "col": 2, "text": "0", "align": "center", "role": "total" },
+        { "row": 3, "col": 0, "text": "Status", "role": "body" },
+        {
+          "row": 3,
+          "col": 1,
+          "text": "Dealing...",
+          "role": "body",
+          "align": "left",
+          "colspan": 2
+        }
+      ]
+    }
+  ]
+}

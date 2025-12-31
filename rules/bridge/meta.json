@@ -1,0 +1,9 @@
+{
+  "rulesId": "bridge",
+  "gameName": "Bridge",
+  "description": "Strategic 4-player partnership game with bidding and trick-taking. Compete in a classic rubber format to win two games.",
+  "minPlayers": 4,
+  "maxPlayers": 4,
+  "category": "Trick-Taking",
+  "supportsActions": true
+}

@@ -1,0 +1,848 @@
+@import "tailwindcss";
+
+@theme {
+  /* Warm Tabletop Theme Colors */
+  --color-surface-1: #e8e6e1;
+  --color-surface-2: #d6d3cc;
+  --color-surface-3: #c2beb5;
+  --color-dot: #d3d3d3;
+
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #5c5c5c;
+
+  --color-primary: #2f3e55;
+  --color-primary-hover: #3e4f6b;
+
+  /* Action Buttons (Light Theme - softer, more vibrant) */
+  --color-action-surface: #6b8ab8;
+  --color-action-surface-hover: #7b99c7;
+  --color-action-ink: #ffffff;
+
+  --color-success: #22c55e;
+  --color-success-ink: #064e3b;
+  --color-success-surface: #ecfdf3;
+
+  --color-warning: #f59e0b;
+  --color-warning-ink: #78350f;
+  --color-warning-surface: #fffbeb;
+
+  --color-error: #ef4444;
+  --color-error-ink: #7f1d1d;
+  --color-error-surface: #fef2f2;
+
+  --shadow-card: 0 1px 2.5px rgba(0, 0, 0, 0.1);
+  --shadow-floating: 0 5px 12px rgba(0, 0, 0, 0.1);
+
+  --font-sans: system-ui, sans-serif;
+  --font-serif: "Georgia", "Cambria", "Times New Roman", Times, serif;
+}
+
+[data-theme="dark"] {
+  --color-surface-1: #0b1120;
+  --color-surface-2: #121a2f;
+  --color-surface-3: #1d2942;
+  --color-dot: #11182a;
+
+  --color-ink: #e2e8f0;
+  --color-ink-muted: #94a3b8;
+
+  --color-primary: #6ba6ff;
+  --color-primary-hover: #5a90e0;
+
+  /* Action Buttons (Dark Theme - consistent with existing blue) */
+  --color-action-surface: var(--color-primary);
+  --color-action-surface-hover: var(--color-primary-hover);
+  --color-action-ink: #0b1120;
+
+  --color-success: #34d399;
+  --color-success-ink: #bbf7d0;
+  --color-success-surface: #0f2f20;
+
+  --color-warning: #fbbf24;
+  --color-warning-ink: #fde68a;
+  --color-warning-surface: #2f240d;
+
+  --color-error: #f87171;
+  --color-error-ink: #fecdd3;
+  --color-error-surface: #331316;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --shadow-floating: 0 6px 14px rgba(0, 0, 0, 0.32);
+}
+
+/* 1. SCROLL LOCKING: Vital for mobile game feel */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  /* Removed overflow: hidden and touch-action: none to allow scrolling in lobby.
+     These are applied selectively in App.tsx for the game view. */
+  overscroll-behavior: none; /* No "bounce" effect on iOS */
+  background-color: var(--color-surface-1);
+  color: var(--color-ink);
+  font-family: system-ui, sans-serif;
+}
+
+/* Background pattern */
+body {
+  background-image: radial-gradient(var(--color-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* 2. THE CARD ENGINE: Single source of truth */
+:root {
+  /* Aspect Ratio of standard cards (2.5 x 3.5 inches -> ~0.714) */
+  /* Align with our SVG assets (≈0.714, same as 5/7) so pile hitbox matches card art */
+  --card-aspect: 5/7;
+
+  /* DEFAULT (Desktop/Large Screens) */
+  --card-height: 170px;
+  --pile-gap: 1rem;
+  --table-padding: 0.5rem;
+}
+
+/* MOBILE LANDSCAPE: The "Switch" */
+/* If height is small (phones/tablets in landscape) */
+@media (orientation: landscape) and (max-height: 600px) {
+  :root {
+    /* Scale cards based on screen height.
+       25dvh means a card is 1/4th of the screen height. 
+       This guarantees 3-4 rows fit perfectly without scrolling. */
+    --card-height: 22dvh;
+    --pile-gap: 4px; /* Tighter gaps on mobile */
+  }
+
+  .game-layout {
+    flex-direction: row !important;
+  }
+
+  header.game-header {
+    width: 3.5rem !important; /* w-14 */
+    height: 100% !important;
+    flex-direction: column !important;
+    border-b: none !important;
+    border-r: 1px solid var(--color-surface-3) !important;
+    padding: 0.75rem 0 !important;
+    justify-content: space-between !important;
+  }
+
+  header.game-header .header-left {
+    flex-direction: column !important;
+    flex: none !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+  }
+
+  header.game-header .header-right {
+    flex-direction: column !important;
+    width: 100% !important;
+    align-items: center !important;
+    margin-bottom: 0.5rem !important;
+    gap: 0.75rem !important;
+  }
+
+  header.game-header .header-info {
+    display: none !important; /* Hide game name/deck count in tight vertical bar */
+  }
+
+  header.game-header .header-divider {
+    width: 2rem !important;
+    height: 1px !important;
+    margin: 0.5rem 0 !important;
+  }
+
+  /* Make TurnStatusBadge compact in vertical mode */
+  header.game-header .header-right > div:last-child {
+    width: 2.75rem !important; /* matching button-icon size */
+    height: 2.75rem !important;
+  }
+
+  header.game-header .header-right > div:last-child span {
+    display: none !important; /* Hide text and labels in tight vertical bar */
+  }
+
+  header.game-header .header-right > div:last-child div.relative {
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  .header-floating-panel {
+    top: 0.5rem !important;
+    bottom: auto !important;
+    left: 4rem !important;
+    right: auto !important;
+    align-items: flex-start !important;
+  }
+
+  .game-hud-wrapper {
+    top: 0.5rem !important;
+    left: 4rem !important; /* Move it to the right of the vertical bar */
+  }
+
+  .header-floating-panel .header-protrude {
+    transform-origin: top left !important;
+  }
+
+  .ai-log-modal {
+    top: 0.5rem !important;
+    bottom: 0.5rem !important;
+  }
+}
+
+/* MOBILE PORTRAIT */
+@media (orientation: portrait) {
+  :root {
+    /* In portrait, width is the constraint. */
+    --card-height: 11vh;
+    --pile-gap: 3px;
+    --table-padding: 3px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ai-log-modal .ai-log-title {
+    font-size: 0.525rem;
+  }
+
+  .ai-log-modal .ai-log-meta-label {
+    font-size: 5.4px;
+  }
+
+  .ai-log-modal .ai-log-meta-value {
+    font-size: 0.45rem;
+  }
+
+  .ai-log-modal .ai-log-body {
+    font-size: 0.45rem;
+  }
+
+  .ai-log-modal .ai-log-turn-title {
+    font-size: 0.45rem;
+  }
+}
+
+/* CALCULATION: Width is derived from height */
+:root {
+  --card-width: calc(var(--card-height) * var(--card-aspect));
+
+  /* Dynamic Fanning Offsets relative to card size */
+  --fan-x: calc(var(--card-width) * 0.25);
+  --fan-y: calc(var(--card-height) * 0.25);
+}
+
+/* Touch devices get a larger fan so stacked cards have more grab area */
+@media (pointer: coarse) {
+  :root {
+    --fan-x: calc(var(--card-width) * 0.55);
+    --fan-y: calc(var(--card-height) * 0.55);
+  }
+}
+
+/* Utility to center the game board */
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+@layer components {
+  .bg-panel {
+    background-color: color-mix(
+      in srgb,
+      var(--color-surface-1) 88%,
+      transparent
+    );
+  }
+
+  .glass-panel {
+    background-color: color-mix(
+      in srgb,
+      var(--color-surface-1) 85%,
+      transparent
+    );
+    backdrop-filter: blur(12px);
+    border: 1px solid
+      color-mix(in srgb, var(--color-surface-3) 65%, transparent);
+  }
+
+  .spinner {
+    border-radius: 9999px;
+    border-width: 4px;
+    border-style: solid;
+    border-color: var(--color-surface-3);
+    border-top-color: var(--color-primary);
+    animation: spin 1s linear infinite;
+  }
+
+  /* HUD Menu */
+  .hud-menu {
+    transition: transform 150ms ease;
+  }
+
+  .header-protrude {
+    --header-protrude-open-x: 0px;
+    --header-protrude-open-y: 18px;
+    --header-protrude-closed-x: 0px;
+    --header-protrude-closed-y: 0px;
+  }
+
+  .header-protrude[data-open="true"] {
+    --tw-translate-x: var(--header-protrude-open-x);
+    --tw-translate-y: var(--header-protrude-open-y);
+  }
+
+  .header-protrude[data-open="false"] {
+    --tw-translate-x: var(--header-protrude-closed-x);
+    --tw-translate-y: var(--header-protrude-closed-y);
+  }
+
+  .header-panel-slot {
+    max-height: 80vh;
+    overflow: hidden;
+  }
+
+  .header-panel-slot[data-open="false"] {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .header-panel-slot[data-open="true"] + .header-panel-slot[data-open="true"] {
+    margin-top: 0.5rem;
+  }
+
+  @media (orientation: landscape) and (max-height: 600px) {
+    .header-protrude {
+      --header-protrude-open-x: 18px;
+      --header-protrude-open-y: 0px;
+      --header-protrude-closed-x: 0px;
+      --header-protrude-closed-y: 0px;
+    }
+  }
+
+  /* Button system */
+  .button-base {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-transparent transition-all duration-150 shadow-card select-none touch-none cursor-pointer;
+    font-weight: 600;
+    /* Prevent touch highlight */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .button-base:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-primary) 50%, transparent);
+    outline-offset: 2px;
+  }
+
+  .button-base:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .button-base:active:not(:disabled) {
+    transform: translateY(2px) scale(0.99);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Prevent stuck hover states on touch devices */
+  @media (hover: hover) {
+    /* Only apply hover styles on devices that support hover (non-touch) */
+    .button-secondary:hover {
+      background-color: var(--color-surface-3);
+      box-shadow: var(--shadow-floating);
+    }
+
+    .button-primary:hover {
+      background-color: var(--color-primary-hover);
+      box-shadow: var(--shadow-floating);
+    }
+
+    .button-ghost:hover {
+      background-color: var(--color-surface-2);
+      color: var(--color-primary);
+      border-color: var(--color-surface-3);
+      box-shadow: var(--shadow-card);
+    }
+
+    .button-danger:hover {
+      background-color: color-mix(
+        in srgb,
+        var(--color-error-surface) 60%,
+        var(--color-surface-2)
+      );
+      box-shadow: var(--shadow-card);
+    }
+  }
+
+  @media (hover: none) {
+    /* On touch devices, prevent hover states from getting stuck */
+    .button-secondary:hover {
+      background-color: initial !important;
+      box-shadow: initial !important;
+    }
+
+    .button-primary:hover {
+      background-color: initial !important;
+      box-shadow: initial !important;
+    }
+
+    .button-ghost:hover {
+      background-color: initial !important;
+      color: initial !important;
+      border-color: initial !important;
+      box-shadow: initial !important;
+    }
+
+    .button-danger:hover {
+      background-color: initial !important;
+      box-shadow: initial !important;
+    }
+  }
+
+  .button-secondary {
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+    border-color: var(--color-surface-3);
+  }
+
+  .button-secondary:hover {
+    background-color: var(--color-surface-3);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .button-secondary:active:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--color-surface-3) 70%,
+      var(--color-surface-2)
+    );
+  }
+
+  .button-secondary:disabled {
+    background-color: color-mix(
+      in srgb,
+      var(--color-surface-2) 80%,
+      transparent
+    );
+    color: var(--color-ink-muted);
+    border-color: var(--color-surface-3);
+  }
+
+  .button-primary {
+    background-color: var(--color-action-surface);
+    color: var(--color-action-ink);
+    border-color: var(--color-action-surface);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .button-primary:hover {
+    background-color: var(--color-action-surface-hover);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .button-primary:active:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--color-action-surface-hover) 80%,
+      black 6%
+    );
+  }
+
+  .button-primary:disabled {
+    background-color: color-mix(
+      in srgb,
+      var(--color-action-surface) 55%,
+      var(--color-surface-2)
+    );
+    border-color: color-mix(
+      in srgb,
+      var(--color-action-surface) 65%,
+      var(--color-surface-3)
+    );
+    color: color-mix(
+      in srgb,
+      var(--color-action-ink) 75%,
+      var(--color-ink-muted)
+    );
+  }
+
+  .button-ghost {
+    background-color: transparent;
+    color: var(--color-ink-muted);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .button-ghost:hover {
+    background-color: var(--color-surface-2);
+    color: var(--color-primary);
+    border-color: var(--color-surface-3);
+    box-shadow: var(--shadow-card);
+  }
+
+  .button-ghost:active:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--color-surface-2) 80%,
+      var(--color-surface-1)
+    );
+  }
+
+  .button-danger {
+    background-color: var(--color-error-surface);
+    color: var(--color-error);
+    border-color: color-mix(in srgb, var(--color-error) 60%, transparent);
+  }
+
+  .button-danger:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--color-error-surface) 60%,
+      var(--color-surface-2)
+    );
+    box-shadow: var(--shadow-card);
+  }
+
+  .button-danger:active:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--color-error-surface) 75%,
+      var(--color-surface-2)
+    );
+  }
+
+  .button-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border-radius: 9999px;
+  }
+
+  .button-left {
+    justify-content: flex-start;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .markdown-content h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    margin-top: 1rem;
+    color: var(--color-primary);
+  }
+  .markdown-content h2 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--color-ink);
+  }
+  .markdown-content h3 {
+    font-size: 1.125rem;
+    font-weight: bold;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+    color: var(--color-ink);
+  }
+  .markdown-content p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+    color: var(--color-ink);
+  }
+  .markdown-content ul {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-ink);
+  }
+  .markdown-content ol {
+    list-style-type: decimal;
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-ink);
+  }
+  .markdown-content li {
+    margin-bottom: 0.25rem;
+    line-height: 1.5;
+  }
+  .markdown-content strong {
+    font-weight: bold;
+    color: var(--color-ink);
+  }
+  .markdown-content em {
+    font-style: italic;
+    color: var(--color-ink);
+  }
+  .markdown-content code {
+    background-color: var(--color-surface-2);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-family: "Courier New", monospace;
+    color: var(--color-ink);
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-ink);
+}
+
+/* View Transitions */
+:root,
+body,
+#root {
+  view-transition-name: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  opacity: 1;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  /* Default to 1s, but allow JS to override via --transition-duration */
+  animation-duration: var(
+    --transition-duration,
+    1.05s
+  ); /* Slow card view transitions ~2x for moves */
+  animation-timing-function: ease-in-out;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-image-pair(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* === NEW ANIMATIONS === */
+@layer utilities {
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-toast-pop {
+    animation: toast-pop 220ms ease-out;
+  }
+
+  .animate-action-pop {
+    animation: action-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .animate-cell-pop {
+    position: relative;
+    will-change: transform;
+    transform-origin: center;
+    animation: cell-pop-scale 1040ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .animate-cell-pop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    opacity: 0;
+    transform: scale(1);
+    animation: cell-pop-overlay 1440ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .animate-card-shiver {
+    animation: card-shiver 4s ease-in-out infinite;
+  }
+
+  .animate-card-shiver-fast {
+    animation: card-shiver 2s ease-in-out infinite;
+  }
+
+  .font-serif-display {
+    font-family: var(--font-serif);
+  }
+
+  .bg-suit-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg font-family='serif' font-size='24' text-anchor='middle'%3E%3Ctext x='25' y='40' fill='%231a1a1a' fill-opacity='0.05'%3E%E2%99%A0%3C/text%3E%3Ctext x='75' y='40' fill='%23ef4444' fill-opacity='0.05'%3E%E2%99%A5%3C/text%3E%3Ctext x='25' y='90' fill='%231a1a1a' fill-opacity='0.05'%3E%E2%99%A3%3C/text%3E%3Ctext x='75' y='90' fill='%23ef4444' fill-opacity='0.05'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Custom Scrollbar for the rules modal */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .seat-selection-panel {
+    transform-origin: top center;
+    touch-action: pan-y;
+  }
+
+  @media (max-width: 430px) {
+    .seat-selection-panel {
+      transform: scale(0.96);
+    }
+  }
+
+  @media (max-width: 360px) {
+    .seat-selection-panel {
+      transform: scale(0.9);
+    }
+  }
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes card-shiver {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(0.5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-1px) rotate(-0.5deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes toast-pop {
+  0% {
+    transform: translateY(6px) scale(0.98);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes action-pop {
+  0% {
+    transform: scale(0.98);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cell-pop-overlay {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0.85;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes cell-pop-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Typewriter dot animation for "Thinking..." */
+.dots-loading::after {
+  content: ".";
+  animation: dots 1.5s steps(5, end) infinite;
+}
+
+@keyframes dots {
+  0%,
+  20% {
+    content: ".";
+  }
+  40% {
+    content: "..";
+  }
+  60% {
+    content: "...";
+  }
+  80%,
+  100% {
+    content: "";
+  }
+}
+
+@keyframes float-up-fade {
+  0% {
+    transform: translate(-50%, 10px) scale(0.9);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, 0) scale(1.05);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(-50%, -5px) scale(1);
+    opacity: 1;
+  }
+  80% {
+    transform: translate(-50%, -30px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-float-up-fade {
+  animation: float-up-fade 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes subtle-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-subtle-bounce {
+  animation: subtle-bounce 2.5s ease-in-out infinite;
+}

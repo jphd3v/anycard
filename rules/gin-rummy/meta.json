@@ -1,0 +1,9 @@
+{
+  "rulesId": "gin-rummy",
+  "gameName": "Gin Rummy",
+  "description": "Classic two-player Rummy. Draw and discard to form melds and minimize unmatched cards. Reach 100 points to win the match.",
+  "minPlayers": 2,
+  "maxPlayers": 2,
+  "category": "Rummy",
+  "supportsActions": true
+}

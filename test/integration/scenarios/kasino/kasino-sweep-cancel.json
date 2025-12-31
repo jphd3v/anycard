@@ -1,0 +1,60 @@
+{
+  "id": "kasino-sweep-cancel",
+  "rulesId": "kasino",
+  "seed": "KASINO-DOUBLE-SWEEP-18",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-won",
+      "cardId": 40
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "table",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "table",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-won",
+      "cardId": 7
+    }
+  ],
+  "expect": {
+    "rulesState": {
+      "dealNumber": 1,
+      "handPoints": {
+        "P1": 1,
+        "P2": 0
+      },
+      "hasDealt": true,
+      "isLastDeal": false,
+      "lastCapturer": "P2",
+      "phase": "playing",
+      "result": null,
+      "players": ["P1", "P2"],
+      "roundNumber": 1,
+      "scores": {
+        "P1": 0,
+        "P2": 0
+      },
+      "sweeps": {
+        "P1": 1,
+        "P2": 1
+      }
+    }
+  }
+}

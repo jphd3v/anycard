@@ -1,0 +1,146 @@
+{
+  "id": "gin-rummy-match",
+  "rulesId": "gin-rummy",
+  "seed": "FIND-144",
+  "players": [
+    { "id": "P1", "name": "Player 1" },
+    { "id": "P2", "name": "Player 2" }
+  ],
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P2", "action": "take-upcard" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 15
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 47
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 40
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 35
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 11
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 25
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 23
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 51
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 12
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 3
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 16
+    },
+    { "type": "action", "playerId": "P2", "action": "knock" },
+    { "type": "action", "playerId": "P2", "action": "start-game" }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "first-upcard-non-dealer",
+      "hasDealt": true,
+      "dealNumber": 2,
+      "players": ["P1", "P2"],
+      "dealer": "P1",
+      "turnPhase": "must-draw",
+      "lastDrawnCardId": null,
+      "lastDrawSource": null,
+      "knockPlayer": null,
+      "knockType": "none",
+      "result": null,
+      "matchScores": { "P1": 0, "P2": 32 },
+      "handWins": { "P1": 0, "P2": 1 },
+      "matchWinner": null
+    }
+  }
+}

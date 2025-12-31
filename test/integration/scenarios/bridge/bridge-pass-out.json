@@ -1,0 +1,43 @@
+{
+  "id": "bridge-pass-out",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-TEST-PASS",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "N", "action": "pass" },
+    { "type": "action", "playerId": "E", "action": "pass" },
+    { "type": "action", "playerId": "S", "action": "pass" },
+    { "type": "action", "playerId": "W", "action": "pass" }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "rulesState": {
+      "aboveEW": 0,
+      "aboveNS": 0,
+      "belowEW": 0,
+      "belowNS": 0,
+      "bidding": {
+        "highestBid": null,
+        "history": [],
+        "passesInRow": 0
+      },
+      "contract": null,
+      "currentTrick": {
+        "cards": [],
+        "leadSuit": null
+      },
+      "currentTrickNumber": 1,
+      "dealNumber": 2,
+      "dealerSeat": "E",
+      "gamesEW": 0,
+      "gamesNS": 0,
+      "hasDealt": false,
+      "phase": "bidding",
+      "play": null,
+      "result": null,
+      "rubberFinished": false,
+      "tricksEW": 0,
+      "tricksNS": 0
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "canasta-empty-stock",
+  "rulesId": "canasta",
+  "seed": "CANASTA-EMPTY-STOCK-1",
+  "mode": "auto",
+  "auto": {
+    "maxMoves": 1000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  }
+}

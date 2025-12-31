@@ -1,0 +1,29 @@
+{
+  "id": "gin-rummy-blocked",
+  "rulesId": "gin-rummy",
+  "seed": "GIN-BLOCKED-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100
+  },
+  "expect": {
+    "winner": null,
+    "rulesState": {
+      "phase": "ended",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "players": ["P1", "P2"],
+      "dealer": "P1",
+      "turnPhase": "must-discard",
+      "lastDrawnCardId": null,
+      "lastDrawSource": "deck",
+      "knockPlayer": null,
+      "knockType": "blocked",
+      "result": "Hand 1 Result: Blocked (deck empty). No points scored.",
+      "matchScores": { "P1": 0, "P2": 0 },
+      "handWins": { "P1": 0, "P2": 0 },
+      "matchWinner": null
+    }
+  }
+}

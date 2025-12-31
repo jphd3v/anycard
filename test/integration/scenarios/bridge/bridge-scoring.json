@@ -1,0 +1,44 @@
+{
+  "id": "bridge-scoring",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-INTEGRATION-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "rulesState": {
+      "aboveEW": 300,
+      "aboveNS": 0,
+      "belowEW": 0,
+      "belowNS": 0,
+      "bidding": {
+        "highestBid": null,
+        "history": [],
+        "passesInRow": 0
+      },
+      "contract": null,
+      "currentTrick": {
+        "cards": [],
+        "leadSuit": null
+      },
+      "currentTrickNumber": 1,
+      "dealNumber": 2,
+      "dealerSeat": "E",
+      "gamesEW": 0,
+      "gamesNS": 0,
+      "hasDealt": false,
+      "phase": "bidding",
+      "play": null,
+      "result": null,
+      "rubberFinished": false,
+      "trickLeader": "E",
+      "tricksEW": 0,
+      "tricksNS": 0
+    }
+  }
+}

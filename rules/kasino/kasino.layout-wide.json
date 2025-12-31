@@ -1,0 +1,32 @@
+{
+  "rulesId": "kasino",
+  "rows": 2,
+  "cols": 2,
+  "zones": [
+    {
+      "id": "player1-area",
+      "label": "Player 1",
+      "cell": { "row": 0, "col": 0, "colspan": 1 },
+      "piles": ["P1-hand", "P1-won"]
+    },
+    {
+      "id": "player2-area",
+      "label": "Player 2",
+      "cell": { "row": 0, "col": 1, "colspan": 1 },
+      "piles": ["P2-hand", "P2-won"]
+    },
+    {
+      "id": "table-area",
+      "label": "Table",
+      "cell": { "row": 1, "col": 0, "colspan": 2 },
+      "piles": ["table"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": { "layout": "horizontal" },
+    "P2-hand": { "layout": "horizontal" },
+    "P1-won": { "layout": "complete", "showDetails": true },
+    "P2-won": { "layout": "complete", "showDetails": true },
+    "table": { "layout": "spread" }
+  }
+}

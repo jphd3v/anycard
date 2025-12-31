@@ -1,0 +1,17 @@
+{
+  "id": "durak-first-attacker-p2",
+  "rulesId": "durak",
+  "seed": "DURAK-INTEGRATION-2",
+  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "hasDealt": true,
+      "trumpSuit": "diamonds",
+      "attackerId": "P2",
+      "defenderId": "P1",
+      "result": null,
+      "bout": []
+    }
+  }
+}

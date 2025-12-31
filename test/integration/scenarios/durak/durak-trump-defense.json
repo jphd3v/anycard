@@ -1,0 +1,34 @@
+{
+  "id": "durak-trump-defense",
+  "rulesId": "durak",
+  "seed": "DURAK-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "table",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "table",
+      "cardId": 17
+    },
+    { "type": "action", "playerId": "P1", "action": "done" }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "hasDealt": true,
+      "trumpSuit": "diamonds",
+      "attackerId": "P2",
+      "defenderId": "P1",
+      "result": null,
+      "bout": []
+    }
+  }
+}

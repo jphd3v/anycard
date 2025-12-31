@@ -1,0 +1,41 @@
+{
+  "id": "canasta-basic",
+  "rulesId": "canasta",
+  "seed": "CANASTA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 66
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P3",
+    "rulesState": {
+      "phase": "playing",
+      "hasDealt": true,
+      "dealNumber": 1,
+      "dealerIndex": 0,
+      "players": ["P1", "P2", "P3", "P4"],
+      "turnPhase": "must-draw",
+      "turnStartTeamHadMeld": { "A": false, "B": false },
+      "tookDiscardThisTurn": false,
+      "pickedUpFromDiscardCardIds": [],
+      "cardsPlayedToMeldsThisTurn": [],
+      "meldHistory": {},
+      "gameScore": { "A": 0, "B": 0 },
+      "lastHandScore": { "A": 0, "B": 0 },
+      "result": null
+    }
+  }
+}
