@@ -91,7 +91,7 @@ export function AboutOverlay({ onClose }: Props) {
             <p className="leading-relaxed">
               This software is licensed under the{" "}
               <a
-                href="https://github.com/user/anycard/blob/main/LICENSE.txt"
+                href="https://github.com/jphd3v/anycard/blob/main/LICENSE.txt"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline font-bold"
@@ -100,7 +100,7 @@ export function AboutOverlay({ onClose }: Props) {
               </a>
               . The source code is available on{" "}
               <a
-                href="https://github.com/user/anycard"
+                href="https://github.com/jphd3v/anycard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
