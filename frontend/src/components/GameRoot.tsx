@@ -10,7 +10,12 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useAtomValue, useSetAtom } from "jotai";
-import type { CardView, GameView, PileLayout } from "../../../shared/schemas";
+import type {
+  CardView,
+  GameView,
+  MoveIntent,
+  PileLayout,
+} from "../../../shared/schemas";
 import {
   cardSetAtom,
   activeTransitionCardIdsAtom,
@@ -22,7 +27,7 @@ import {
   autoRotateSeatAtom,
   pendingDragMoveAtom,
 } from "../state";
-import { sendMoveIntent, sendActionIntent } from "../socket";
+import { sendMoveIntent, sendActionIntent, sendClientIntent } from "../socket";
 import { Card } from "./Card";
 import { Pile } from "./Pile";
 import { Zone } from "./Zone";
@@ -276,6 +281,15 @@ export function GameRoot({
         return;
       }
 
+      const matchingIntent = view.legalIntents?.find(
+        (intent): intent is MoveIntent =>
+          intent.type === "move" &&
+          intent.fromPileId === fromPileId &&
+          intent.toPileId === toPileId &&
+          (intent.cardId === cardId ||
+            intent.cardIds?.includes(cardId) === true)
+      );
+
       setPendingDragMove({
         gameId,
         playerId,
@@ -289,14 +303,22 @@ export function GameRoot({
         const targetPile = draft.piles.find((p) => p.id === toPileId);
 
         if (sourcePile && targetPile) {
-          const cardIndex = sourcePile.cards.findIndex((c) => c.id === cardId);
-          if (cardIndex !== -1) {
-            const [card] = sourcePile.cards.splice(cardIndex, 1);
-            targetPile.cards.push(card);
+          const cardIdsToMove = matchingIntent?.cardIds ?? [cardId];
+          for (const cid of cardIdsToMove) {
+            const cardIndex = sourcePile.cards.findIndex((c) => c.id === cid);
+            if (cardIndex !== -1) {
+              const [card] = sourcePile.cards.splice(cardIndex, 1);
+              targetPile.cards.push(card);
+            }
           }
         }
       });
-      sendMoveIntent(gameId, playerId, fromPileId, toPileId, cardId);
+
+      if (matchingIntent) {
+        sendClientIntent(matchingIntent);
+      } else {
+        sendMoveIntent(gameId, playerId, fromPileId, toPileId, cardId);
+      }
       setIsEvaluating(true);
     },
     [
@@ -306,6 +328,7 @@ export function GameRoot({
       setView,
       addStatusMessage,
       view.currentPlayer,
+      view.legalIntents,
       freeDragEnabled,
       isAutomatedSeat,
       zoneProxyPileIds,

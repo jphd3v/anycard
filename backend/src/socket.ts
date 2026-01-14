@@ -731,17 +731,28 @@ function broadcastState(
         const legalIntents =
           info.role === "player"
             ? listLegalIntentsForPlayer(state.gameId, info.playerId).map(
-                (intent) =>
-                  intent.type === "move"
-                    ? {
-                        ...intent,
-                        cardId: toViewCardId(
-                          intent.cardId!,
-                          viewSalt,
-                          info.playerId
-                        ),
-                      }
-                    : intent
+                (intent) => {
+                  if (intent.type !== "move") return intent;
+                  if (intent.cardId !== undefined) {
+                    return {
+                      ...intent,
+                      cardId: toViewCardId(
+                        intent.cardId,
+                        viewSalt,
+                        info.playerId
+                      ),
+                    };
+                  }
+                  if (intent.cardIds !== undefined) {
+                    return {
+                      ...intent,
+                      cardIds: intent.cardIds.map((id) =>
+                        toViewCardId(id, viewSalt, info.playerId)
+                      ),
+                    };
+                  }
+                  return intent;
+                }
               )
             : undefined;
 
@@ -1320,14 +1331,24 @@ export function initSocket(io: Server) {
       const viewSalt = getViewSalt(gameId);
       const legalIntents =
         role === "player"
-          ? listLegalIntentsForPlayer(gameId, playerId).map((intent) =>
-              intent.type === "move"
-                ? {
-                    ...intent,
-                    cardId: toViewCardId(intent.cardId!, viewSalt, playerId),
-                  }
-                : intent
-            )
+          ? listLegalIntentsForPlayer(gameId, playerId).map((intent) => {
+              if (intent.type !== "move") return intent;
+              if (intent.cardId !== undefined) {
+                return {
+                  ...intent,
+                  cardId: toViewCardId(intent.cardId, viewSalt, playerId),
+                };
+              }
+              if (intent.cardIds !== undefined) {
+                return {
+                  ...intent,
+                  cardIds: intent.cardIds.map((id) =>
+                    toViewCardId(id, viewSalt, playerId)
+                  ),
+                };
+              }
+              return intent;
+            })
           : undefined;
 
       socket.emit("game:state", {
@@ -1491,24 +1512,6 @@ export function initSocket(io: Server) {
             const isFrontendAiSponsor =
               resolveSeatRuntime(seat) === "frontend" &&
               seat.aiSponsorConnectionId === socket.id;
-
-            if (
-              effectiveIntent.type === "move" &&
-              !seat.isAi &&
-              isHumanOwner &&
-              effectiveIntent.cardIds &&
-              effectiveIntent.cardIds.length > 0
-            ) {
-              const reason = "Multi-card moves are available to AI seats only.";
-              socket.emit("game:validation", {
-                valid: false,
-                reason,
-                nextPlayer: null,
-                source: "engine",
-              });
-              socket.emit("game:invalid", { reason });
-              return;
-            }
 
             if (!isHumanOwner && !isFrontendAiSponsor) {
               socket.emit("game:error", {

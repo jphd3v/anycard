@@ -1,4 +1,4 @@
-import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { useDroppable, useDraggable, useDndContext } from "@dnd-kit/core";
 import { CSSProperties } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import {
@@ -15,7 +15,7 @@ import type {
 } from "../../../shared/schemas";
 import { Card } from "./Card";
 import { isTestMode } from "../utils/testMode";
-import { sendMoveIntent } from "../socket";
+import { sendMoveIntent, sendClientIntent } from "../socket";
 
 type PileDisplayView = PileView & { isHand?: boolean };
 
@@ -89,6 +89,7 @@ export function Pile({
   const view = useAtomValue(gameViewAtom);
   const myPlayerId = useAtomValue(playerIdAtom);
   const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
+  const { active } = useDndContext();
   const legalIntents = view?.legalIntents ?? [];
 
   const currentPlayerId = view?.currentPlayer;
@@ -164,15 +165,32 @@ export function Pile({
     style.alignContent = "center";
   }
 
+  const dragData = active?.data.current as
+    | { pileId?: string; cardId?: number }
+    | undefined;
+  const dragCardId =
+    typeof dragData?.cardId === "number" ? dragData.cardId : null;
+  const dragFromPileId =
+    typeof dragData?.pileId === "string" ? dragData.pileId : null;
+  const activeCardId = isClickMoveActive ? selectedCard?.cardId : dragCardId;
+  const activeFromPileId = isClickMoveActive
+    ? selectedCard?.fromPileId
+    : dragFromPileId;
+  const hasActiveSelection =
+    typeof activeCardId === "number" && !!activeFromPileId;
+
+  const isOverActive =
+    isOver && (!dragFromPileId || dragFromPileId !== pile.id);
   const isDropTarget =
-    isClickMoveActive &&
-    !!selectedCard &&
+    !freeDragEnabled &&
+    hasActiveSelection &&
     legalIntents.some(
       (intent) =>
         intent.type === "move" &&
-        intent.fromPileId === selectedCard.fromPileId &&
-        intent.cardId === selectedCard.cardId &&
-        intent.toPileId === pile.id
+        intent.fromPileId === activeFromPileId &&
+        intent.toPileId === pile.id &&
+        (intent.cardId === activeCardId ||
+          intent.cardIds?.includes(activeCardId) === true)
     );
 
   const handlePileClick = (e: React.MouseEvent) => {
@@ -182,13 +200,26 @@ export function Pile({
 
     e.stopPropagation();
 
-    sendMoveIntent(
-      view.gameId,
-      myPlayerId,
-      selectedCard.fromPileId,
-      pile.id,
-      selectedCard.cardId
+    const matchingIntent = legalIntents.find(
+      (intent) =>
+        intent.type === "move" &&
+        intent.fromPileId === selectedCard.fromPileId &&
+        intent.toPileId === pile.id &&
+        (intent.cardId === selectedCard.cardId ||
+          intent.cardIds?.includes(selectedCard.cardId))
     );
+
+    if (matchingIntent) {
+      sendClientIntent(matchingIntent);
+    } else {
+      sendMoveIntent(
+        view.gameId,
+        myPlayerId,
+        selectedCard.fromPileId,
+        pile.id,
+        selectedCard.cardId
+      );
+    }
     setSelectedCard(null);
   };
 
@@ -243,7 +274,7 @@ export function Pile({
         data-testid={`pile:${pile.id}`}
         className={`
            transition-all duration-500 rounded-lg
-           ${isOver ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
+           ${isOverActive ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
            ${isDropTarget && !isProxyTarget ? "cursor-pointer" : ""}
            ${className ?? ""}
            ${activeGlowClass}
@@ -278,7 +309,7 @@ export function Pile({
               (intent) =>
                 intent.type === "move" &&
                 intent.fromPileId === pile.id &&
-                intent.cardId === card.id
+                (intent.cardId === card.id || intent.cardIds?.includes(card.id))
             );
           const dragDisabled = !!disabled || !movable || isClickMoveActive;
           const isTopCard = index === pile.cards.length - 1;

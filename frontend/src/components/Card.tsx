@@ -159,7 +159,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         (intent) =>
           intent.type === "move" &&
           intent.fromPileId === pileId &&
-          intent.cardId === card.id
+          (intent.cardId === card.id || intent.cardIds?.includes(card.id))
       );
 
     const isClickable = isClickMoveActive && (isMovable || isMoveTarget);

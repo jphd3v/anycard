@@ -1110,7 +1110,6 @@ function generateMeldCandidates(
   }
 
   // Generate natural melds (3+ of same rank, no wilds)
-  // Only generate minimal size (3 cards) to reduce candidate explosion
   for (const cardIds of byRank.values()) {
     if (cardIds.length >= 3) {
       melds.push(cardIds.slice(0, 3)); // Only minimal meld of 3 cards
@@ -1118,7 +1117,6 @@ function generateMeldCandidates(
   }
 
   // Generate mixed melds (natural + wilds, wilds < naturals)
-  // Only generate one candidate per rank: 2 naturals + 1 wild (minimal mixed meld)
   for (const [rank, naturals] of byRank) {
     if (naturals.length >= 2 && wilds.length > 0) {
       // Check if this rank already has a meld pile started
@@ -2123,13 +2121,15 @@ export const canastaRules: GameRuleModule = {
         const hand = pileCards(state.piles[`${current}-hand`] ?? null);
 
         // Support both single-card and multi-card melds
-        const cardIds =
-          intent.cardId! !== undefined ? [intent.cardId!] : intent.cardIds!;
-        const movingCards = cardIds
+        const currentCardIds =
+          intent.cardId! !== undefined
+            ? [intent.cardId!]
+            : [...intent.cardIds!];
+        const movingCards = currentCardIds
           .map((id) => hand.find((c) => c.id === id))
           .filter((c): c is SimpleCard => !!c);
 
-        if (movingCards.length !== cardIds.length) {
+        if (movingCards.length !== currentCardIds.length) {
           return {
             valid: false,
             reason: "One or more cards not in source pile.",
@@ -2247,7 +2247,7 @@ export const canastaRules: GameRuleModule = {
           type: "move-cards",
           fromPileId: `${current}-hand`,
           toPileId: to,
-          cardIds: cardIds as [number, ...number[]],
+          cardIds: currentCardIds as [number, ...number[]],
         });
 
         // Track that we played these cards this turn
@@ -2255,7 +2255,7 @@ export const canastaRules: GameRuleModule = {
           ...nextRulesState,
           cardsPlayedToMeldsThisTurn: [
             ...nextRulesState.cardsPlayedToMeldsThisTurn,
-            ...cardIds,
+            ...currentCardIds,
           ],
         };
 
