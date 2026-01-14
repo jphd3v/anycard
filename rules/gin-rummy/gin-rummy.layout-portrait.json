@@ -151,7 +151,11 @@
         ]
       }
     },
-    "deck": { "layout": "complete" },
-    "discard": { "layout": "complete", "showTopOnly": true }
+    "deck": { "layout": "complete", "showDetails": true },
+    "discard": {
+      "layout": "complete",
+      "showTopOnly": true,
+      "showDetails": true
+    }
   }
 }
