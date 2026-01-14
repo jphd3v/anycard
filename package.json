@@ -19,6 +19,7 @@
     "test:integration": "npm --prefix backend exec -- tsx ./test/integration/runner/run.ts",
     "test:integration:inspect": "npm --prefix backend exec -- tsx ./test/integration/runner/inspect.ts",
     "semgrep": "if command -v semgrep > /dev/null 2>&1; then semgrep scan --config auto --error; else echo \"⚠️  Semgrep not found, skipping security scan.\"; fi",
+    "vercel": "COMMIT_SHA=$(git rev-parse HEAD) && COMMIT_TS=$(git log -1 --format=%ct) && npx vercel --prod --build-env VERCEL_GIT_COMMIT_SHA=$COMMIT_SHA --build-env VERCEL_GIT_COMMIT_TIMESTAMP=$COMMIT_TS",
     "verify": "npm run format && npm run lint && npm run build && npm run test:integration && npm run test:ui-smoke && npm run semgrep && echo \"\\n✅ VERIFICATION SUCCESSFUL\" || (echo \"\\n❌ VERIFICATION FAILED\" && exit 1)",
     "prepare": "husky"
   },

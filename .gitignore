@@ -12,6 +12,9 @@ backend/dist/
 .env.*
 !.env.example
 
+# Vercel
+.vercel/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

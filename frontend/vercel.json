@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "^(?!/api).*$", "dest": "/index.html" }
-  ]
-}

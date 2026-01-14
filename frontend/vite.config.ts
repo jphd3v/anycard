@@ -3,19 +3,46 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { execSync } from "node:child_process";
 
 const workspaceRoot = path.resolve(
   fileURLToPath(new URL(".", import.meta.url)),
   ".."
 );
 
-const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const commitDate = execSync(
-  "git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M'"
-)
-  .toString()
-  .trim();
+const envCommitSha =
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  process.env.GIT_COMMIT_SHA ??
+  null;
+const envCommitDate =
+  process.env.VERCEL_GIT_COMMIT_TIMESTAMP ??
+  process.env.GIT_COMMIT_DATE ??
+  process.env.GIT_COMMIT_TIMESTAMP ??
+  null;
+const envCommitShort = envCommitSha ? envCommitSha.slice(0, 7) : null;
+const buildTimestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+
+if (!envCommitShort) {
+  throw new Error(
+    "Missing commit SHA. Set VERCEL_GIT_COMMIT_SHA, GITHUB_SHA, or GIT_COMMIT_SHA."
+  );
+}
+const commitHash = envCommitShort;
+const commitDate = (() => {
+  if (!envCommitDate) {
+    return buildTimestamp;
+  }
+  const numeric = Number(envCommitDate);
+  if (Number.isFinite(numeric)) {
+    const ms = envCommitDate.length <= 10 ? numeric * 1000 : numeric;
+    return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+  }
+  const parsed = new Date(envCommitDate);
+  if (!Number.isNaN(parsed.valueOf())) {
+    return parsed.toISOString().slice(0, 16).replace("T", " ");
+  }
+  return buildTimestamp;
+})();
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
