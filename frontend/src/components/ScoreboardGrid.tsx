@@ -14,8 +14,9 @@ export function ScoreboardGrid({ scoreboard }: Props) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
   const [isCondensed, setIsCondensed] = React.useState(false);
-  const normalFontSize = "clamp(0.75rem, 2vw, 0.9rem)";
-  const condensedFontSize = "clamp(0.65rem, 1.6vw, 0.85rem)";
+  // Font sizes are defined as CSS variables in index.css with responsive media queries
+  const normalFontSize = "var(--scoreboard-font-normal)";
+  const condensedFontSize = "var(--scoreboard-font-condensed)";
 
   React.useLayoutEffect(() => {
     const container = containerRef.current;

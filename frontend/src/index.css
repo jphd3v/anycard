@@ -102,6 +102,26 @@ body {
   --zone-gap: 8px;
   --pile-gap: 24px;
   --table-padding: 0.5rem;
+
+  /* Scoreboard font sizes - default for large screens */
+  --scoreboard-font-normal: clamp(0.75rem, 2vw, 0.9rem);
+  --scoreboard-font-condensed: clamp(0.65rem, 1.6vw, 0.85rem);
+}
+
+/* Scoreboard text scaling for smaller screens (portrait - narrow width) */
+@media (max-width: 768px) {
+  :root {
+    --scoreboard-font-normal: clamp(0.56rem, 1.5vw, 0.75rem);
+    --scoreboard-font-condensed: clamp(0.5rem, 1.2vw, 0.65rem);
+  }
+}
+
+/* Scoreboard text scaling for smaller screens (landscape - short height) */
+@media (max-height: 500px) {
+  :root {
+    --scoreboard-font-normal: clamp(0.56rem, 2.5vh, 0.75rem);
+    --scoreboard-font-condensed: clamp(0.5rem, 2vh, 0.65rem);
+  }
 }
 
 /* MOBILE LANDSCAPE: The "Switch" */
