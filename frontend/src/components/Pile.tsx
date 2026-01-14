@@ -16,6 +16,7 @@ import type {
 import { Card } from "./Card";
 import { isTestMode } from "../utils/testMode";
 import { sendMoveIntent, sendClientIntent } from "../socket";
+import { isTouchOnlyDevice } from "../utils/touchDetection";
 
 type PileDisplayView = PileView & { isHand?: boolean };
 
@@ -191,13 +192,14 @@ export function Pile({
           intent.cardIds?.includes(activeCardId) === true)
     );
 
-  const isFreeMoveHoverTarget =
+  const isTouchOnly = isTouchOnlyDevice();
+  const isFreeMoveTarget =
     !isProxyTarget &&
     freeDragEnabled &&
     isClickMoveActive &&
     !!selectedCard &&
     selectedCard.fromPileId !== pile.id &&
-    isHovered;
+    (isHovered || isTouchOnly);
 
   const handlePileClick = (e: React.MouseEvent) => {
     if (!isClickMoveActive || !selectedCard || disabled) return;
@@ -282,7 +284,7 @@ export function Pile({
         data-testid={`pile:${pile.id}`}
         className={`
            transition-all duration-500 rounded-lg
-           ${isOverActive || isFreeMoveHoverTarget ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
+           ${(isOverActive && freeDragEnabled) || isFreeMoveTarget ? "ring-4 ring-target/50 bg-target/10" : ""}
            ${isDropTarget && !isProxyTarget ? "cursor-pointer" : ""}
            ${className ?? ""}
            ${activeGlowClass}
@@ -293,7 +295,7 @@ export function Pile({
         data-droptarget={isDropTarget ? "true" : undefined}
       >
         {isDropTarget && !isProxyTarget && (
-          <div className="absolute inset-0 rounded-lg ring-4 ring-target/70 animate-pulse pointer-events-none z-50" />
+          <div className="absolute inset-0 rounded-lg ring-4 ring-target/50 bg-target/10 animate-pulse-slow pointer-events-none z-50" />
         )}
         {/* Placeholder for empty pile */}
         {count === 0 && (

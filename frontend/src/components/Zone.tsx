@@ -11,6 +11,7 @@ import {
 } from "../state";
 import { isTestMode } from "../utils/testMode";
 import { sendMoveIntent, sendClientIntent } from "../socket";
+import { isTouchOnlyDevice } from "../utils/touchDetection";
 
 interface Props {
   zone: LayoutZone;
@@ -101,18 +102,19 @@ export function Zone({ zone, renderPile, disabled }: Props) {
         (intent.cardId === activeCardId ||
           intent.cardIds?.includes(activeCardId) === true)
     );
-  const isFreeMoveHoverTarget =
+  const isTouchOnly = isTouchOnlyDevice();
+  const isFreeMoveTarget =
     isSinglePileZone &&
     freeDragEnabled &&
     isClickMoveActive &&
     !!selectedCard &&
     selectedCard.fromPileId !== singlePileId &&
-    isHovered;
+    (isHovered || isTouchOnly);
 
   // Match original container styles exactly
   const containerClass = `relative flex items-center justify-center rounded-xl border transition-all duration-200 w-full h-full min-h-0 min-w-0 ${
-    isOverActive || isFreeMoveHoverTarget
-      ? "ring-4 ring-blue-400/50 bg-blue-400/10 border-blue-400/50"
+    (isOverActive && freeDragEnabled) || isFreeMoveTarget
+      ? "ring-4 ring-target/50 bg-target/10 border-target/50"
       : "border-white/10 bg-black/5"
   } ${isDropTarget ? "cursor-pointer" : ""}`;
   const contentClass =
@@ -127,7 +129,7 @@ export function Zone({ zone, renderPile, disabled }: Props) {
       onMouseLeave={() => setIsHovered(false)}
     >
       {isDropTarget && (
-        <div className="absolute inset-0 rounded-xl ring-4 ring-target/70 animate-pulse pointer-events-none z-10" />
+        <div className="absolute inset-0 rounded-xl ring-4 ring-target/50 bg-target/10 animate-pulse-slow pointer-events-none z-10" />
       )}
       <div className={contentClass} style={{ gap: "var(--pile-gap, 8px)" }}>
         {zone.piles.map((pileId) => renderPile(pileId, zone))}
