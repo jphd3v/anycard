@@ -10,7 +10,6 @@ import {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { formatCard } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -39,34 +38,6 @@ interface PinnacolaRulesState {
   cumulativeScores: Record<string, number>;
   playersWhoDiscarded: string[]; // Track who has discarded this hand
   result: string | null;
-  /**
-   * Helpful metadata and turn-specific constraints for AI agents.
-   */
-  agentGuide?: AgentGuide & {
-    turnStatus?: {
-      turnPhase: TurnPhase;
-      mustEndTurnByDiscard: boolean;
-      canGoOutNow: boolean;
-      hasPinnacola: boolean;
-      hasPoker: boolean;
-    };
-    commitValidation?: {
-      canCommitNow: boolean;
-      rejectReasons: string[] | null;
-      mustKeepCardsInHandMin: number;
-      wouldGoOutIfCommitNow: boolean;
-    };
-    mandatoryMeldCardLabel?: string | null;
-    lastRejection?: { code: string; details?: Record<string, unknown> } | null;
-    executionNotes?: string[];
-    deckMeta?: {
-      decks: number;
-      jokersPerDeck: number;
-      totalCards: number;
-      duplicatesPossible: boolean;
-      cardUniqueness: "id";
-    };
-  };
 }
 
 type SimpleCard = { id: number; rank: string; suit: string };
@@ -133,60 +104,16 @@ function getPinnacolaRulesState(
     cumulativeScores: { [validPlayers[0]]: 0, [validPlayers[1] || "P2"]: 0 },
     playersWhoDiscarded: [],
     result: null,
-    agentGuide: {
-      historyDigest: [],
-      lastRejection: null,
-    },
   };
 
   if (!raw || typeof raw !== "object") return base;
   const obj = raw as Partial<PinnacolaRulesState>;
-  const agentGuide = normalizeAgentGuide(obj.agentGuide) ?? base.agentGuide;
 
   return {
     ...base,
     ...obj,
     cumulativeScores: obj.cumulativeScores ?? base.cumulativeScores,
-    agentGuide,
   };
-}
-
-function normalizeAgentGuide(
-  agentGuide: PinnacolaRulesState["agentGuide"] | undefined
-): PinnacolaRulesState["agentGuide"] {
-  if (!agentGuide) return agentGuide;
-  const legacyHistory = (agentGuide as { history?: unknown }).history;
-  const historyDigest = Array.isArray(agentGuide.historyDigest)
-    ? agentGuide.historyDigest
-    : Array.isArray(legacyHistory)
-      ? legacyHistory.filter(
-          (entry): entry is string => typeof entry === "string"
-        )
-      : undefined;
-  if (!historyDigest || agentGuide.historyDigest) {
-    return agentGuide;
-  }
-  const rest = { ...(agentGuide as Record<string, unknown>) };
-  delete rest.history;
-  return { ...rest, historyDigest } as PinnacolaRulesState["agentGuide"];
-}
-
-function formatTurnDigest(
-  playerId: string,
-  rulesState: PinnacolaRulesState,
-  discarded: SimpleCard,
-  wentOut: boolean
-): string {
-  const parts: string[] = [];
-  const meldCount = rulesState.cardsPlayedToMeldsThisTurn.length;
-  if (meldCount > 0) {
-    parts.push(`melded ${meldCount} card${meldCount === 1 ? "" : "s"}`);
-  }
-  parts.push(`discarded ${formatCard(discarded.rank, discarded.suit)}`);
-  if (wentOut) {
-    parts.push("went out");
-  }
-  return `${playerId}: ${parts.join(", ")}.`;
 }
 
 function getOtherPlayer(current: string, players: string[]): string {
@@ -320,83 +247,12 @@ function calculateScores(
 }
 
 function recomputeDerived(
-  state: ValidationState,
+  _state: ValidationState,
   rulesState: PinnacolaRulesState,
   engineEvents: EngineEvent[]
 ): void {
-  const projected = projectPilesAfterEvents(state, engineEvents);
-
-  const pid = rulesState.turnPlayerId;
-  const ownMeldPiles = meldPileIdsForPlayer(pid);
-
-  let hasPinnacola = false;
-  let hasPoker = false;
-  for (const mid of ownMeldPiles) {
-    const cards = projected[mid]?.cards ?? [];
-    const v = validateMeld(cards);
-    if (v.isPinnacola || v.isPinnacolone) hasPinnacola = true;
-    if (v.isPoker) hasPoker = true;
-  }
-
-  let mandatoryMeldCardLabel = null;
-  if (rulesState.mandatoryMeldCardId !== null) {
-    const card = state.allCards[rulesState.mandatoryMeldCardId];
-    if (card) {
-      mandatoryMeldCardLabel = formatCard(card.rank, card.suit);
-    }
-  }
-
-  const boardErrorText = (() => {
-    for (const mid of ownMeldPiles) {
-      const p = projected[mid];
-      if (p?.size > 0 && p.cards && p.size < 3) return "MELD_TOO_SMALL";
-      if (p?.size >= 3 && p.cards && !validateMeld(p.cards).valid)
-        return "INVALID_MELD";
-    }
-    return null;
-  })();
-
-  const handSize = projected[`${pid}-hand`]?.size ?? 0;
-  const canGoOutIfCommitNow = hasPinnacola && hasPoker && handSize === 0;
-  const mustKeepCardsInHandMin = hasPinnacola && hasPoker ? 0 : 1;
-
-  const canCommitNow =
-    rulesState.turnPhase === "play-or-discard" &&
-    !boardErrorText &&
-    (handSize > 0 || canGoOutIfCommitNow);
-
   const updatedRS: PinnacolaRulesState = {
     ...rulesState,
-    agentGuide: {
-      ...rulesState.agentGuide,
-      turnStatus: {
-        turnPhase: rulesState.turnPhase,
-        mustEndTurnByDiscard: rulesState.turnPhase === "play-or-discard",
-        canGoOutNow:
-          rulesState.turnPhase === "play-or-discard" && canGoOutIfCommitNow,
-        hasPinnacola,
-        hasPoker,
-      },
-      commitValidation: {
-        canCommitNow: !!canCommitNow,
-        rejectReasons: boardErrorText ? [boardErrorText] : null,
-        mustKeepCardsInHandMin,
-        wouldGoOutIfCommitNow: canGoOutIfCommitNow,
-      },
-      mandatoryMeldCardLabel,
-      executionNotes: [
-        "Turn is committed only when discarding to the discard pile.",
-        "Intermediate meld moves may create temporarily invalid table states; only the commit action determines if the turn can end.",
-        "Multiple decks: identical rank+suit cards can exist; treat cards as distinct by id.",
-      ],
-      deckMeta: {
-        decks: 2,
-        jokersPerDeck: 2,
-        totalCards: 108,
-        duplicatesPossible: true,
-        cardUniqueness: "id",
-      },
-    },
   };
 
   engineEvents.push({ type: "set-rules-state", rulesState: updatedRS });
@@ -583,13 +439,6 @@ export const pinnacolaRules: GameRuleModule = {
         nextRS.turnPhase = "must-draw";
         nextRS.playersWhoDiscarded = [];
 
-        // Collapse history when starting new hand
-        nextRS.agentGuide = appendHistoryDigest(
-          nextRS.agentGuide,
-          `Hand ${nextDeal} started.`,
-          { summarizePrevious: rs.result || undefined }
-        );
-
         engineEvents.push({
           type: "set-current-player",
           player: nextRS.turnPlayerId,
@@ -608,21 +457,16 @@ export const pinnacolaRules: GameRuleModule = {
         intent.type === "move" &&
         intent.toPileId === `${intent.playerId}-hand`
       ) {
-        const fromPile = state.piles[intent.fromPileId];
-        if (!fromPile || !fromPile.cards?.some((c) => c.id === intent.cardId)) {
-          return {
-            valid: false,
-            reason: "Card not in source pile.",
-            engineEvents: [],
-          };
-        }
+        // Engine guarantees cardId is defined for move intents
+        const cardId = intent.cardId!;
+        // Engine guarantees card is in source pile
 
         if (intent.fromPileId === "deck") {
           engineEvents.push({
             type: "move-cards",
             fromPileId: "deck",
             toPileId: `${intent.playerId}-hand`,
-            cardIds: [intent.cardId],
+            cardIds: [cardId],
           });
           nextRS.turnPhase = "play-or-discard";
         } else if (intent.fromPileId === "discard") {
@@ -655,14 +499,7 @@ export const pinnacolaRules: GameRuleModule = {
       rs.turnPhase === "must-reuse-joker"
     ) {
       if (intent.type === "move") {
-        const fromPile = state.piles[intent.fromPileId];
-        if (!fromPile || !fromPile.cards?.some((c) => c.id === intent.cardId)) {
-          return {
-            valid: false,
-            reason: "Card not in source pile.",
-            engineEvents: [],
-          };
-        }
+        // Engine guarantees cardId is defined for move intents and card is in source pile
 
         const isToOwnMeld = intent.toPileId.startsWith(
           `${intent.playerId}-meld-`
@@ -672,9 +509,18 @@ export const pinnacolaRules: GameRuleModule = {
         );
 
         if (isToOwnMeld || isToOppMeld) {
+          // Only allow moving from own hand
+          if (intent.fromPileId !== `${intent.playerId}-hand`) {
+            return {
+              valid: false,
+              reason: "Can only meld cards from your own hand.",
+              engineEvents: [],
+            };
+          }
+
           if (
             rs.mandatoryMeldCardId &&
-            intent.cardId !== rs.mandatoryMeldCardId
+            intent.cardId! !== rs.mandatoryMeldCardId
           ) {
             const mc = state.allCards[rs.mandatoryMeldCardId];
             return {
@@ -691,7 +537,7 @@ export const pinnacolaRules: GameRuleModule = {
               rank: c.rank,
               suit: c.suit,
             })) ?? [];
-          const movingCard = state.allCards[intent.cardId];
+          const movingCard = state.allCards[intent.cardId!];
 
           // Check Joker Replacement
           const joker = cards.find((c) => c.rank === "JOKER");
@@ -705,7 +551,7 @@ export const pinnacolaRules: GameRuleModule = {
                 type: "move-cards",
                 fromPileId: intent.fromPileId,
                 toPileId: intent.toPileId,
-                cardIds: [intent.cardId],
+                cardIds: [intent.cardId!],
               });
               engineEvents.push({
                 type: "move-cards",
@@ -717,7 +563,7 @@ export const pinnacolaRules: GameRuleModule = {
               nextRS.mandatoryMeldCardId = joker.id;
               nextRS.cardsPlayedToMeldsThisTurn = [
                 ...nextRS.cardsPlayedToMeldsThisTurn,
-                intent.cardId,
+                intent.cardId!,
               ];
               recomputeDerived(state, nextRS, engineEvents);
               return { valid: true, engineEvents };
@@ -739,11 +585,11 @@ export const pinnacolaRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: intent.fromPileId,
             toPileId: intent.toPileId,
-            cardIds: [intent.cardId],
+            cardIds: [intent.cardId!],
           });
           nextRS.cardsPlayedToMeldsThisTurn = [
             ...nextRS.cardsPlayedToMeldsThisTurn,
-            intent.cardId,
+            intent.cardId!,
           ];
           if (
             rs.turnPhase === "must-meld-pozzo-top" ||
@@ -765,27 +611,20 @@ export const pinnacolaRules: GameRuleModule = {
             };
           }
           let boardError = null;
-          let code = "COMMIT_REJECTED";
           const ownMeldPiles = meldPileIdsForPlayer(intent.playerId);
           for (const mid of ownMeldPiles) {
             const p = state.piles[mid];
             if (p?.size > 0 && p.size < 3) {
               boardError = "All melds must have at least 3 cards.";
-              code = "MELD_TOO_SMALL";
               break;
             }
             if (p?.size >= 3 && p.cards && !validateMeld(p.cards).valid) {
               boardError = "One of your melds is invalid.";
-              code = "INVALID_MELD";
               break;
             }
           }
 
           if (boardError) {
-            nextRS.agentGuide = {
-              ...(nextRS.agentGuide ?? {}),
-              lastRejection: { code },
-            };
             return { valid: false, reason: boardError, engineEvents: [] };
           }
 
@@ -793,7 +632,7 @@ export const pinnacolaRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: intent.fromPileId,
             toPileId: "discard",
-            cardIds: [intent.cardId],
+            cardIds: [intent.cardId!],
           });
           const projected = projectPilesAfterEvents(state, engineEvents);
           const hand = projected[`${intent.playerId}-hand`];
@@ -850,18 +689,6 @@ export const pinnacolaRules: GameRuleModule = {
             });
           }
 
-          const movingCard = state.allCards[intent.cardId];
-          const turnDigest = formatTurnDigest(
-            intent.playerId,
-            nextRS,
-            movingCard,
-            wentOut
-          );
-          nextRS.agentGuide = {
-            ...appendHistoryDigest(nextRS.agentGuide, turnDigest),
-            lastRejection: null,
-          };
-
           const cells: ScoreboardCell[] = [
             { row: 0, col: 0, text: "Player", role: "header" },
             { row: 0, col: 1, text: "Score", role: "header" },
@@ -895,17 +722,17 @@ export const pinnacolaRules: GameRuleModule = {
           intent.toPileId === `${intent.playerId}-hand` &&
           intent.fromPileId.startsWith(`${intent.playerId}-meld-`)
         ) {
-          if (!rs.cardsPlayedToMeldsThisTurn.includes(intent.cardId))
+          if (!rs.cardsPlayedToMeldsThisTurn.includes(intent.cardId!))
             return {
               valid: false,
-              reason: "Can only take back cards played this turn.",
+              reason: "Can only unmeld cards added this turn.",
               engineEvents: [],
             };
           engineEvents.push({
             type: "move-cards",
             fromPileId: intent.fromPileId,
             toPileId: intent.toPileId,
-            cardIds: [intent.cardId],
+            cardIds: [intent.cardId!],
           });
           nextRS.cardsPlayedToMeldsThisTurn =
             nextRS.cardsPlayedToMeldsThisTurn.filter(

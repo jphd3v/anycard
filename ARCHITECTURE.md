@@ -79,7 +79,7 @@ Consequences:
 Examples:
 
 ```ts
-// Card move
+// Single-card move
 {
   type: "move",
   gameId,
@@ -87,6 +87,16 @@ Examples:
   fromPileId,
   toPileId,
   cardId,
+}
+
+// Multi-card move (e.g., melding 3 Kings at once)
+{
+  type: "move",
+  gameId,
+  playerId,
+  fromPileId,
+  toPileId,
+  cardIds: [42, 43, 44],  // Multiple cards moved atomically
 }
 
 // Button click
@@ -97,6 +107,14 @@ Examples:
   actionId,
 }
 ```
+
+**Multi-card move intents:**
+
+- A `MoveIntent` must have **exactly one** of `cardId` or `cardIds` (XOR constraint).
+- When `cardIds` is used, all cards move atomically from `fromPileId` to `toPileId`.
+- Validation occurs on the complete group, not individual cards.
+- Use cases: melding multiple cards in rummy-style games (Canasta, Gin Rummy), playing sequences, etc.
+- The engine validates that all card IDs exist in the source pile before calling the rule module.
 
 ### 1.2 Output: `ValidationResult`
 
@@ -141,7 +159,7 @@ Backend socket handler
   - zod-validate payload
   - lookup GameState via projectState(gameId)         // PRE-MOVE
   - fetch full GameEvent[] for context
-  - run preValidateIntentLocally (basic checks)
+  - run preValidateIntentLocally (basic checks)       // ENGINE-LEVEL VALIDATIONS
   - build ValidationState
   - call plugin.ruleModule.validate(ValidationState, intent)
   ↓
@@ -167,6 +185,46 @@ Frontend re-renders everything (piles, scoreboards, actions)
 
 Key point: **No automatic events happen before rules run.** Rules are responsible
 for _all_ consequences of a valid move.
+
+### 2.1 Engine-level pre-validations
+
+Before the rule module's `validate()` function is called, the engine performs several basic checks in `preValidateIntentLocally()` (see `backend/src/intent-handler.ts`):
+
+**For all intents:**
+
+- ✅ Game is not already finished (no winner set)
+
+**For `move` intents specifically:**
+
+- ✅ Exactly one of `cardId` or `cardIds` is present (XOR validation)
+- ✅ If `cardIds` is used, the array is non-empty
+- ✅ The source pile (`fromPileId`) exists in the game state
+- ✅ Every card ID in the intent actually exists in the source pile
+- ✅ The move is not a no-op (source and destination piles are different)
+
+**What this means:**
+
+Rule modules can safely assume these conditions hold. Using non-null assertions (`!`) is appropriate:
+
+```typescript
+// Safe - engine guarantees cardId is defined
+const cardId = intent.cardId!;
+
+// Safe - engine guarantees card exists in source pile
+const card = fromPile.cards!.find((c) => c.id === cardId)!;
+```
+
+**Philosophy:**
+
+While the engine provides these guarantees, rule modules are still free to add defensive checks if it improves code clarity. The key insight is that these specific validations are **not required**—the engine has already verified them.
+
+**What rule modules MUST still validate:**
+
+- Game-specific turn logic (is it this player's turn?)
+- Phase transitions (is this action allowed now?)
+- Move legality within game rules (valid melds, captures, plays, etc.)
+- Pile ownership and access permissions
+- Card combinations and sequences
 
 ---
 
@@ -590,18 +648,24 @@ This architecture treats `validate` as the **single source of truth** for game r
 When it’s an AI seat’s turn:
 
 1. Rule module (if implemented) returns `ClientIntent[]` candidates.
-2. AI policy model receives candidate ids (summaries are for logs/UI only) and picks one.
-   - The policy prompt includes a compact per-seat `GameView` plus optional
-     `rules/<rulesId>/<rulesId>.rules.md` content when present.
-   - Backend and frontend AI runtimes share the same prompt builder and include
-     the same rules markdown payload.
-   - The prompt explicitly instructs the model to rely **only** on the provided
-     rules/state/candidates and to ignore any external knowledge.
-   - The prompt also includes general play heuristics (e.g., avoid wasting high
-     cards on a trick you cannot win), but only as guidance that must never
-     override the rules/state.
+2. AI policy model receives candidate pickIds plus summaries/tags and picks one.
 3. Chosen intent goes through the normal validation pipeline.
 4. If `validate` rejects it, this is a fatal AI error.
+
+The policy prompt structure is minimal and factual:
+
+- **No boilerplate**: no `rulesId`, `version`, or irrelevant metadata.
+- **Three core sections**:
+  - `now`: current game snapshot (compact view of piles, scoreboards, rulesState).
+  - `candidates`: list of legal moves with pickIds, summaries, tags, and anchors.
+  - `context`: deterministic facts and optional recap.
+    - `context.facts`: legality constraints, phase info, visible state (e.g., `mustFollowSuit`, `ledSuit`, `currentWinning`).
+    - `context.recap`: optional brief text recap of recent events (from `historyDigest`).
+- **Design principle**: Engine provides **facts**, LLM provides **choices**.
+  - Facts: "mustFollowSuit", "ledSuit", "currentWinning card" (deterministic, rules-based).
+  - NOT facts: "prefer low cards", "avoid risky moves" (strategy heuristics).
+- **No strategy advice**: The engine does not tell the model what to prefer or avoid. That's the LLM's job.
+- **No rules markdown**: The game rules are implicit in the facts, candidates, and state. No external markdown needed.
 
 Games that do NOT implement `listLegalIntentsForPlayer` are considered **missing AI support**.
 The engine may still allow enabling AI for development/testing via best-effort heuristics
@@ -622,33 +686,53 @@ If an AI move fails catastrophically (invalid intent, timeout, etc.):
 The overlay is for debugging and recovery; normal invalid human moves use
 standard validation errors instead.
 
-### 8.7 Agent Guide and History Digest
+### 8.7 AI Context and Recap System
 
-Rule modules may include a lightweight `agentGuide` object in `rulesState` to
-help the AI reason about hard constraints and short-term memory. This is a
-**rules-only** hint channel; the engine does not interpret it. For AI-ready
-games in this repo, `agentGuide.historyDigest` is required.
+The AI subsystem provides game history and context to help AI players make informed decisions.
 
-Recommended convention:
+**Centralized Recap Management (`backend/src/ai/recap-manager.ts`)**:
 
-- `agentGuide.historyDigest`: a simple **array of strings**, ordered oldest to newest.
-- Keep entries high-level and compact (e.g., "P2: drew stock, discarded 8C").
-- One entry per **completed turn** (or per trick in trick-taking games), not per micro-move.
-- Cap both length and count (e.g., max 80–120 chars per entry, keep last 8–12 entries).
-- Include only public information; never leak hidden cards or private hands.
+Game history is now managed centrally rather than per-game:
+
+- Recap entries are automatically captured from game events
+- Bounded to prevent unbounded growth (last 12 entries, 120 chars each)
+- Cleared automatically when a new deal/round starts
+- Seat-specific to prevent information leakage
+
+**AiSupport Interface (Optional)**:
+
+Games can optionally implement the `AiSupport` interface (`backend/src/rules/ai-support.ts`) to provide:
+
+- `buildContext(view)`: Return game-specific context facts
+  - Example: `{ phase: "bidding", trumpSuit: "♠️", mustFollowSuit: true }`
+  - Include only public information visible to the AI seat
+  - Return structured data, not strategy hints
+
+**Key Principles**:
+
+- Context facts should be **objective game state**, not strategy advice
+- Good examples: `mustFollowSuit: true`, `openingMeldPointsNeeded: 50`
+- Bad examples: `preferLowCards: true` ❌, `avoidRiskyMoves: true` ❌
+- All AI context is automatically filtered to prevent hidden information leakage
 
 ### AI policy candidates and output format (DSL)
 
 The AI policy layer is given a **finite list of candidate moves** and must
 pick exactly one.
 
-Each candidate has an opaque id and a human-readable summary. Summaries are for
-logs/UI only and are not sent to the policy LLM. Conceptually:
+Each candidate has an opaque id, a human-readable summary, optional
+game-specific tags, and reasoning anchors (action kind + primary label).
+Summaries, tags, and anchors are sent to the policy LLM as context. Conceptually:
 
 ```ts
 interface AiPolicyCandidate {
   id: string; // opaque, unique within this turn
+  pickId: string; // short opaque handle for model selection
   summary: string; // short, human-readable
+  tags?: string[]; // game-specific semantic hints supplied by rules
+  actionKind: string; // anchor for reasoning (draw, discard, meld, etc.)
+  primaryLabel: string; // anchor label for reasoning
+  effects?: Record<string, number | boolean | null>; // optional structured deltas
   source: "rules" | "action" | "move"; // conceptual origin
   intent: ClientIntent; // what will be sent back into the rules
 }
@@ -672,8 +756,8 @@ prefixes; they are there for:
 - human-readable logs,
 - future routing if we ever want to treat different sources differently.
 
-The policy LLM must not invent ids; it must echo one of the provided ids
-exactly.
+The policy LLM must not invent pickIds; it must echo one of the provided
+pickIds exactly.
 
 #### Policy output schema (DSL)
 
@@ -681,33 +765,45 @@ The policy model must return a single JSON object of this shape:
 
 ```ts
 interface AiPolicyOutput {
-  chosenCandidateId: string;
+  chosenPickId: string;
+  why?: string; // optional, 1-2 sentences
 }
 ```
 
 In other words, the response should be:
 
 ```json
-{ "chosenCandidateId": "rules:0" }
+{
+  "chosenPickId": "C0A1",
+  "why": "Following suit with lowest diamond."
+}
 ```
 
 The model may include reasoning text, but the final JSON **must** be wrapped in
 `<final_json>` tags, and only the JSON inside those tags will be used.
 
+The response must include `chosenPickId`. The `why` field is optional and used
+only for logging/debugging.
+
 Example:
 
 ```text
-<final_json>{"chosenCandidateId": "rules:0"}</final_json>
+<final_json>{"chosenPickId": "C0A1", "why": "Following suit with lowest diamond."}</final_json>
 ```
 
 - No markdown fences inside the `<final_json>` block.
-- No additional fields inside the JSON object.
 
 On the backend, this is enforced by a schema such as:
 
 ```ts
 const AiPolicyOutputSchema = z.object({
-  chosenCandidateId: z.string(),
+  chosenPickId: z.string(),
+  aiMemory: z.string().max(600).optional(),
+  actionKind: z.string().optional(),
+  primaryLabel: z.string().optional(),
+  becauseTags: z.array(z.string()).optional(),
+  why: z.string().optional(),
+  notes: z.string().max(300).optional(),
 });
 ```
 
@@ -720,13 +816,13 @@ When the engine receives the LLM response:
 
 1. It looks for a JSON object inside `<final_json>` tags; if not found, it
    falls back to scanning the response for JSON objects.
-2. It validates the result against `AiPolicyOutputSchema`.
-3. It finds the candidate whose `id === chosenCandidateId`.
+2. It validates the result against `AiPolicyOutputSchema` (including `aiMemory` bounds).
+3. It finds the candidate whose `pickId === chosenPickId`.
 
-If any of these steps fail (no JSON found, schema mismatch, unknown id),
-the engine logs the failure for debugging and treats it as a **fatal AI error**
-in normal LLM mode. This stops the AI turn and emits a `fatal-error` event so
-the UI can surface the problem.
+If any of these steps fail (no JSON found, schema mismatch, unknown pick/id),
+the engine logs the failure for debugging, retries once with a rejection hint,
+and may auto-repair by matching `actionKind` + `primaryLabel` to a unique
+candidate. If it still fails, it falls back to a deterministic candidate.
 
 Deterministic fallback is available only when `LLM_POLICY_MODE=firstCandidate`
 for testing; in that mode the AI skips the LLM and always picks a default
@@ -734,9 +830,191 @@ candidate (first non-pass if available).
 
 This means:
 
-- The DSL is deliberately **minimal**: one string field.
+- The DSL is deliberately **minimal**: one required string field and one optional note.
 - The policy layer is **advisory**: a broken or misbehaving model cannot
   corrupt state, only cause us to rely on the fallback.
+
+---
+
+### 8.5 NEW AI Contract (Simplified, Recap-based, Seat-Safe)
+
+**Status: Planned refactor to consolidate AI support**
+
+The following describes the **target design** for AI support. This simplifies the current implementation by:
+
+1. **Single recap[]**: Consolidates `historyDigest` and `memory` into one deterministic `context.recap: string[]`
+2. **Seat-hardened views**: AI sees only `AiView` (public + private for its seat)
+3. **Simple candidate IDs**: Candidates have only `id` and optional `summary`
+4. **Strict output validation**: LLM returns `{id: "<candidate id>"}` matching one candidate exactly
+5. **Multi-move AI candidates**: Candidate IDs can represent macros (e.g., `ai:macro:follow-suit-lowest`)
+
+#### 8.5.1 New AI Types
+
+```ts
+// Seat-hardened view (no information leakage)
+interface AiView {
+  seat: string; // The seat ID this view is for
+  public: unknown; // Safe for everyone
+  private: unknown; // Safe for this seat only
+}
+
+// Context (deterministic, bounded, seat-safe)
+interface AiContext {
+  recap?: string[]; // Single array: oldest → newest (turn/round summaries)
+  facts?: Record<string, unknown>; // Optional deterministic facts (no strategy)
+}
+
+// Candidate (minimal, ID-only)
+interface AiCandidate {
+  id: string; // ONLY id the LLM may return
+  summary?: string; // Optional label (MUST NOT leak hidden info)
+}
+
+// Input to LLM
+interface AiTurnInput {
+  view: AiView;
+  context?: AiContext;
+  candidates: AiCandidate[];
+}
+
+// Output from LLM (strict)
+interface AiTurnOutput {
+  id: string; // Must match one of candidates[].id exactly
+}
+```
+
+#### 8.5.2 Plugin Interface (AiSupport)
+
+Game plugins implement `AiSupport` interface:
+
+```ts
+interface AiSupport {
+  // List candidates for the given seat
+  // audience="ai" may include multi-move macros to reduce count
+  listCandidates(view: AiView, audience: "human" | "ai"): AiCandidate[];
+
+  // Build context (recap + facts) from seat-hardened view
+  buildContext?(view: AiView): AiContext;
+
+  // Apply chosen candidate ID (may be multi-move macro)
+  applyCandidateId(
+    state: GameState,
+    seat: string,
+    id: string
+  ): ClientIntent | ClientIntent[];
+}
+```
+
+#### 8.5.3 Canonical AI Turn Flow
+
+1. **Build seat-hardened view**: `view = buildAiView(state, seatId)`
+2. **Build context**: `context = plugin.buildContext?.(view)` or use stored recap
+3. **List candidates**: `candidates = plugin.listCandidates(view, "ai")`
+4. **Sort & validate**: Ensure unique IDs, deterministic order
+5. **Call LLM**: `output = llm(AiTurnInput{view, context, candidates})`
+6. **Strict parse**: Validate `output.id` exists in `candidates[].id`
+7. **Apply**: `intents = plugin.applyCandidateId(state, seatId, output.id)`
+8. **Execute**: Process intent(s) through normal rule validation
+
+#### 8.5.4 Recap Management
+
+**Recap replaces both historyDigest and memory**:
+
+- Maintained per seat: `recapBySeat[gameId:seatId]`
+- Bounded: Keep last 30-80 entries (configurable)
+- Deterministic: Turn summaries + round summaries in chronological order
+- Seat-safe: Generated from seat-hardened events or seat-specific logs only
+
+Example recap:
+
+```ts
+[
+  "Round 1 ended: You scored 15 points.",
+  "Round 2 started. Trump: ♠. You lead.",
+  "Turn 1: You played 7♠. Partner played K♠. Opponents played 3♠, 9♣.",
+  "Turn 2: Opponent led Q♥. You must follow suit.",
+];
+```
+
+#### 8.5.5 Multi-Move AI Candidates
+
+To reduce candidate count for AI, plugins may return macro candidates:
+
+```ts
+{
+  id: "ai:macro:follow-suit-lowest",
+  summary: "Follow suit with lowest card"
+}
+```
+
+Engine treats these as opaque IDs. Plugin's `applyCandidateId` expands them:
+
+```ts
+applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
+  const lowestCard = findLowestCardInSuit(state, seat, ledSuit);
+  return { type: "move", playerId: seat, cardId: lowestCard, ... };
+}
+```
+
+**Key constraint**: Multi-move candidates are **AI-only** (`audience="ai"`). Human UI shows atomic moves only (`audience="human"`).
+
+#### 8.5.6 Example Contract Snapshot
+
+**Engine → LLM:**
+
+```json
+{
+  "view": {
+    "seat": "P2",
+    "public": { "currentPlayer": "P2", "trumpSuit": "♣", "trickCards": [...] },
+    "private": { "hand": [{"rank": "A", "suit": "♣"}, ...] }
+  },
+  "context": {
+    "recap": [
+      "Round 2 ended: P1 led clubs.",
+      "Trick 3 started: P1 played K♣."
+    ],
+    "facts": { "mustFollowSuit": true, "ledSuit": "♣" }
+  },
+  "candidates": [
+    { "id": "play:c17", "summary": "Play A♣" },
+    { "id": "ai:macro:follow-suit-lowest", "summary": "Follow suit with lowest club" }
+  ]
+}
+```
+
+**LLM → Engine:**
+
+```json
+{
+  "id": "ai:macro:follow-suit-lowest"
+}
+```
+
+#### 8.5.7 Migration Checklist
+
+- [x] New types in `shared/src/ai/types.ts` (✓ done)
+- [x] AiSupport plugin interface (✓ done)
+- [x] Recap manager replacing memory/historyDigest (✓ done)
+- [x] New prompt builder (`buildAiMessages`) (✓ done)
+- [x] New parser (`parseAiOutput`) with strict validation (✓ done)
+- [x] Update AI turn pipeline to use new flow (✓ done)
+- [x] Remove legacy types and dead code (✓ done)
+- [x] Update simplified AiCandidate schema (✓ done)
+- [x] Add AiSupport optional field to GamePlugin interface (✓ done)
+- [x] Implement example AiSupport for Briscola demonstrating:
+  - listCandidates with regular + macro candidates
+  - buildContext with recap + facts
+  - applyCandidateId for single and multi-move macros
+- [ ] Migrate remaining games to AiSupport interface (optional)
+  - Games can use default candidate generation via listLegalIntentsForPlayer
+  - AiSupport is optional for games that want advanced AI features
+- [x] Tests pass with new contract
+- [x] Documentation updated in ARCHITECTURE.md
+
+**Status:** Core migration complete. Briscola demonstrates the AiSupport pattern.
+Other games work with default candidate generation and can optionally adopt
+AiSupport for advanced features like multi-move macros and richer context.
 
 ```
 

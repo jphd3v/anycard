@@ -834,7 +834,54 @@ You must:
 - validate the move using this pre-move state, and
 - emit **all** necessary engine events, including the actual `move-cards`.
 
-### 5.3 Engine events you should use
+### 5.3 Engine-level validations (what you don't need to check)
+
+The engine performs several pre-validations before your rule module's `validate()` function is called (see `backend/src/intent-handler.ts`). These checks are **already done**, so you don't need to duplicate them in your rule module:
+
+**Engine guarantees for `move` intents:**
+
+- ✅ Game is not already finished (winner is not set)
+- ✅ `cardId` XOR `cardIds` is present (exactly one, never both, never neither)
+- ✅ `cardIds` array is non-empty when used
+- ✅ The source pile (`fromPileId`) exists
+- ✅ Every `cardId` in the intent exists in the source pile (`fromPile.cardIds.includes(cardId)`)
+- ✅ The move is not a no-op (`fromPileId !== toPileId`)
+
+**What this means for your code:**
+
+```typescript
+// ✅ SAFE - engine guarantees cardId is defined for move intents
+const cardId = intent.cardId!;
+
+// ✅ SAFE - engine guarantees card exists in source pile
+const card = fromPile.cards!.find((c) => c.id === cardId)!;
+
+// ❌ NOT NECESSARY - engine already checked this
+if (intent.cardId === undefined) {
+  return { valid: false, reason: "Move requires cardId.", engineEvents: [] };
+}
+
+// ❌ NOT NECESSARY - engine already checked this
+if (!fromPile.cardIds.includes(cardId)) {
+  return { valid: false, reason: "Card not in source pile.", engineEvents: [] };
+}
+```
+
+**Philosophy: Better safe than sorry**
+
+While these engine-level checks make certain defensive validations redundant, **you are still allowed to add them if it makes your code clearer or more defensive**. The engine's guarantees are firm, but defensive programming is a valid choice. The key insight is that you **don't have to** duplicate these specific checks—the engine has your back.
+
+**What you MUST still validate:**
+
+Your rule module remains responsible for **game-specific logic**:
+
+- Turn validation (is it this player's turn?)
+- Phase validation (is this action allowed in the current game phase?)
+- Move legality (does this card play follow the game rules?)
+- Pile ownership (can this player move from this pile?)
+- Card combinations (is this a valid meld/sequence/capture?)
+
+### 5.5 Engine events you should use
 
 You should only use the existing event types:
 
@@ -859,7 +906,7 @@ When you emit `move-cards`:
 So you do **not** need to encode order in `event.cardIds`; the source pile is
 the single source of truth.
 
-### 5.4 `rulesState`, actions, and scoreboards
+### 5.6 `rulesState`, actions, and scoreboards
 
 Use `rulesState` as your long-term memory:
 
@@ -896,7 +943,7 @@ If you don't emit them, the UI won't update.
 
 - For simple score displays, prefer a two-column table with player names in the first column and scores in the second column. Use richer tables only when the game needs extra breakdowns.
 
-### 5.5 Start-game / dealing pattern (when needed)
+### 5.8 Start-game / dealing pattern (when needed)
 
 For games that require dealing from a shuffled deck:
 
@@ -919,7 +966,7 @@ In your rule module:
 
 The AI system never sends `"start-game"`; a human must start the game.
 
-### 5.6 Rule module isolation
+### 5.9 Rule module isolation
 
 Keep each game's rules **self-contained**:
 
@@ -927,7 +974,7 @@ Keep each game's rules **self-contained**:
 - Do not create shared helper modules for "trick logic", "meld detection", etc.
 - It is fine to duplicate small utility functions per game.
 
-### 5.7 Scoreboard initialization best practices
+### 5.10 Scoreboard initialization best practices
 
 **Important:** For games with scoring systems that include penalties (like rummy-style games), **do not** calculate negative scores immediately after dealing cards. This creates confusing starting positions where players appear to be "losing" before the game begins.
 
@@ -963,7 +1010,7 @@ players.forEach((p, i) => {
 
 This ensures players start with a clean slate and only see meaningful score changes when actual game events occur.
 
-### 5.8 Direct card moves vs action buttons: best practices
+### 5.11 Direct card moves vs action buttons: best practices
 
 **✅ PREFER direct card moves (drag-and-drop) over action buttons whenever possible.**
 
@@ -1017,7 +1064,7 @@ if (
 
 Only add action-based alternatives if direct moves are truly insufficient for the game mechanics.
 
-### 5.9 Atomic Moves vs. Transactional Turns (Deferred Validation)
+### 5.12 Atomic Moves vs. Transactional Turns (Deferred Validation)
 
 Many games involve complex turns where a player makes multiple moves to achieve a valid state (e.g., building a meld, rearranging a tableau, or exchanging cards). Since the engine processes one move at a time, you must not validate the "final legal state" too eagerly.
 
@@ -1076,7 +1123,7 @@ When using deferred validation, your `listLegalIntentsForPlayer` implementation 
 - **The Application**: If the board is in a "temporarily invalid" state, you MUST filter out "end-turn" intents (like Discard or Pass) from the legal moves list.
 - **The Result**: This forces the AI to continue making intermediate moves (building melds or taking cards back) until it reaches a valid state where discarding is finally allowed.
 
-### 5.10 Descriptive Error Messages
+### 5.13 Descriptive Error Messages
 
 **CRITICAL:** Never return a generic `"Illegal move"` or `"Invalid action"` reason. The `reason` field in `ValidationResult` is the only way the user knows why their interaction failed.
 
@@ -1089,7 +1136,7 @@ When using deferred validation, your `listLegalIntentsForPlayer` implementation 
 
 Good error messages reduce user frustration and make the game feel polished and professional.
 
-### 5.11 Standard Card Notation
+### 5.14 Standard Card Notation
 
 To ensure a consistent and high-quality user experience, all games MUST use standardized notation when displaying card ranks and suits in user-facing messages (e.g., validation error reasons, scoreboard labels, action labels).
 
@@ -1297,62 +1344,60 @@ for (const cardIdStr of Object.keys(state.allCards)) {
 3.  **Hiding is not Emptiness.** A pile with `size: 5` and `cards: undefined` is not empty; it's just hidden.
 4.  **Publicity on End.** Many games (like Gin Rummy) reveal all hands at the end. Your local projection should handle the transition from hidden to public if the phase changes to `ended`.
 
-### 5.15 AI Agent Guide (`agentGuide`)
+### 5.15 AI Context (Optional Advanced Support)
 
-For complex games with many conditional rules (like Canasta or Pinnacola), AI players may struggle with constraint discovery or understanding execution semantics.
+For complex games, you can optionally provide additional AI context beyond basic legal move enumeration.
 
-`agentGuide` is a loosely-typed "metadata bucket" that helps the AI reason about the game state without the engine needing to "play" the game for it.
+**Centralized Recap System:**
 
-**Standard Utilities (Recommended):**
+Game history is now managed centrally by `recap-manager.ts`:
 
-We provide standardized utilities in `backend/src/rules/util/` to handle common rules logic consistently. Using these is strongly encouraged for all new games.
+- Recap entries are automatically captured from game events
+- No need for per-game history management
+- Bounded to prevent unbounded growth
 
-1.  **`agentGuide` Management**: Use `appendHistoryDigest` from `../util/agent-guide.js`.
-    - Automatically handles string clipping (120 chars) and entry limits (last 12 entries).
-    - Supports `clearHistory: true` to wipe turn history at the start of a new deal.
-    - Supports `addRoundSummary: string` to store permanent results of completed rounds.
+**AiSupport Interface (Optional):**
 
-2.  **Pile Projection**: Use `projectPilesAfterEvents` from `../util/piles.js`.
-    - Essential for games that need to "preview" scoring or board validity before committing events.
-    - Correctly handles card movement logic across multiple events.
-
-**Example Usage:**
+For games that need custom AI context, implement the `AiSupport` interface in your rule module:
 
 ```typescript
-import { appendHistoryDigest } from "../util/agent-guide.js";
-import { projectPilesAfterEvents } from "../util/piles.js";
+import type { AiSupport } from "../ai-support.js";
 
-// ... in your validate() or scoring logic
-const projected = projectPilesAfterEvents(state, engineEvents);
-const handScore = calculateScore(projected);
-
-// ... updating rulesState
-const updatedRulesState: CanastaRulesState = {
-  ...rulesState,
-  agentGuide: appendHistoryDigest(
-    rulesState.agentGuide,
-    `P1 melded ${cards.length} cards.`,
-    {
-      // Game-specific metadata bucket
-      commitValidation: { canCommitNow: true },
-      executionNotes: ["Turn is committed only when discarding."],
-    }
-  ),
+const aiSupport: AiSupport = {
+  buildContext(view: AiView): AiContext {
+    const facts = {
+      phase: view.public.phase,
+      mustFollowSuit: determineMustFollowSuit(view),
+      openingMeldNeeded: calculateOpeningMeld(view),
+    };
+    return { facts };
+  },
 };
 
-// ... at the end of a round (deal)
-rulesState.agentGuide = appendHistoryDigest(
-  rulesState.agentGuide,
-  "New hand started.",
-  {
-    clearHistory: true,
-    addRoundSummary: `Hand ${dealNumber} Result: Team A ${scoreA}, Team B ${scoreB}`,
-  }
-);
+// Export alongside your rule module
+export { pinnacolaRules, pinnacolaPlugin, aiSupport };
 ```
 
-**How it works:**
-The AI infrastructure automatically surfaces `rulesState.agentGuide` to the LLM in a dedicated `<agentGuide>` block. This provides the model with a "memory" of recent events and a checklist of hard constraints enforced by the validator.
+**Pile Projection Utility:**
+
+Use `projectPilesAfterEvents` from `../util/piles.js` when you need to preview state changes:
+
+- Essential for pre-validating scoring or board state
+- Correctly handles card movement across multiple events
+
+```typescript
+import { projectPilesAfterEvents } from "../util/piles.js";
+
+// Preview state after events
+const projected = projectPilesAfterEvents(state, engineEvents);
+const handScore = calculateScore(projected);
+```
+
+**Key Principles:**
+
+- Provide **objective game state**, not strategy advice
+- Only include information visible to the AI seat
+- Keep facts structured and concise
 
 ---
 
@@ -1626,6 +1671,75 @@ listLegalIntentsForPlayer(state: ValidationState, playerId: string): ClientInten
 - **Zero Logic Duplication**: Rules like "must follow suit" or "must have 3 cards to meld" are only written once in `validate`.
 - **Absolute Consistency**: If a move is legal for a human player (UI), it is guaranteed to be visible to the AI, and vice versa.
 - **Maintenance**: When rules change, you only update `validate`. `listLegalIntentsForPlayer` remains "fireproof."
+
+### 7.3 Multi-Card Move Intents
+
+For rummy-style games (Canasta, Gin Rummy, etc.) where players meld multiple cards as a single action, use **multi-card move intents**:
+
+```typescript
+// Multi-card meld (e.g., 3 Kings at once)
+{
+  type: "move",
+  gameId,
+  playerId,
+  fromPileId: "P1-hand",
+  toPileId: "P1-meld-K",
+  cardIds: [42, 43, 44],  // Array of card IDs instead of single cardId
+}
+```
+
+**Key points:**
+
+- A `MoveIntent` must have **exactly one** of `cardId` or `cardIds` (XOR constraint enforced by schema).
+- Use `cardIds` to move multiple cards atomically from the same source to the same destination.
+- The engine validates all cards exist in the source pile before calling your rule module.
+- Your `validate()` function receives the intent as-is and should validate the complete group.
+
+**Typical implementation pattern:**
+
+```typescript
+// In listLegalIntentsForPlayer: Generate multi-card meld candidates
+const meldCandidates = generateMeldCandidates(hand, state, playerId);
+for (const cardIds of meldCandidates) {
+  candidates.push({
+    type: "move",
+    gameId,
+    playerId,
+    fromPileId: `${playerId}-hand`,
+    toPileId: targetMeldPile,
+    cardIds, // Multiple cards
+  });
+}
+
+// In validate: Handle both single and multi-card moves
+if (intent.type === "move") {
+  const cardIds =
+    intent.cardId !== undefined ? [intent.cardId] : intent.cardIds!;
+
+  // Validate the group as a complete unit
+  if (cardIds.length >= 3) {
+    // Validate as complete meld (e.g., 3+ same rank, run, etc.)
+    const validMeld = validateMeldGroup(cards);
+    if (!validMeld) {
+      return { valid: false, reason: "Invalid meld", engineEvents: [] };
+    }
+  }
+
+  // Emit move-cards event with all card IDs
+  engineEvents.push({
+    type: "move-cards",
+    fromPileId: intent.fromPileId,
+    toPileId: intent.toPileId,
+    cardIds,
+  });
+}
+```
+
+**Benefits:**
+
+- **Reduces AI decision space**: Instead of 30-50 micro-moves, AI sees ~10 meaningful meld choices.
+- **Atomic validation**: The complete meld is validated as one unit, preventing invalid partial states.
+- **Clearer intent**: Multi-card moves make the player's intention explicit.
 
 ---
 

@@ -27,6 +27,7 @@ import {
 } from "./state.js";
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
 import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
+import { clearGameRecap } from "./ai/recap-manager.js";
 import { buildViewForPlayer } from "./view.js";
 import { listLegalIntentsForPlayer, validateMove } from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
@@ -212,6 +213,7 @@ export function closeGameSession(io: Server, gameId: string): boolean {
 
   roomTypeByGameId.delete(gameId);
   gameProcessingChains.delete(gameId);
+  clearGameRecap(gameId);
   closeGame(gameId);
   return true;
 }
@@ -299,7 +301,7 @@ function findMoveLabel(
   viewerId?: string
 ): string {
   if (intent.type !== "move") return "Move Card";
-  const card = state.cards[intent.cardId];
+  const card = state.cards[intent.cardId!];
   if (!card) return "Move Card";
 
   if (viewerId && viewerId !== "__god__") {
@@ -608,6 +610,15 @@ function preValidateIntentLocally(
 
   // Only apply move-specific validations to move intents
   if (intent.type === "move") {
+    const cardIds =
+      intent.cardIds ?? (intent.cardId !== undefined ? [intent.cardId] : []);
+    if (cardIds.length === 0) {
+      return {
+        shortCircuit: true,
+        reason: "Must specify either 'cardId' or a non-empty 'cardIds' array.",
+      };
+    }
+
     // No-op move guard: if moving from the same pile to the same pile
     if (intent.fromPileId === intent.toPileId) {
       return {
@@ -625,11 +636,13 @@ function preValidateIntentLocally(
       };
     }
 
-    if (!fromPile.cardIds.includes(intent.cardId)) {
-      return {
-        shortCircuit: true,
-        reason: "Card is not in the source pile.",
-      };
+    for (const cardId of cardIds) {
+      if (!fromPile.cardIds.includes(cardId)) {
+        return {
+          shortCircuit: true,
+          reason: "Card is not in the source pile.",
+        };
+      }
     }
   }
 
@@ -675,7 +688,7 @@ function broadcastState(
                     ? {
                         ...intent,
                         cardId: toViewCardId(
-                          intent.cardId,
+                          intent.cardId!,
                           viewSalt,
                           info.playerId
                         ),
@@ -998,6 +1011,7 @@ export function initSocket(io: Server) {
               if (demoState) {
                 if (opts.resetDedicated) {
                   resetGame(demoGameId);
+                  clearGameRecap(demoGameId);
                   broadcastStateToGame(demoGameId);
                 }
 
@@ -1032,6 +1046,7 @@ export function initSocket(io: Server) {
 
           try {
             initGame(stateForGame);
+            clearGameRecap(gameId);
           } catch (err) {
             if (
               err instanceof Error &&
@@ -1238,7 +1253,7 @@ export function initSocket(io: Server) {
               intent.type === "move"
                 ? {
                     ...intent,
-                    cardId: toViewCardId(intent.cardId, viewSalt, playerId),
+                    cardId: toViewCardId(intent.cardId!, viewSalt, playerId),
                   }
                 : intent
             )
@@ -1406,6 +1421,24 @@ export function initSocket(io: Server) {
               resolveSeatRuntime(seat) === "frontend" &&
               seat.aiSponsorConnectionId === socket.id;
 
+            if (
+              effectiveIntent.type === "move" &&
+              !seat.isAi &&
+              isHumanOwner &&
+              effectiveIntent.cardIds &&
+              effectiveIntent.cardIds.length > 0
+            ) {
+              const reason = "Multi-card moves are available to AI seats only.";
+              socket.emit("game:validation", {
+                valid: false,
+                reason,
+                nextPlayer: null,
+                source: "engine",
+              });
+              socket.emit("game:invalid", { reason });
+              return;
+            }
+
             if (!isHumanOwner && !isFrontendAiSponsor) {
               socket.emit("game:error", {
                 message: "Not allowed to act for this seat",
@@ -1453,29 +1486,59 @@ export function initSocket(io: Server) {
           if (effectiveIntent.type === "move") {
             const viewSalt = getViewSalt(gameId);
             const viewerKey = effectiveIntent.playerId;
-            const engineCardId = resolveEngineCardId(
-              effectiveIntent.cardId,
-              viewSalt,
-              viewerKey,
-              state
-            );
+            const viewToEngineCardId = (viewCardId: number): number | null =>
+              resolveEngineCardId(viewCardId, viewSalt, viewerKey, state);
 
-            if (engineCardId == null) {
-              const reason = "Unknown card";
-              socket.emit("game:validation", {
-                valid: false,
-                reason,
-                nextPlayer: null,
-                source: "engine",
-              });
-              socket.emit("game:invalid", { reason });
-              return;
+            if (effectiveIntent.cardIds && effectiveIntent.cardIds.length > 0) {
+              const engineCardIds: number[] = [];
+              for (const viewCardId of effectiveIntent.cardIds) {
+                const engineCardId = viewToEngineCardId(viewCardId);
+                if (engineCardId == null) {
+                  const reason = "Unknown card";
+                  socket.emit("game:validation", {
+                    valid: false,
+                    reason,
+                    nextPlayer: null,
+                    source: "engine",
+                  });
+                  socket.emit("game:invalid", { reason });
+                  return;
+                }
+                engineCardIds.push(engineCardId);
+              }
+
+              intentForEngine = {
+                type: "move",
+                gameId: effectiveIntent.gameId,
+                playerId: effectiveIntent.playerId,
+                fromPileId: effectiveIntent.fromPileId,
+                toPileId: effectiveIntent.toPileId,
+                cardIds: engineCardIds,
+              };
+            } else if (effectiveIntent.cardId !== undefined) {
+              const engineCardId = viewToEngineCardId(effectiveIntent.cardId);
+
+              if (engineCardId == null) {
+                const reason = "Unknown card";
+                socket.emit("game:validation", {
+                  valid: false,
+                  reason,
+                  nextPlayer: null,
+                  source: "engine",
+                });
+                socket.emit("game:invalid", { reason });
+                return;
+              }
+
+              intentForEngine = {
+                type: "move",
+                gameId: effectiveIntent.gameId,
+                playerId: effectiveIntent.playerId,
+                fromPileId: effectiveIntent.fromPileId,
+                toPileId: effectiveIntent.toPileId,
+                cardId: engineCardId,
+              };
             }
-
-            intentForEngine = {
-              ...effectiveIntent,
-              cardId: engineCardId,
-            };
           }
 
           const shortCircuit = preValidateIntentLocally(state, intentForEngine);
@@ -2094,6 +2157,7 @@ export function initSocket(io: Server) {
         }
 
         resetGame(gameId);
+        clearGameRecap(gameId);
 
         // Keep seats occupied; just refresh seat status and game state for clients
         broadcastSeatStatus(gameId);
@@ -2176,6 +2240,9 @@ export function initSocket(io: Server) {
           }
 
           const ok = resetGameWithSeed(gameId, seed);
+          if (ok) {
+            clearGameRecap(gameId);
+          }
           if (!ok) {
             socket.emit("game:error", {
               message: "Game not found",

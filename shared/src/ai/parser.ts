@@ -1,53 +1,50 @@
 // shared/src/ai/parser.ts
-import type { AiChoice } from "./types.js";
+import type { AiTurnOutput } from "./types.js";
+import { AiTurnOutputSchema } from "../../schemas.js";
 
-export function parseAiChoice(raw: string): AiChoice | null {
+/**
+ * Parse the simplified AI response format.
+ * Expected: <answer>{"id": "<candidate id>"}</answer>
+ * Fallback: {"id": "<candidate id>"} anywhere in the response
+ * Optional: {"id": "<candidate id>", "why": "<reasoning>"}
+ */
+export function parseAiOutput(raw: string): AiTurnOutput | null {
   const text = String(raw ?? "");
   if (!text.trim()) return null;
 
-  // 1. Try to find content within <final_json> tags (highest priority)
-  const tagMatch = text.match(/<final_json>([\s\S]*?)<\/final_json>/i);
-  if (tagMatch) {
-    const json = tagMatch[1].trim();
-    const result = parseFirstValidObject(json);
-    if (result) return result;
-  }
-
-  // 2. Fallback to searching the entire response for valid JSON objects.
-  // We prioritize the last valid object in the text as some models might
-  // output multiple blocks or repeat themselves.
-  const allObjects = Array.from(extractJsonObjects(text));
-  for (let i = allObjects.length - 1; i >= 0; i--) {
-    const result = parseFirstValidObject(allObjects[i]);
-    if (result) return result;
-  }
-
-  return null;
-}
-
-function parseFirstValidObject(json: string): AiChoice | null {
-  try {
-    // If the string contains multiple objects, extractJsonObjects handles it,
-    // but here we just try to parse the whole string first.
-    const obj = JSON.parse(json) as { chosenCandidateId?: unknown };
-    if (typeof obj.chosenCandidateId === "string") {
-      const chosenCandidateId = obj.chosenCandidateId.trim();
-      if (chosenCandidateId) return { chosenCandidateId };
-    }
-  } catch {
-    // String might have multiple objects or extra text; try deep extraction
-    for (const subJson of extractJsonObjects(json)) {
-      try {
-        const obj = JSON.parse(subJson) as { chosenCandidateId?: unknown };
-        if (typeof obj.chosenCandidateId === "string") {
-          const chosenCandidateId = obj.chosenCandidateId.trim();
-          if (chosenCandidateId) return { chosenCandidateId };
-        }
-      } catch {
-        continue;
+  // First try to extract JSON from within <answer> tags (more robust)
+  const answerMatch = text.match(/<answer>([\s\S]*?)<\/answer>/);
+  if (answerMatch) {
+    const answerContent = answerMatch[1].trim();
+    try {
+      const obj = JSON.parse(answerContent) as { id?: unknown };
+      const parsed = AiTurnOutputSchema.safeParse({ id: obj.id });
+      if (parsed.success) {
+        return parsed.data;
       }
+    } catch {
+      // Fall through to general JSON extraction
     }
   }
+
+  // Fallback: Try to extract JSON objects from anywhere in the response
+  const allObjects = Array.from(extractJsonObjects(text));
+
+  // Check all objects, prioritizing the last valid one
+  for (let i = allObjects.length - 1; i >= 0; i--) {
+    try {
+      const obj = JSON.parse(allObjects[i]) as { id?: unknown };
+
+      // Validate using Zod schema
+      const parsed = AiTurnOutputSchema.safeParse({ id: obj.id });
+      if (parsed.success) {
+        return parsed.data;
+      }
+    } catch {
+      continue;
+    }
+  }
+
   return null;
 }
 

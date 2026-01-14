@@ -7,8 +7,6 @@ import type { GameRuleModule } from "../interface.js";
 import type { ValidationState } from "../../validation-state.js";
 import type { ClientIntent } from "../../../../shared/schemas.js";
 import { loadGameMeta } from "../meta.js";
-// import { appendHistoryDigest } from "../util/agent-guide.js";
-// import { projectPilesAfterEvents } from "../util/piles.js";
 
 const META = loadGameMeta("template");
 
@@ -35,7 +33,8 @@ export const templateRules: GameRuleModule = {
    * AI support:
    *
    * If this game should be playable by AI seats, implement this method.
-   * Use appendHistoryDigest(agentGuide, "...") to keep the LLM informed.
+   * Return all legal intents for the given player.
+   * For AI context/history, implement the AiSupport interface.
    */
   listLegalIntentsForPlayer(
     state: ValidationState,

@@ -1,102 +1,107 @@
 ## Overview
 
-Four-player Classic Canasta is played using two standard 52-card decks plus 4 jokers (108 cards total), based on the [rules on Pagat.com](https://www.pagat.com/rummy/canasta.html#classic). Players are formed into two fixed partnerships (**P1 & P3 vs P2 & P4**). Points are accumulated by creating melds of the same rank and building canastas (melds of 7+ cards). The hand is concluded when a player goes out by legally emptying their hand.
+Classic Canasta is a four-player partnership game played with two standard 52-card decks plus four jokers (108 cards total). It follows the [classic rules on Pagat.com](https://www.pagat.com/rummy/canasta.html#classic). Partnerships are fixed for the whole game (**Player 1 & Player 3 vs Player 2 & Player 4**). Scoring is based on building melds of the same rank, completing canastas (melds of 7+ cards), and going out to end the hand.
+
+## Components and Terms
+
+- **Stock**: face-down draw pile.
+- **Discard pile**: face-up pile where the turn-ending discard goes.
+- **Meld**: three or more cards of the same rank laid on the table for a partnership.
+- **Canasta**: a meld of seven or more cards.
+- **Wild cards**: jokers and twos can substitute for any rank.
 
 ## Setup
 
-- **Dealing**: 11 cards are dealt to each player in a clockwise direction.
-- **Red Threes**: Any Red Three received is automatically placed face-up for the partnership and replaced by a draw from the stock.
-- **Discard Pile**: One face-up card is flipped from the stock to begin the discard pile.
-- **Wild Cards**: All Jokers and Twos are considered wild and may substitute for any rank.
+- **Deal**: 11 cards are dealt to each player, clockwise.
+- **Red threes**: Any red three (3♦️, 3♥️) is placed face-up for the partnership and replaced immediately from the stock until no red threes remain in hand.
+- **Start the discard pile**: Cards are flipped from the stock to the discard pile until the top card is neither a wild card nor a red three. (Wilds or red threes remain in the pile; the top card is the first playable discard.)
 
-## Turn Structure
+## Turn Sequence
 
-Each turn is divided into two mandatory phases:
+Each turn has two phases.
 
-### Phase 1: The Draw
+### 1) Draw Phase (exactly one option)
 
-The turn is commenced by taking exactly one of the following actions:
+- **Draw from the stock** (the top card is taken), or
+- **Take the discard pile** (see rules below).
 
-- **Draw from stock**: The top card is taken from the face-down pile.
-- **Take discard pile**: The entire discard pile is captured by melding the top card immediately.
-- **Frozen Pile**: If a wild card or a red three is present in the discard pile, the pile is considered frozen. A frozen pile is only taken by melding the top card with a natural meld of two cards of the same rank from the hand.
+### 2) Meld and Discard Phase
 
-### Phase 2: Meld and Discard
+- **Meld**: New melds are created or cards are added to existing partnership melds.
+- **End the turn**: One card is discarded to the discard pile.
 
-After drawing, the turn is continued through melding and concluded with a discard:
+Going out may occur by discarding the last card or by melding the final card (if the going-out requirements are met).
 
-- **Melding**: New melds may be created or cards may be added to existing partnership melds.
-- **Concluding the turn**: One card is required to be discarded to the pile to end the turn.
-- **Going Out**: The hand is only ended with zero cards if the partnership has completed at least one canasta. If no canasta is held, at least one card is required to be retained in the hand for the final discard.
+## Taking the Discard Pile
+
+- The **entire** discard pile is taken into the hand, but the **top discard** must be melded immediately.
+- **Frozen pile**: A pile is frozen for a partnership if it contains a wild card or a red three, or if the partnership has not yet made any melds.
+  - If the pile is frozen, **two natural cards** of the top discard’s rank must be held to take it.
+  - If the pile is not frozen, it may be taken if:
+    - the top card can be added to an existing partnership meld of that rank, or
+    - a new meld can be formed using the top card plus two matching cards from the hand (or one matching card plus a wild).
 
 ## Melding Rules
 
-### Sets (Same Rank)
+### Basic Melds
 
-- **Requirements**: A meld is composed of 3 or more cards of the same rank.
-- **Natural cards**: At least 2 natural (non-wild) cards are required per meld.
-- **Wild card limit**: A maximum of 3 wild cards is permitted in any single meld.
-- **Restrictions**: Melds consisting entirely of wild cards are prohibited.
-- **Examples**:
-  - 7♣️ 7♦️ 7♥️ (3-card natural set)
-  - 9♠️ 9♣️ 9♦️ 9♥️ (4-card natural set)
-  - K♠️ K♣️ 2♥️ K♦️ (3-card set with 1 wild)
+- **Minimum size**: 3 cards of the same rank.
+- **Natural cards**: At least 2 natural (non-wild) cards are required in any meld.
+- **Wild limit**: At most 3 wild cards are permitted in a single meld.
+- **No all-wild melds**: A meld cannot be made entirely of wilds.
 
 ### Canastas
 
-- **Definition**: A canasta is any meld containing 7 or more cards.
-- **Natural Canasta**: No wild cards are included (500 pts).
-- **Mixed Canasta**: One or more wild cards are included (300 pts). Mixed canastas are identified by one wild card being placed sideways.
+- **Natural canasta**: no wild cards (bonus +500).
+- **Mixed canasta**: contains wild cards (bonus +300). A mixed canasta is typically marked with a sideways wild card.
 
-### Card Values (for scoring)
+## Special Threes
 
-- **Joker**: 50 pts
-- **Ace, Two**: 20 pts each
-- **King, Queen, Jack, 10, 9, 8**: 10 pts each
-- **7, 6, 5, 4**: 5 pts each
-- **Black Three**: 5 pts each (only meldable when going out)
-- **Red Three**: 100 pts each (awarded only if the partnership has melded)
+### Red Threes (3♦️, 3♥️)
 
-## Going Out (Closing the Hand)
+- Set aside immediately when drawn or dealt and replaced from the stock.
+- **Scoring**: +100 each if the partnership has made at least one meld in the hand; otherwise −100 each. A bonus +400 applies if the partnership has all four red threes.
 
-To conclude the hand, the following conditions are required to be met:
+### Black Threes (3♣️, 3♠️)
 
-1. The hand is emptied (zero cards remaining).
-2. At least one canasta has been completed by the partnership.
-3. A final discard is made, or the hand is emptied through a legal melding action.
+- Cannot be melded during normal play.
+- May be melded only when going out, as a special set of 3 or 4 black threes.
+- Discarding a black three blocks the next player from taking the discard pile until it is covered by another discard.
 
-### Black Threes
+## Going Out (Ending the Hand)
 
-Black Threes (3♣️, 3♠️) are prohibited from being melded during normal play. They are only permitted to be melded as a special set of 3 or 4 cards when the player is going out.
-Discarding a black three blocks the next player from taking the discard pile. This does not freeze the pile permanently; once the black three is covered, the pile may be taken as usual. This can be used to protect the pile for your partner.
+Going out is permitted only if:
+
+1. The partnership has completed at least one canasta, and
+2. The hand is emptied by discarding or by melding the final card.
+
+If the partnership has no canasta, the last card is not allowed to be melded; a card must be retained for the final discard.
 
 ## Scoring
 
-The hand score is calculated as: **(Points in captured cards and bonuses) − (Points remaining in hand)**.
+Scoring happens when the hand ends. The hand score is:
+
+**(Points in the partnership’s melds and bonuses) − (Points remaining in the hand)**.
+
+### Card Values
+
+- **Joker**: 50
+- **Ace, Two**: 20 each
+- **King, Queen, Jack, 10, 9, 8**: 10 each
+- **7, 6, 5, 4**: 5 each
+- **Black three**: 5 each (only meldable when going out)
+- **Red three**: 100 each (if counted; see above)
 
 ### Bonuses and Requirements
 
-- **Going out**: +100 pts (+200 for concealed going out).
-- **Canasta bonuses**: Natural +500, Mixed +300.
-- **Red threes**: +100 each (or -100 if no melds were made). A +400 bonus is awarded if all four are held.
-- **Initial Meld Requirement**: The first meld made by a partnership must meet a point threshold based on their cumulative total score:
-  - Below 0: 15 pts
-  - 0 – 1495: 50 pts
-  - 1500 – 2995: 90 pts
-  - 3000+: 120 pts
+- **Going out**: +100 (+200 if going out concealed, without previously laying down melds).
+- **Canasta bonus**: Natural +500, Mixed +300.
+- **Initial meld requirement**: The first meld for a partnership must meet a minimum point total based on the partnership’s cumulative score:
+  - Below 0: 15
+  - 0–1495: 50
+  - 1500–2995: 90
+  - 3000+: 120
 
-## Play Notes
+## End of the Stock
 
-- **Arranging Melds**: Cards are permitted to be moved to and from the table during the melding phase. This allows different combinations to be tested before the turn is finalized.
-- **Initial Meld Minimum**: If your partnership has not yet met the initial meld requirement, you cannot begin melding until your hand satisfies the minimum points and meld conditions.
-- **Initial Meld Exception**: After drawing from the stock, if you can meld your entire hand including a canasta, you may go out without meeting the minimum.
-- **Finalization**: All remaining melding requirements (such as meld size, wild limits, or going-out constraints) are verified when the discard is made. If requirements are not satisfied, the discard is rejected and cards are required to be returned to the hand.
-- **Mandatory Discard**: If no canasta is held by the partnership, the final card in the hand is prohibited from being melded, as it is required for the concluding discard.
-- **Capturing the Pile**: When the discard pile is taken, the top card must be melded immediately. The point value of this card contributes toward the initial meld requirement.
-
-## Game Strategy
-
-- **Meld timing**: Build toward at least one canasta early while keeping enough cards to go out safely.
-- **Discard control**: Avoid discarding cards that help opponents lift a frozen pile.
-- **Wild management**: Save jokers and twos for high-value melds and canastas when possible.
-- **Locking the discard pile**: Prevent opponents from lifting the discard pile by keeping it frozen (discarding a wild card), useful if there are many cards in the pile that you want to save for your team's melds.
+If the stock runs out, the hand ends when the current player cannot legally take the discard pile. If the player can take it, the pile must be taken.

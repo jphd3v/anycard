@@ -21,7 +21,7 @@
       "fromPileId": "P1-hand",
       "toPileId": "P2-meld-0",
       "cardId": 107,
-      "expectedError": "Card not in source pile."
+      "expectedError": "Can only meld cards from your own hand."
     },
     {
       "type": "move",

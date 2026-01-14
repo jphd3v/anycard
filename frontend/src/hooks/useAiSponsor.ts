@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef } from "react";
-import { parseAiChoice } from "../../../shared/src/ai/parser";
+import { parseAiOutput } from "../../../shared/src/ai/parser";
 import {
   extractLlmErrorDetails,
   runLlmWithFallback,
@@ -299,9 +299,9 @@ export function useAiSponsor() {
 
         logAiLlmRaw(view.gameId, seat.seatId, stateVersion, content);
 
-        const choice = parseAiChoice(content);
+        const output = parseAiOutput(content);
 
-        if (!choice) {
+        if (!output) {
           throw new AiError(
             "policy",
             "AI response could not be parsed",
@@ -309,19 +309,19 @@ export function useAiSponsor() {
           );
         }
 
-        logAiLlmParsed(view.gameId, seat.seatId, stateVersion, choice);
+        logAiLlmParsed(view.gameId, seat.seatId, stateVersion, output);
 
-        // Map choice back to original intent from our backend-provided context
+        // Map output.id back to original intent from our backend-provided context
 
-        const action = context.candidates.find(
-          (c: unknown) =>
-            (c as Record<string, unknown>).id === choice.chosenCandidateId
-        ) as Record<string, unknown> | undefined;
+        const action = context.candidates.find((c: unknown) => {
+          const candidate = c as Record<string, unknown>;
+          return candidate.id === output.id;
+        }) as Record<string, unknown> | undefined;
 
         if (!action) {
           throw new AiError(
             "policy",
-            `AI chose invalid candidateId: ${choice.chosenCandidateId}`
+            `AI chose invalid candidate id: ${output.id ?? "unknown"}`
           );
         }
 

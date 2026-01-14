@@ -11,7 +11,6 @@ import {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { createRandom, fisherYates, stringToSeed } from "../../util/random.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -28,7 +27,6 @@ interface RistiseiskaRulesState {
   phase: "setup" | "playing" | "ended";
   starter: string | null;
   result: string | null;
-  agentGuide?: AgentGuide;
 }
 
 const SUITS: Suit[] = ["clubs", "diamonds", "hearts", "spades"];
@@ -62,10 +60,6 @@ function getSuitPileId(suit: string): string {
 
 function otherPlayer(playerId: string): string {
   return playerId === "P1" ? "P2" : "P1";
-}
-
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return `${card.rank} of ${card.suit}`;
 }
 
 function buildScoreboard(
@@ -134,7 +128,6 @@ function dealFromDeck(
       phase: "playing",
       starter,
       result: null,
-      agentGuide: appendHistoryDigest(rulesState.agentGuide, "Hand started."),
     },
   });
 
@@ -280,7 +273,6 @@ export const ristiseiskaRules: GameRuleModule = {
       phase: rawRulesState.phase ?? "setup",
       starter: rawRulesState.starter ?? null,
       result: rawRulesState.result ?? null,
-      agentGuide: rawRulesState.agentGuide ?? { historyDigest: [] },
     };
 
     const gameId = state.gameId;
@@ -342,7 +334,6 @@ export const ristiseiskaRules: GameRuleModule = {
       phase: rawRulesState.phase ?? "setup",
       starter: rawRulesState.starter ?? null,
       result: rawRulesState.result ?? null,
-      agentGuide: rawRulesState.agentGuide ?? { historyDigest: [] },
     };
 
     if (!rulesState.hasDealt) {
@@ -452,10 +443,6 @@ export const ristiseiskaRules: GameRuleModule = {
         type: "set-rules-state",
         rulesState: {
           ...rulesState,
-          agentGuide: appendHistoryDigest(
-            rulesState.agentGuide,
-            `${intent.playerId} passed.`
-          ),
         },
       });
 
@@ -488,14 +475,8 @@ export const ristiseiskaRules: GameRuleModule = {
       };
     }
 
-    const movedCard = fromPile.cards.find((card) => card.id === intent.cardId);
-    if (!movedCard) {
-      return {
-        valid: false,
-        reason: "Card not in source pile.",
-        engineEvents: [],
-      };
-    }
+    // Engine guarantees card exists in source pile
+    const movedCard = fromPile.cards.find((card) => card.id === intent.cardId)!;
 
     const tableRanks = collectTableRanks(state);
     const clubsSevenDown = hasSevenOfClubsOnTable(tableRanks);
@@ -537,10 +518,6 @@ export const ristiseiskaRules: GameRuleModule = {
           ...rulesState,
           phase: "ended",
           result: intent.playerId,
-          agentGuide: appendHistoryDigest(
-            rulesState.agentGuide,
-            `${intent.playerId} played ${formatCardLabel(movedCard)}.`
-          ),
         },
       });
       engineEvents.push({
@@ -557,10 +534,6 @@ export const ristiseiskaRules: GameRuleModule = {
         rulesState: {
           ...rulesState,
           phase: "playing",
-          agentGuide: appendHistoryDigest(
-            rulesState.agentGuide,
-            `${intent.playerId} played ${formatCardLabel(movedCard)}.`
-          ),
         },
       });
     }

@@ -13,6 +13,7 @@ import { validateMove } from "./rule-engine.js";
 import {
   GameEventSchema,
   ClientIntent,
+  MoveIntent,
   GameState,
   GameEvent,
   LastAction,
@@ -23,6 +24,25 @@ import { resolveEngineCardId } from "./view-ids.js";
 import { getSuitSymbol } from "./util/card-notation.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 import { appendAiLogEntry } from "./ai/ai-log.js";
+
+/**
+ * Normalize a MoveIntent to always return an array of card IDs.
+ * This helper ensures uniform handling of both single and multi-card moves.
+ * PRECONDITION: Either cardId or cardIds must be defined (enforced by engine validation).
+ */
+export function normalizeCardIds(intent: MoveIntent): number[] {
+  if (intent.cardId !== undefined) {
+    return [intent.cardId];
+  }
+  if (intent.cardIds !== undefined) {
+    return intent.cardIds;
+  }
+  // This should never happen after engine-level validation
+  console.error("normalizeCardIds called with invalid intent:", intent);
+  throw new Error(
+    "normalizeCardIds called with intent missing both cardId and cardIds"
+  );
+}
 
 type SeatRuntime = "none" | "backend" | "frontend";
 
@@ -46,7 +66,15 @@ function findMoveLabel(
   viewerId?: string
 ): string {
   if (intent.type !== "move") return "Move Card";
-  const card = state.cards[intent.cardId];
+  const cardIds = normalizeCardIds(intent);
+  if (cardIds.length === 0) return "Move Card";
+
+  // For multi-card moves, show count or first card
+  if (cardIds.length > 1) {
+    return `Move ${cardIds.length} cards`;
+  }
+
+  const card = state.cards[cardIds[0]];
   if (!card) return "Move Card";
 
   if (viewerId && viewerId !== "__god__") {
@@ -160,6 +188,25 @@ export function preValidateIntentLocally(
 
   // Only apply move-specific validations to move intents
   if (intent.type === "move") {
+    // Card ID specification guard: ensure exactly one of cardId or cardIds is provided
+    const hasCardId = intent.cardId !== undefined;
+    const hasCardIds =
+      intent.cardIds !== undefined &&
+      Array.isArray(intent.cardIds) &&
+      intent.cardIds.length > 0;
+    if (!hasCardId && !hasCardIds) {
+      return {
+        shortCircuit: true,
+        reason: "Must specify either 'cardId' or a non-empty 'cardIds' array.",
+      };
+    }
+    if (hasCardId && hasCardIds) {
+      return {
+        shortCircuit: true,
+        reason: "Cannot specify both 'cardId' and 'cardIds'.",
+      };
+    }
+
     // No-op move guard: if moving from the same pile to the same pile
     if (intent.fromPileId === intent.toPileId) {
       return {
@@ -168,7 +215,7 @@ export function preValidateIntentLocally(
       };
     }
 
-    // Card membership guard: verify the card actually exists in the source pile
+    // Card membership guard: verify all cards actually exist in the source pile
     const fromPile = state.piles[intent.fromPileId];
     if (!fromPile) {
       return {
@@ -177,11 +224,14 @@ export function preValidateIntentLocally(
       };
     }
 
-    if (!fromPile.cardIds.includes(intent.cardId)) {
-      return {
-        shortCircuit: true,
-        reason: "Card is not in the source pile.",
-      };
+    const cardIds = normalizeCardIds(intent);
+    for (const cardId of cardIds) {
+      if (!fromPile.cardIds.includes(cardId)) {
+        return {
+          shortCircuit: true,
+          reason: `Card ${cardId} is not in the source pile.`,
+        };
+      }
     }
   }
 
@@ -245,21 +295,45 @@ export async function handleClientIntent(
     if (intent.type === "move") {
       const viewSalt = getViewSalt(gameId);
       const viewerKey = intent.playerId;
-      const engineCardId = resolveEngineCardId(
-        intent.cardId,
-        viewSalt,
-        viewerKey,
-        state
-      );
-      if (engineCardId == null) {
-        console.log(`Intent rejected: Unknown card`, {
-          gameId,
-          playerId,
-          viewCardId: intent.cardId,
-        });
-        return { success: false };
+
+      // Handle both single and multi-card intents
+      if (intent.cardId !== undefined) {
+        const engineCardId = resolveEngineCardId(
+          intent.cardId,
+          viewSalt,
+          viewerKey,
+          state
+        );
+        if (engineCardId == null) {
+          console.log(`Intent rejected: Unknown card`, {
+            gameId,
+            playerId,
+            viewCardId: intent.cardId,
+          });
+          return { success: false };
+        }
+        intentForEngine = { ...intent, cardId: engineCardId };
+      } else if (intent.cardIds !== undefined) {
+        const engineCardIds: number[] = [];
+        for (const viewCardId of intent.cardIds) {
+          const engineCardId = resolveEngineCardId(
+            viewCardId,
+            viewSalt,
+            viewerKey,
+            state
+          );
+          if (engineCardId == null) {
+            console.log(`Intent rejected: Unknown card in cardIds`, {
+              gameId,
+              playerId,
+              viewCardId,
+            });
+            return { success: false };
+          }
+          engineCardIds.push(engineCardId);
+        }
+        intentForEngine = { ...intent, cardIds: engineCardIds };
       }
-      intentForEngine = { ...intent, cardId: engineCardId };
     }
 
     // Perform local pre-validation

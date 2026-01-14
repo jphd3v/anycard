@@ -21,7 +21,6 @@ import type {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -42,7 +41,6 @@ interface BriscolaRulesState {
   briscolaSuit: string | null;
   result: string | null;
   currentTrick: Array<{ cardId: number; playedBy: string }> | null;
-  agentGuide?: AgentGuide;
 }
 
 type SimpleCard = { id: number; rank: string; suit: string };
@@ -88,7 +86,6 @@ function getBriscolaRulesState(
     briscolaSuit: null,
     result: null,
     currentTrick: null,
-    agentGuide: { historyDigest: [] },
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -107,7 +104,6 @@ function getBriscolaRulesState(
     briscolaSuit: obj.briscolaSuit ?? base.briscolaSuit,
     result: obj.result ?? base.result,
     currentTrick: obj.currentTrick ?? base.currentTrick,
-    agentGuide: obj.agentGuide ?? base.agentGuide,
   };
 }
 
@@ -122,24 +118,6 @@ function cardPoints(rank: string): number {
 
 function cardRankValue(rank: string): number {
   return CARD_RANK_VALUES[rank] ?? 0;
-}
-
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return `${card.rank} of ${card.suit}`;
-}
-
-function formatTrickSummary(
-  trickCards: Array<{ rank: string; suit: string; playedBy?: string | null }>,
-  winner: string
-): string {
-  const plays = trickCards
-    .map((card) =>
-      card.playedBy
-        ? `${card.playedBy} ${formatCardLabel(card)}`
-        : formatCardLabel(card)
-    )
-    .join(", ");
-  return `Trick: ${plays}; winner ${winner}.`;
 }
 
 // Determine trick winner
@@ -352,7 +330,7 @@ function refillHands(
 
 function computeCardVisuals(
   state: ValidationState,
-  nextRulesState: BriscolaRulesState,
+  _nextRulesState: BriscolaRulesState,
   engineEvents: EngineEvent[]
 ): EngineEvent {
   const projected = projectPilesAfterEvents(state, engineEvents);
@@ -493,14 +471,6 @@ export const briscolaRules: GameRuleModule = {
       const briscolaCard = state.allCards[briscolaCardId];
       nextRulesState.briscolaSuit = briscolaCard?.suit ?? null;
 
-      // If we finished a hand, the rules state will have been reset to deal.
-      // We pass the final hand result as a summary to collapse the history.
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        `Hand ${nextDealNumber} started (briscola ${nextRulesState.briscolaSuit ?? "unknown"}).`,
-        { summarizePrevious: rulesState.result || undefined }
-      );
-
       // First player to act: take the first configured player (defaults to P1)
       const firstPlayer = rulesState.players[0] ?? null;
       engineEvents.push({
@@ -584,21 +554,18 @@ export const briscolaRules: GameRuleModule = {
       };
     }
 
-    const played = handPile.cards.find((c) => c.id === intent.cardId);
-    if (!played) {
-      return {
-        valid: false,
-        reason: "Card not in source pile.",
-        engineEvents: [],
-      };
-    }
+    // Engine guarantees cardId is defined for move intents
+    const cardId = intent.cardId!;
+
+    // Engine guarantees card exists in source pile
+    const played = handPile.cards.find((c) => c.id === cardId)!;
 
     // Always move played card hand -> trick first
     engineEvents.push({
       type: "move-cards",
       fromPileId: `${playerId}-hand`,
       toPileId: "trick",
-      cardIds: [intent.cardId],
+      cardIds: [cardId],
     });
 
     // Create the array with proper typing
@@ -622,10 +589,6 @@ export const briscolaRules: GameRuleModule = {
       const winner = determineTrickWinner(
         trickCardsAfterMove,
         rulesState.briscolaSuit
-      );
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        formatTrickSummary(trickCardsAfterMove, winner)
       );
       const cardIds = trickCardsAfterMove.map((c) => c.id) as [
         number,
@@ -702,7 +665,7 @@ export const briscolaRules: GameRuleModule = {
 
       nextRulesState.currentTrick = [
         ...(rulesState.currentTrick || []),
-        { cardId: intent.cardId, playedBy: playerId },
+        { cardId: intent.cardId!, playedBy: playerId },
       ];
     }
 

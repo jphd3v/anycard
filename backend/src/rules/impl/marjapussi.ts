@@ -24,8 +24,7 @@ import {
   ValidationResult,
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
-import { getSuitSymbol, formatCard } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
+import { getSuitSymbol } from "../../util/card-notation.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -74,7 +73,6 @@ interface MarjapussiRulesState {
   lastTrickWinner: string | null;
   canDeclare: boolean;
   result: string | null;
-  agentGuide?: AgentGuide;
 }
 
 const TRICK_RANK_VALUE: Record<string, number> = {
@@ -134,21 +132,6 @@ function cardPointValue(rank: string): number {
   return CARD_POINT_VALUE[rank] ?? 0;
 }
 
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return formatCard(card.rank, card.suit);
-}
-
-function formatTrickSummary(
-  trickNumber: number,
-  trickCards: PlayedCard[],
-  winner: string
-): string {
-  const plays = trickCards
-    .map((card) => `${card.player} ${formatCardLabel(card)}`)
-    .join(", ");
-  return `Trick ${trickNumber}: ${plays}; winner ${winner}.`;
-}
-
 function getRulesState(raw: unknown): MarjapussiRulesState {
   const base: MarjapussiRulesState = {
     hasDealt: false,
@@ -166,7 +149,6 @@ function getRulesState(raw: unknown): MarjapussiRulesState {
     lastTrickWinner: null,
     canDeclare: false,
     result: null,
-    agentGuide: { historyDigest: [] },
   };
 
   if (!raw || typeof raw !== "object") {
@@ -201,7 +183,6 @@ function getRulesState(raw: unknown): MarjapussiRulesState {
     inTheBag: obj.inTheBag ?? base.inTheBag,
     phase: (obj.phase as Phase) ?? base.phase,
     result: obj.result ?? base.result,
-    agentGuide: obj.agentGuide ?? base.agentGuide,
   };
 }
 
@@ -618,12 +599,7 @@ function buildDeal(
     marriages: [],
     marriagePoints: { A: 0, B: 0 },
     lastTrickWinner: null,
-    canDeclare: true, // First leader can declare
-    agentGuide: appendHistoryDigest(
-      rulesState.agentGuide,
-      `Hand ${nextDealNumber} started.`,
-      { summarizePrevious: rulesState.result || undefined }
-    ),
+    canDeclare: true,
   };
 
   return { events, nextRulesState, nextPlayer: leader };
@@ -881,7 +857,6 @@ const marjapussiRuleModule: GameRuleModule = {
 
       const declared = suitsDeclaredByAny(rulesState);
       let nextRulesState = { ...rulesState };
-      let historyEntry: string | null = null;
 
       if (intent.action.startsWith("declare-marriage-self-")) {
         const suitStr = intent.action.replace("declare-marriage-self-", "");
@@ -910,7 +885,6 @@ const marjapussiRuleModule: GameRuleModule = {
         }
 
         nextRulesState = recordMarriage(nextRulesState, suit, team);
-        historyEntry = `${playerId} declared marriage in ${getSuitSymbol(suit)}.`;
       } else if (intent.action.startsWith("declare-marriage-partner-")) {
         const suitStr = intent.action.replace("declare-marriage-partner-", "");
         if (!SUITS.includes(suitStr as Suit)) {
@@ -939,7 +913,6 @@ const marjapussiRuleModule: GameRuleModule = {
         }
 
         nextRulesState = recordMarriage(nextRulesState, suit, team);
-        historyEntry = `${playerId} declared partner marriage in ${getSuitSymbol(suit)}.`;
       } else {
         return {
           valid: false,
@@ -953,12 +926,6 @@ const marjapussiRuleModule: GameRuleModule = {
         nextRulesState = { ...nextRulesState, phase: "game-over" };
       }
 
-      if (historyEntry) {
-        nextRulesState.agentGuide = appendHistoryDigest(
-          nextRulesState.agentGuide,
-          historyEntry
-        );
-      }
       engineEvents.push({
         type: "set-rules-state",
         rulesState: nextRulesState,
@@ -1015,14 +982,16 @@ const marjapussiRuleModule: GameRuleModule = {
       };
     }
 
-    const played = handPile.cards.find((c) => c.id === intent.cardId);
-    if (!played) {
+    if (intent.cardId! === undefined) {
       return {
         valid: false,
-        reason: "Card not in your hand.",
+        reason: "Move requires cardId.",
         engineEvents: [],
       };
     }
+
+    // Engine guarantees card exists in source pile
+    const played = handPile.cards.find((c) => c.id === intent.cardId!)!;
 
     const handCards = pileCards(handPile);
     const lead =
@@ -1062,7 +1031,7 @@ const marjapussiRuleModule: GameRuleModule = {
       rulesState.currentTrick.leadSuit,
       rulesState.trumpSuit
     );
-    if (!allowedCards.some((c) => c.cardId === intent.cardId)) {
+    if (!allowedCards.some((c) => c.cardId === intent.cardId!)) {
       return {
         valid: false,
         reason: "That card is not legal now.",
@@ -1071,7 +1040,7 @@ const marjapussiRuleModule: GameRuleModule = {
     }
 
     const playedCard: PlayedCard = {
-      cardId: intent.cardId,
+      cardId: intent.cardId!,
       player: playerId,
       suit: played.suit as Suit,
       rank: played.rank as Rank,
@@ -1081,7 +1050,7 @@ const marjapussiRuleModule: GameRuleModule = {
       type: "move-cards",
       fromPileId,
       toPileId: "trick",
-      cardIds: [intent.cardId],
+      cardIds: [intent.cardId!],
     });
 
     let nextRulesState: MarjapussiRulesState = {
@@ -1113,15 +1082,6 @@ const marjapussiRuleModule: GameRuleModule = {
           engineEvents: [],
         };
       }
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        formatTrickSummary(
-          rulesState.trickNumber,
-          nextRulesState.currentTrick.cards,
-          winner.player
-        )
-      );
-
       const targetPile =
         partnershipFor(winner.player) === "A" ? TEAM_A_WON : TEAM_B_WON;
       const trickCardIds = nextRulesState.currentTrick.cards.map(

@@ -1,75 +1,114 @@
 // shared/src/ai/prompts.ts
-import type { AiRequest } from "./types.js";
+import type { AiTurnInput } from "./types.js";
 
 export interface ChatMessage {
   role: "system" | "user";
   content: string;
 }
 
-// Builds OpenAI-style messages; both backend and frontend use this.
-export function buildAiMessages(req: AiRequest): ChatMessage[] {
-  const { rulesId, seatId, view, candidates, agentGuide } = req;
+/**
+ * Build OpenAI-style messages for the simplified AI contract.
+ * Input: view (seat-hardened), context (recap + facts), candidates (ids only).
+ * Output: JSON with single "id" field.
+ *
+ * Structure:
+ * - System prompt: Instructions + Game rules (stable, can be cached by providers)
+ * - User prompt: Current state + candidates (changes each turn)
+ */
+export function buildAiMessages(input: AiTurnInput): ChatMessage[] {
+  const { view, context, candidates, rulesMarkdown } = input;
 
-  const systemContent = [
-    `You are an AI playing a card game with rulesId="${rulesId}".`,
-    `You control seat "${seatId}".`,
-    `You must choose exactly one candidate move by its "id".`,
-    `Use the provided rulesMarkdown (if present) to understand the game.`,
-    `Only use the rulesMarkdown, the view, and the candidate list provided.`,
-    `Do NOT rely on any outside knowledge about the game.`,
-    `Assume the view is the only information you can see; do not infer hidden cards.`,
-    `Do NOT invent new moves or candidate ids.`,
-    `Candidate ids are semantic.`,
-    `Cards are uniquely identified by "id". The same rank+suit may appear multiple times in multi-deck games; do not treat duplicates as an error.`,
-    `If "agentGuide" is present, treat it as authoritative for legality, phase, and constraints. Do not infer legality solely from candidate availability.`,
-    `You should reason about your choice before making it to ensure it is legal and strategic.`,
-    `Return your final choice in a single JSON object wrapped in <final_json> tags. Any text outside <final_json> will be ignored.`,
-    `Example: <final_json>{"chosenCandidateId": "move:P1-hand:cardId_123->discard"}</final_json>`,
-    `If scoreboards include "WE/THEY" labels, they may be perspective-based; do not infer teams from those labels.`,
-    `Piles only list visible cards; if hiddenCount > 0, that many cards are hidden.`,
-    `General play heuristics (only if consistent with the rules/state):`,
-    `If the game does not involve trick play, ignore trick-play heuristics.`,
-    `Avoid wasting high cards on a trick you cannot win; if a trick is already won by another player, prefer the lowest legal card.`,
-  ].join("\n");
+  // System prompt: instructions + rules (sent once, cacheable)
+  const systemParts = [
+    `You are an AI playing a card game. Choose exactly one move by its id.`,
+    `All listed moves are legal. Pick the best one based on strategy.`,
+    `You may think through your reasoning, but your final answer MUST be inside <answer> tags.`,
+    `Format: <answer>{"id": "cX"}</answer>`,
+  ];
 
-  const rulesMarkdown = req.rulesMarkdown?.trim() ?? "";
-  const candidatesPayload = JSON.stringify(
-    candidates.map((c: AiRequest["candidates"][number]) => ({ id: c.id }))
+  // Add rules to system prompt (stable content, good for caching)
+  if (rulesMarkdown) {
+    systemParts.push("");
+    systemParts.push("# Game Rules");
+    systemParts.push("");
+    systemParts.push(sanitizeRulesMarkdown(rulesMarkdown));
+  }
+
+  const systemContent = systemParts.join("\n");
+
+  // Format candidates as readable markdown list
+  const candidatesPayload = candidates
+    .map((c, idx) => {
+      const num = String(idx + 1).padStart(2, " ");
+      return `${num}. ${c.id} — ${c.summary ?? "(no description)"}`;
+    })
+    .join("\n");
+
+  // User prompt: dynamic state (changes each turn)
+  const userSections = [];
+
+  // Game state (compact JSON)
+  userSections.push(`# Current State\n\n${JSON.stringify(view, null, 2)}\n`);
+
+  // Context (recap + facts) if present
+  if (context) {
+    const contextParts = [];
+    if (context.recap && context.recap.length > 0) {
+      contextParts.push(`<recap>\n${context.recap.join("\n")}\n</recap>`);
+    }
+    if (context.facts && Object.keys(context.facts).length > 0) {
+      contextParts.push(
+        `<facts>\n${JSON.stringify(context.facts, null, 2)}\n</facts>`
+      );
+    }
+    if (contextParts.length > 0) {
+      userSections.push(`# Context\n\n${contextParts.join("\n")}\n`);
+    }
+  }
+
+  // Available moves
+  userSections.push(
+    `# Available Moves\n\nChoose one:\n\n${candidatesPayload}\n`
   );
 
-  const agentGuideBlock = agentGuide
-    ? [
-        "<agentGuide>",
-        JSON.stringify(agentGuide, null, 2),
-        "</agentGuide>",
-      ].join("\n")
-    : "";
+  // Brief reminder of output format
+  userSections.push(`Reply with: <answer>{"id": "cX"}</answer>`);
 
-  const instruction =
-    `1. Reason about the current state and legal constraints.\n` +
-    `2. Select the best candidate id.\n` +
-    `3. End your response with: <final_json>{"chosenCandidateId": "<id>"}</final_json>`;
-
-  const userContent = [
-    "<rulesMarkdown>",
-    rulesMarkdown || "(none)",
-    "</rulesMarkdown>",
-    agentGuideBlock,
-    "<view>",
-    JSON.stringify(view),
-    "</view>",
-    "<candidates>",
-    candidatesPayload,
-    "</candidates>",
-    "<instruction>",
-    instruction,
-    "</instruction>",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const userContent = userSections.join("\n");
 
   return [
     { role: "system", content: systemContent },
     { role: "user", content: userContent },
   ];
+}
+
+function sanitizeRulesMarkdown(markdown: string): string {
+  if (!markdown) return markdown;
+  return stripStrategySections(markdown).trim();
+}
+
+function stripStrategySections(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const out: string[] = [];
+  let skipping = false;
+  let skipLevel = 0;
+  for (const line of lines) {
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const title = headingMatch[2].trim().toLowerCase();
+      if (skipping && level <= skipLevel) {
+        skipping = false;
+      }
+      if (!skipping && (title === "strategy" || title === "game strategy")) {
+        skipping = true;
+        skipLevel = level;
+        continue;
+      }
+    }
+    if (!skipping) {
+      out.push(line);
+    }
+  }
+  return out.join("\n");
 }

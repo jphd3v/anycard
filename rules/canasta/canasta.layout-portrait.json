@@ -75,8 +75,12 @@
     }
   ],
   "pileStyles": {
-    "deck": { "layout": "complete", "label": "Stock" },
-    "discard": { "layout": "complete", "label": "Discard" },
+    "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
+    "discard": {
+      "layout": "complete",
+      "label": "Discard",
+      "showDetails": true
+    },
     "P1-hand": {
       "layout": "horizontal",
       "sort": {

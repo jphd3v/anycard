@@ -174,7 +174,7 @@ export async function runAiTurn(
         playerId,
         phase: "execution",
         level: "warn",
-        message: `AI timed out. Selecting random move.`,
+        message: `⚠️ WARNING: AI timed out. Selecting random move.`,
         source: "backend",
         details: {
           error: aiError.message,

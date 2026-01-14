@@ -2,6 +2,7 @@ import type {
   GameRuleModule,
   GamePlugin,
   ValidationHints,
+  AiSupport,
 } from "../interface.js";
 import type {
   ValidationState,
@@ -11,14 +12,20 @@ import type {
   ActionGrid,
   ClientIntent,
   Scoreboard,
+  GameState,
 } from "../../../../shared/schemas.js";
+import type {
+  AiView,
+  AiCandidate,
+  AiContext,
+} from "../../../../shared/src/ai/types.js";
+import type { CandidateAudience } from "../ai-support.js";
 import type {
   EngineEvent,
   ValidationResult,
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { formatCard, getSuitSymbol } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -69,35 +76,6 @@ interface CanastaRulesState {
   gameScore: Record<Team, number>;
   lastHandScore: Record<Team, number>;
   result: string | null;
-  /**
-   * Helpful metadata and turn-specific constraints for AI agents.
-   */
-  agentGuide?: AgentGuide & {
-    turnStatus?: {
-      turnPhase: TurnPhase;
-      mustEndTurnByDiscard: boolean;
-      canGoOutNow: boolean;
-      hasCanasta: boolean;
-    };
-    commitValidation?: {
-      canCommitNow: boolean;
-      rejectReasons: string[] | null;
-      openingMeldPointsNeeded: number;
-      openingMeldPointsIfCommitNow: number;
-      openingMeldSatisfiedIfCommitNow: boolean;
-      mustKeepCardsInHandMin: number;
-      wouldGoOutIfCommitNow: boolean;
-    };
-    lastRejection?: { code: string; details?: Record<string, unknown> } | null;
-    executionNotes?: string[];
-    deckMeta?: {
-      decks: number;
-      jokersPerDeck: number;
-      totalCards: number;
-      duplicatesPossible: boolean;
-      cardUniqueness: "id";
-    };
-  };
 }
 
 function teamFor(playerId: string): Team {
@@ -138,10 +116,6 @@ function getRulesState(raw: unknown): CanastaRulesState {
     gameScore: { A: 0, B: 0 },
     lastHandScore: { A: 0, B: 0 },
     result: null,
-    agentGuide: {
-      historyDigest: [],
-      lastRejection: null,
-    },
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -165,8 +139,6 @@ function getRulesState(raw: unknown): CanastaRulesState {
       };
     }
   }
-
-  const agentGuide = normalizeAgentGuide(obj.agentGuide) ?? base.agentGuide;
 
   return {
     ...base,
@@ -207,28 +179,7 @@ function getRulesState(raw: unknown): CanastaRulesState {
           (n): n is number => typeof n === "number"
         )
       : [],
-    agentGuide,
   };
-}
-
-function normalizeAgentGuide(
-  agentGuide: CanastaRulesState["agentGuide"] | undefined
-): CanastaRulesState["agentGuide"] {
-  if (!agentGuide) return agentGuide;
-  const legacyHistory = (agentGuide as { history?: unknown }).history;
-  const historyDigest = Array.isArray(agentGuide.historyDigest)
-    ? agentGuide.historyDigest
-    : Array.isArray(legacyHistory)
-      ? legacyHistory.filter(
-          (entry): entry is string => typeof entry === "string"
-        )
-      : undefined;
-  if (!historyDigest || agentGuide.historyDigest) {
-    return agentGuide;
-  }
-  const rest = { ...(agentGuide as Record<string, unknown>) };
-  delete rest.history;
-  return { ...rest, historyDigest } as CanastaRulesState["agentGuide"];
 }
 
 function formatTurnDigest(
@@ -585,6 +536,11 @@ function validateMeldPileContents(
   }
   if (wildCount > 3) return "A meld cannot contain more than three wild cards.";
 
+  // Wild cards must be less than natural cards
+  if (cards.length > 0 && wildCount >= naturalCount) {
+    return `Cannot have more wild cards than natural cards in a meld (wild: ${wildCount}, natural: ${naturalCount}).`;
+  }
+
   return null;
 }
 
@@ -896,6 +852,94 @@ function checkBoardValidity(
   return null;
 }
 
+type CommitOutlook = {
+  openingMeldPointsNeeded: number;
+  openingMeldPointsIfCommitNow: number;
+  openingMeldSatisfiedIfCommitNow: boolean;
+  canCommitNow: boolean;
+  rejectReasons: string[];
+  canGoOutIfCommitNow: boolean;
+  hasCanasta: boolean;
+  handSize: number;
+  mustKeepCardsInHandMin: number;
+};
+
+function computeCommitOutlook(
+  state: ValidationState,
+  rulesState: CanastaRulesState,
+  currentPlayerId: string | null
+): CommitOutlook {
+  const team = currentPlayerId ? teamFor(currentPlayerId) : null;
+  const hasCanasta = !!team && teamHasCanasta(state, team);
+  const openingMeldPointsNeeded = team
+    ? initialMeldMinForScore(rulesState.gameScore[team] ?? 0)
+    : 0;
+
+  let openingMeldPointsIfCommitNow = 0;
+  let openingMeldSatisfiedIfCommitNow = false;
+
+  if (team) {
+    const hadMeldBefore = rulesState.turnStartTeamHadMeld?.[team] ?? false;
+    const hasMeldNow = allMeldPileIdsForTeam(team).some(
+      (id) => (state.piles[id]?.size ?? 0) >= 3
+    );
+
+    const exclude = new Set<number>(
+      rulesState.tookDiscardThisTurn
+        ? (rulesState.pickedUpFromDiscardCardIds ?? [])
+        : []
+    );
+    const initialMeldPointsCurrent = sumMeldCardValues(state, team, exclude);
+
+    if (hadMeldBefore) {
+      openingMeldPointsIfCommitNow = openingMeldPointsNeeded;
+      openingMeldSatisfiedIfCommitNow = true;
+    } else {
+      openingMeldPointsIfCommitNow = initialMeldPointsCurrent;
+      openingMeldSatisfiedIfCommitNow =
+        hasMeldNow && openingMeldPointsIfCommitNow >= openingMeldPointsNeeded;
+    }
+  }
+
+  const handSize = currentPlayerId
+    ? (state.piles[`${currentPlayerId}-hand`]?.size ?? 0)
+    : 0;
+  const canGoOutIfCommitNow = hasCanasta && handSize === 0;
+  const mustKeepCardsInHandMin = hasCanasta ? 0 : 1;
+
+  const boardError = team
+    ? checkBoardValidity(state, team, rulesState, currentPlayerId)
+    : "No team";
+  const rejectReasons: string[] = [];
+  if (rulesState.turnPhase === "meld-or-discard") {
+    if (boardError) {
+      if (boardError.includes("three")) rejectReasons.push("MELD_TOO_SMALL");
+      if (boardError.includes("Initial"))
+        rejectReasons.push("INITIAL_MELD_TOO_LOW");
+      if (boardError.includes("canasta"))
+        rejectReasons.push("NO_CANASTA_CANNOT_GO_OUT");
+      if (rejectReasons.length === 0) rejectReasons.push("INVALID_BOARD_STATE");
+    }
+    if (handSize === 0 && !hasCanasta) {
+      rejectReasons.push("HAND_EMPTY_BUT_NO_CANASTA");
+    }
+  }
+  const canCommitNow =
+    rulesState.turnPhase === "meld-or-discard" && rejectReasons.length === 0;
+
+  return {
+    openingMeldPointsNeeded,
+    openingMeldPointsIfCommitNow,
+    openingMeldSatisfiedIfCommitNow,
+    canCommitNow,
+    rejectReasons,
+    canGoOutIfCommitNow,
+    hasCanasta,
+    handSize,
+    mustKeepCardsInHandMin,
+  };
+}
+
 function recomputeDerived(
   state: ValidationState,
   rulesState: CanastaRulesState,
@@ -923,101 +967,10 @@ function recomputeDerived(
   };
 
   const current = state.currentPlayer;
-  const team = current ? teamFor(current) : null;
-  const hasCanasta = !!team && teamHasCanasta(projectedState, team);
-  const initialMeldPointsNeeded = team
-    ? initialMeldMinForScore(rulesState.gameScore[team] ?? 0)
-    : 0;
-
-  let initialMeldPointsCurrent = 0;
-  let openingMeldPointsIfCommitNow = 0;
-  let openingMeldSatisfiedIfCommitNow = false;
-
-  if (team) {
-    const hadMeldBefore = rulesState.turnStartTeamHadMeld?.[team] ?? false;
-    const hasMeldNow = allMeldPileIdsForTeam(team).some(
-      (id) => (projectedState.piles[id]?.size ?? 0) >= 3
-    );
-
-    const exclude = new Set<number>(
-      rulesState.tookDiscardThisTurn
-        ? (rulesState.pickedUpFromDiscardCardIds ?? [])
-        : []
-    );
-    initialMeldPointsCurrent = sumMeldCardValues(projectedState, team, exclude);
-
-    if (hadMeldBefore) {
-      initialMeldPointsCurrent = initialMeldPointsNeeded;
-      openingMeldSatisfiedIfCommitNow = true;
-      openingMeldPointsIfCommitNow = initialMeldPointsNeeded;
-    } else {
-      openingMeldPointsIfCommitNow = initialMeldPointsCurrent;
-      openingMeldSatisfiedIfCommitNow =
-        hasMeldNow && openingMeldPointsIfCommitNow >= initialMeldPointsNeeded;
-    }
-  }
-
-  const handSize = current
-    ? (projectedState.piles[`${current}-hand`]?.size ?? 0)
-    : 0;
-  const canGoOutIfCommitNow = hasCanasta && handSize === 0;
-  const mustKeepCardsInHandMin = hasCanasta ? 0 : 1;
-
-  // Board validity check for "canCommitNow"
-  const boardError = team
-    ? checkBoardValidity(projectedState, team, rulesState, current)
-    : "No team";
-  // Structured rejection codes for AI
-  const rejectReasons: string[] = [];
-  if (rulesState.turnPhase === "meld-or-discard") {
-    if (boardError) {
-      if (boardError.includes("three")) rejectReasons.push("MELD_TOO_SMALL");
-      if (boardError.includes("Initial"))
-        rejectReasons.push("INITIAL_MELD_TOO_LOW");
-      if (boardError.includes("canasta"))
-        rejectReasons.push("NO_CANASTA_CANNOT_GO_OUT");
-      if (rejectReasons.length === 0) rejectReasons.push("INVALID_BOARD_STATE");
-    }
-    if (handSize === 0 && !hasCanasta) {
-      rejectReasons.push("HAND_EMPTY_BUT_NO_CANASTA");
-    }
-  }
-  const canCommitNow =
-    rulesState.turnPhase === "meld-or-discard" && rejectReasons.length === 0;
+  computeCommitOutlook(projectedState, rulesState, current);
 
   const updatedRulesState: CanastaRulesState = {
     ...rulesState,
-    agentGuide: {
-      ...rulesState.agentGuide,
-      turnStatus: {
-        turnPhase: rulesState.turnPhase,
-        mustEndTurnByDiscard: rulesState.turnPhase === "meld-or-discard",
-        canGoOutNow:
-          rulesState.turnPhase === "meld-or-discard" && canGoOutIfCommitNow,
-        hasCanasta,
-      },
-      commitValidation: {
-        canCommitNow: !!canCommitNow,
-        rejectReasons: rejectReasons.length > 0 ? rejectReasons : null,
-        openingMeldPointsNeeded: initialMeldPointsNeeded,
-        openingMeldPointsIfCommitNow,
-        openingMeldSatisfiedIfCommitNow,
-        mustKeepCardsInHandMin,
-        wouldGoOutIfCommitNow: canGoOutIfCommitNow,
-      },
-      executionNotes: [
-        "Turn is committed only when discarding to the discard pile.",
-        "Intermediate meld moves may create temporarily invalid table states; only the commit action determines if the turn can end.",
-        "Multiple decks: identical rank+suit cards can exist; treat cards as distinct by id.",
-      ],
-      deckMeta: {
-        decks: 2,
-        jokersPerDeck: 2,
-        totalCards: 108,
-        duplicatesPossible: true,
-        cardUniqueness: "id",
-      },
-    },
   };
 
   engineEvents.push({
@@ -1032,6 +985,34 @@ function recomputeDerived(
     type: "set-card-visuals",
     visuals: computeCardVisuals(projectedState),
   });
+
+  // Update pile properties for complete canastas (7+ cards).
+  const pileProperties: Record<
+    string,
+    {
+      layout?: "complete" | "horizontal" | "vertical" | "spread";
+      label?: string;
+    }
+  > = {};
+  for (const team of ["A", "B"] as const) {
+    for (const rank of MELD_RANKS) {
+      const pileId = meldPileId(team, rank);
+      const cards = pileCards(projectedState.piles[pileId] ?? null);
+      if (cards.length >= 7) {
+        pileProperties[pileId] = { layout: "complete" };
+      } else if (cards.length > 0) {
+        // Ensure piles that aren't complete use horizontal layout
+        pileProperties[pileId] = { layout: "horizontal" };
+      }
+    }
+  }
+  if (Object.keys(pileProperties).length > 0) {
+    engineEvents.push({
+      type: "set-pile-properties",
+      properties: pileProperties,
+    });
+  }
+
   engineEvents.push({
     type: "set-rules-state",
     rulesState: updatedRulesState,
@@ -1061,6 +1042,77 @@ function buildStateFromProjected(
       return next;
     })(),
   };
+}
+
+/**
+ * Generate all viable multi-card meld candidates from a hand.
+ * Returns arrays of card IDs that form valid natural or mixed melds.
+ *
+ * Rules:
+ * - Natural meld: 3+ cards of same rank, no wilds
+ * - Mixed meld: 2+ naturals + wilds, wilds < naturals
+ * - Min total: 3 cards
+ */
+function generateMeldCandidates(
+  hand: SimpleCard[],
+  state: ValidationState,
+  playerId: string
+): number[][] {
+  const melds: number[][] = [];
+  const myTeam = teamFor(playerId);
+
+  // Group cards by rank (excluding wilds)
+  const byRank = new Map<string, number[]>();
+  const wilds: number[] = [];
+
+  for (const card of hand) {
+    if (isWild(card)) {
+      wilds.push(card.id);
+    } else if (isNaturalMeldRank(card.rank)) {
+      const key = card.rank;
+      if (!byRank.has(key)) byRank.set(key, []);
+      byRank.get(key)!.push(card.id);
+    }
+  }
+
+  // Generate natural melds (3+ of same rank, no wilds)
+  // Only generate minimal size (3 cards) to reduce candidate explosion
+  for (const cardIds of byRank.values()) {
+    if (cardIds.length >= 3) {
+      melds.push(cardIds.slice(0, 3)); // Only minimal meld of 3 cards
+    }
+  }
+
+  // Generate mixed melds (natural + wilds, wilds < naturals)
+  // Only generate one candidate per rank: 2 naturals + 1 wild (minimal mixed meld)
+  for (const [rank, naturals] of byRank) {
+    if (naturals.length >= 2 && wilds.length > 0) {
+      // Check if this rank already has a meld pile started
+      const meldPile = pileCards(state.piles[meldPileId(myTeam, rank)] ?? null);
+      const existingWilds = meldPile.filter(isWild).length;
+      const existingNaturals = meldPile.length - existingWilds;
+
+      // Only try 2 naturals + 1 wild (minimal mixed meld)
+      const useNaturals = Math.min(2, naturals.length);
+      const useWilds = 1;
+
+      // Constraint: wilds in THIS meld must be < naturals in THIS meld
+      if (useWilds >= useNaturals) continue;
+
+      // Constraint: total wilds (pile + hand) must be < total naturals (pile + hand)
+      const totalNaturals = useNaturals + existingNaturals;
+      const totalWilds = useWilds + existingWilds;
+      if (totalWilds >= totalNaturals) continue;
+
+      // Constraint: meld must be at least 3 cards
+      const meldSize = useNaturals + useWilds;
+      if (meldSize >= 3) {
+        melds.push([...naturals.slice(0, useNaturals), wilds[0]]);
+      }
+    }
+  }
+
+  return melds;
 }
 
 export const canastaRules: GameRuleModule = {
@@ -1132,6 +1184,30 @@ export const canastaRules: GameRuleModule = {
     } else if (rulesState.turnPhase === "meld-or-discard") {
       candidates.push({ type: "action", gameId, playerId, action: "go-out" });
 
+      // Generate multi-card meld candidates for starting or extending melds
+      const meldCandidates = generateMeldCandidates(hand, state, playerId);
+      for (const cardIds of meldCandidates) {
+        const firstNatural = cardIds
+          .map((id) => hand.find((c) => c.id === id))
+          .find((c) => c && !isWild(c));
+
+        if (firstNatural && isNaturalMeldRank(firstNatural.rank)) {
+          const targetPileId = meldPileId(myTeam, firstNatural.rank);
+          candidates.push({
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: `${playerId}-hand`,
+            toPileId: targetPileId,
+            cardIds,
+          });
+        }
+      }
+
+      // Generate discard candidates
+      // Per official Canasta rules, any card in hand can be discarded.
+      // Discarding wild cards (2s and Jokers) is legal but strategically poor,
+      // and it freezes the discard pile for all players.
       for (const c of hand) {
         candidates.push({
           type: "move",
@@ -1154,9 +1230,10 @@ export const canastaRules: GameRuleModule = {
             });
           }
         }
+        // Generate single-card meld candidates
         if (isWild(c)) {
           for (const mid of meldPiles) {
-            if (!canStartOrExtendMeld(state, playerId, mid, c)) {
+            if (canStartOrExtendMeld(state, playerId, mid, c)) {
               candidates.push({
                 type: "move",
                 gameId,
@@ -1169,7 +1246,7 @@ export const canastaRules: GameRuleModule = {
           }
         } else if (isNaturalMeldRank(c.rank)) {
           const mid = meldPileId(myTeam, c.rank);
-          if (!canStartOrExtendMeld(state, playerId, mid, c)) {
+          if (canStartOrExtendMeld(state, playerId, mid, c)) {
             candidates.push({
               type: "move",
               gameId,
@@ -1182,19 +1259,8 @@ export const canastaRules: GameRuleModule = {
         }
       }
 
-      for (const mid of meldPiles) {
-        const pile = pileCards(state.piles[mid] ?? null);
-        for (const c of pile) {
-          candidates.push({
-            type: "move",
-            gameId,
-            playerId,
-            fromPileId: mid,
-            toPileId: `${playerId}-hand`,
-            cardId: c.id,
-          });
-        }
-      }
+      // Note: Cards cannot be moved back from melds to hand.
+      // Once melded, cards stay on the table for the partnership.
     }
 
     for (const c of candidates) {
@@ -1253,11 +1319,6 @@ export const canastaRules: GameRuleModule = {
 
       nextRulesState = {
         ...nextRulesState,
-        agentGuide: appendHistoryDigest(
-          nextRulesState.agentGuide,
-          `Hand ${nextDealNumber} started (dealer ${dealer}).`,
-          { summarizePrevious: rulesState.result || undefined }
-        ),
       };
 
       const { events: dealEvents, nextIndex: afterDealIdx } =
@@ -1380,10 +1441,6 @@ export const canastaRules: GameRuleModule = {
           pickedUpFromDiscardCardIds: [],
           cardsPlayedToMeldsThisTurn: [],
           result: `Hand ${rulesState.dealNumber} Result: ${current} went out. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
-          agentGuide: appendHistoryDigest(
-            nextRulesState.agentGuide,
-            `${current} went out (no discard).`
-          ),
         };
 
         // Gather cards back to deck for next round
@@ -1479,10 +1536,6 @@ export const canastaRules: GameRuleModule = {
           pickedUpFromDiscardCardIds: [],
           cardsPlayedToMeldsThisTurn: [],
           result: `Hand ${rulesState.dealNumber} Result: Stock empty. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
-          agentGuide: appendHistoryDigest(
-            nextRulesState.agentGuide,
-            `${current} ended the hand (stock empty).`
-          ),
         };
 
         // Gather cards back to deck for next round
@@ -1503,7 +1556,9 @@ export const canastaRules: GameRuleModule = {
     if (intent.type === "move") {
       const from = intent.fromPileId;
       const to = intent.toPileId;
-      const cardId = intent.cardId;
+
+      // Extract cardId for single-card moves
+      // Multi-card melds are handled separately in the meld section below
 
       // Drawing from stock: drag the top stock card to your hand.
       if (
@@ -1511,12 +1566,19 @@ export const canastaRules: GameRuleModule = {
         from === "deck" &&
         to === `${current}-hand`
       ) {
+        if (intent.cardId! === undefined) {
+          return {
+            valid: false,
+            reason: "Drawing from deck requires single cardId.",
+            engineEvents: [],
+          };
+        }
         const deck = pileCards(state.piles["deck"]);
         if (deck.length === 0) {
           return { valid: false, reason: "Stock is empty.", engineEvents: [] };
         }
         const top = deck[deck.length - 1];
-        if (cardId !== top.id) {
+        if (intent.cardId! !== top.id) {
           return {
             valid: false,
             reason: "You can only draw the top card of the stock.",
@@ -1547,6 +1609,13 @@ export const canastaRules: GameRuleModule = {
 
       // Taking the discard pile: drag top discard to your team's meld pile.
       if (rulesState.turnPhase === "must-draw" && from === "discard") {
+        if (intent.cardId! === undefined) {
+          return {
+            valid: false,
+            reason: "Taking discard requires single cardId.",
+            engineEvents: [],
+          };
+        }
         const discard = pileCards(state.piles["discard"]);
         if (discard.length === 0) {
           return {
@@ -1556,7 +1625,7 @@ export const canastaRules: GameRuleModule = {
           };
         }
         const top = discard[discard.length - 1];
-        if (cardId !== top.id) {
+        if (intent.cardId! !== top.id) {
           return {
             valid: false,
             reason: "You can only take the top discard.",
@@ -1711,17 +1780,15 @@ export const canastaRules: GameRuleModule = {
         from.startsWith(`${myTeam}-meld-`) &&
         to === `${current}-hand`
       ) {
-        const meldPile = pileCards(state.piles[from]);
-        const moving = meldPile.find((c) => c.id === cardId);
-        if (!moving) {
+        if (intent.cardId! === undefined) {
           return {
             valid: false,
-            reason: "Card not in source pile.",
+            reason: "Unmeld requires single cardId.",
             engineEvents: [],
           };
         }
-
-        if (!rulesState.cardsPlayedToMeldsThisTurn.includes(cardId)) {
+        // Engine guarantees card exists in source pile
+        if (!rulesState.cardsPlayedToMeldsThisTurn.includes(intent.cardId!)) {
           return {
             valid: false,
             reason: "You can only take back cards you played this turn.",
@@ -1734,7 +1801,7 @@ export const canastaRules: GameRuleModule = {
           type: "move-cards",
           fromPileId: from,
           toPileId: to,
-          cardIds: [cardId],
+          cardIds: [intent.cardId!],
         });
 
         // Remove from tracking list
@@ -1742,7 +1809,7 @@ export const canastaRules: GameRuleModule = {
           ...nextRulesState,
           cardsPlayedToMeldsThisTurn:
             nextRulesState.cardsPlayedToMeldsThisTurn.filter(
-              (id) => id !== cardId
+              (id) => id !== intent.cardId!
             ),
         };
 
@@ -1757,15 +1824,16 @@ export const canastaRules: GameRuleModule = {
       ) {
         // Black threes out meld pile (only legal on the final going-out turn; enforced at end of turn).
         if (to === `${teamFor(current)}-black3-out`) {
-          const hand = pileCards(state.piles[`${current}-hand`]);
-          const moving = hand.find((c) => c.id === cardId);
-          if (!moving) {
+          if (intent.cardId! === undefined) {
             return {
               valid: false,
-              reason: "Card not in source pile.",
+              reason: "Black three out requires single cardId.",
               engineEvents: [],
             };
           }
+          const hand = pileCards(state.piles[`${current}-hand`]);
+          // Engine guarantees card exists in source pile
+          const moving = hand.find((c) => c.id === intent.cardId!)!;
           if (!isBlackThree(moving)) {
             return {
               valid: false,
@@ -1773,7 +1841,7 @@ export const canastaRules: GameRuleModule = {
               engineEvents: [],
             };
           }
-          const remaining = hand.filter((c) => c.id !== cardId);
+          const remaining = hand.filter((c) => c.id !== intent.cardId!);
           if (remaining.some((c) => !isBlackThree(c))) {
             return {
               valid: false,
@@ -1793,7 +1861,7 @@ export const canastaRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: `${current}-hand`,
             toPileId: to,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
           recomputeDerived(state, nextRulesState, engineEvents);
           return { valid: true, engineEvents };
@@ -1801,15 +1869,16 @@ export const canastaRules: GameRuleModule = {
 
         // Discard to end turn
         if (to === "discard") {
-          const hand = pileCards(state.piles[`${current}-hand`] ?? null);
-          const moving = hand.find((c) => c.id === cardId);
-          if (!moving) {
+          if (intent.cardId! === undefined) {
             return {
               valid: false,
-              reason: "Card not in source pile.",
+              reason: "Discard requires single cardId.",
               engineEvents: [],
             };
           }
+          const hand = pileCards(state.piles[`${current}-hand`] ?? null);
+          // Engine guarantees card exists in source pile
+          const moving = hand.find((c) => c.id === intent.cardId!)!;
 
           // If your team does not yet have a canasta, you are not allowed to go out by discarding your last card.
           const myTeam = teamFor(current);
@@ -1825,7 +1894,7 @@ export const canastaRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: `${current}-hand`,
             toPileId: "discard",
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
 
           // Validate meld pile invariants at end of turn.
@@ -1839,19 +1908,6 @@ export const canastaRules: GameRuleModule = {
           );
 
           if (boardError) {
-            // Map common prose errors to codes for AI
-            let code = "COMMIT_REJECTED";
-            if (boardError.includes("three")) code = "MELD_TOO_SMALL";
-            if (boardError.includes("Initial")) code = "INITIAL_MELD_TOO_LOW";
-            if (boardError.includes("canasta"))
-              code = "NO_CANASTA_CANNOT_GO_OUT";
-
-            // Record it in our local agentGuide for the next turn
-            nextRulesState.agentGuide = {
-              ...(nextRulesState.agentGuide ?? {}),
-              lastRejection: { code },
-            };
-
             return {
               valid: false,
               reason: boardError,
@@ -1861,16 +1917,7 @@ export const canastaRules: GameRuleModule = {
 
           const afterHand = projected[`${current}-hand`];
           const wentOut = (afterHand?.size ?? 0) === 0;
-          const turnDigest = formatTurnDigest(
-            current,
-            nextRulesState,
-            moving,
-            wentOut
-          );
-          nextRulesState.agentGuide = {
-            ...appendHistoryDigest(nextRulesState.agentGuide, turnDigest),
-            lastRejection: null,
-          };
+          formatTurnDigest(current, nextRulesState, moving, wentOut);
           // Black threes meld is only legal as part of going out.
           if (!wentOut) {
             const black3Out = projected[`${myTeam}-black3-out`]?.cardIds ?? [];
@@ -1988,44 +2035,125 @@ export const canastaRules: GameRuleModule = {
         }
 
         const hand = pileCards(state.piles[`${current}-hand`] ?? null);
-        const moving = hand.find((c) => c.id === cardId);
-        if (!moving) {
+
+        // Support both single-card and multi-card melds
+        const cardIds =
+          intent.cardId! !== undefined ? [intent.cardId!] : intent.cardIds!;
+        const movingCards = cardIds
+          .map((id) => hand.find((c) => c.id === id))
+          .filter((c): c is SimpleCard => !!c);
+
+        if (movingCards.length !== cardIds.length) {
           return {
             valid: false,
-            reason: "Card not in source pile.",
+            reason: "One or more cards not in source pile.",
             engineEvents: [],
           };
         }
-        if (isRedThree(moving)) {
-          return {
-            valid: false,
-            reason: `Red threes (${formatCard(moving.rank, moving.suit)}) are laid out automatically.`,
-            engineEvents: [],
-          };
+
+        // Validate all cards in the meld
+        for (const moving of movingCards) {
+          if (isRedThree(moving)) {
+            return {
+              valid: false,
+              reason: `Red threes (${formatCard(moving.rank, moving.suit)}) are laid out automatically.`,
+              engineEvents: [],
+            };
+          }
+          if (isBlackThree(moving)) {
+            return {
+              valid: false,
+              reason: `Black threes (${formatCard(moving.rank, moving.suit)}) can only be melded (sets of 3 or 4) when you are going out.`,
+              engineEvents: [],
+            };
+          }
         }
-        if (isBlackThree(moving)) {
-          return {
-            valid: false,
-            reason: `Black threes (${formatCard(moving.rank, moving.suit)}) can only be melded (sets of 3 or 4) when you are going out.`,
-            engineEvents: [],
-          };
-        }
-        if (!canMeetInitialMeldMinimum(state, rulesState, current, moving)) {
-          return {
-            valid: false,
-            reason:
-              "You do not meet the initial meld minimum to start melding.",
-            engineEvents: [],
-          };
-        }
-        const meldGuardrailError = canStartOrExtendMeld(
-          state,
-          current,
-          to,
-          moving
-        );
-        if (meldGuardrailError) {
-          return { valid: false, reason: meldGuardrailError, engineEvents: [] };
+
+        // For multi-card melds, validate the group as a whole
+        if (movingCards.length >= 3) {
+          const naturals = movingCards.filter((c) => !isWild(c));
+          const wilds = movingCards.filter(isWild);
+
+          // All naturals must match the target rank
+          for (const natural of naturals) {
+            if (natural.rank !== targetRank) {
+              return {
+                valid: false,
+                reason: `All natural cards must be ${targetRank}s for this meld pile.`,
+                engineEvents: [],
+              };
+            }
+          }
+
+          // Wilds must be less than naturals
+          if (wilds.length >= naturals.length) {
+            return {
+              valid: false,
+              reason:
+                "Cannot have more wild cards than natural cards in a meld.",
+              engineEvents: [],
+            };
+          }
+
+          // Check if starting a new meld: need at least 2 naturals
+          const existingPile = pileCards(state.piles[to] ?? null);
+          const existingNaturals = existingPile.filter(
+            (c) => !isWild(c) && c.rank === targetRank
+          ).length;
+          if (existingPile.length === 0 && naturals.length < 2) {
+            return {
+              valid: false,
+              reason: `You need at least two natural ${targetRank}s to start a meld.`,
+              engineEvents: [],
+            };
+          }
+
+          // If adding wilds to existing pile, check pile has at least 2 naturals
+          if (wilds.length > 0 && existingNaturals + naturals.length < 2) {
+            return {
+              valid: false,
+              reason:
+                "Wild cards can only be added after at least two natural cards are in the meld.",
+              engineEvents: [],
+            };
+          }
+
+          // Check initial meld minimum for the first natural card
+          if (
+            naturals.length > 0 &&
+            !canMeetInitialMeldMinimum(state, rulesState, current, naturals[0])
+          ) {
+            return {
+              valid: false,
+              reason:
+                "You do not meet the initial meld minimum to start melding.",
+              engineEvents: [],
+            };
+          }
+        } else {
+          // Single or dual-card meld - use existing validation
+          const moving = movingCards[0];
+          if (!canMeetInitialMeldMinimum(state, rulesState, current, moving)) {
+            return {
+              valid: false,
+              reason:
+                "You do not meet the initial meld minimum to start melding.",
+              engineEvents: [],
+            };
+          }
+          const meldGuardrailError = canStartOrExtendMeld(
+            state,
+            current,
+            to,
+            moving
+          );
+          if (meldGuardrailError) {
+            return {
+              valid: false,
+              reason: meldGuardrailError,
+              engineEvents: [],
+            };
+          }
         }
 
         // Apply the move
@@ -2033,15 +2161,15 @@ export const canastaRules: GameRuleModule = {
           type: "move-cards",
           fromPileId: `${current}-hand`,
           toPileId: to,
-          cardIds: [cardId],
+          cardIds: cardIds as [number, ...number[]],
         });
 
-        // Track that we played this card this turn
+        // Track that we played these cards this turn
         nextRulesState = {
           ...nextRulesState,
           cardsPlayedToMeldsThisTurn: [
             ...nextRulesState.cardsPlayedToMeldsThisTurn,
-            cardId,
+            ...cardIds,
           ],
         };
 
@@ -2090,6 +2218,263 @@ export const canastaRules: GameRuleModule = {
   },
 };
 
+/**
+ * AI Support for Canasta.
+ * Generates multi-card meld candidates to collapse the decision space.
+ */
+const canastaAiSupport: AiSupport = {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  listCandidates(view: AiView, _audience: CandidateAudience): AiCandidate[] {
+    const publicData = view.public as {
+      piles: Array<{
+        id: string;
+        ownerId?: string;
+        cards?: Array<{ id: number; rank: string; suit: string }>;
+      }>;
+      rulesState?: unknown;
+      actions?: Array<{ id: string; label: string }>;
+    };
+
+    const rulesState = getRulesState(publicData.rulesState);
+    if (rulesState.phase !== "playing") {
+      return [];
+    }
+
+    const seat = view.seat;
+    const team = teamFor(seat);
+    const candidates: AiCandidate[] = [];
+
+    // Find player's hand
+    const handPile = publicData.piles.find(
+      (p) => p.id === `${seat}-hand` && p.ownerId === seat
+    );
+    const hand = handPile?.cards ?? [];
+
+    if (hand.length === 0) {
+      return [];
+    }
+
+    // Phase-specific candidates
+    if (rulesState.turnPhase === "must-draw") {
+      // Only draw actions available
+      if (publicData.actions) {
+        for (const action of publicData.actions) {
+          candidates.push({
+            id: `action:${action.id}`,
+            summary: action.label,
+          });
+        }
+      }
+      return candidates;
+    }
+
+    // In "meld-or-discard" phase: generate meld and discard candidates
+
+    // 1. Group hand by rank (for meld candidates)
+    const byRank = new Map<string, number[]>();
+    const wilds: number[] = [];
+
+    for (const card of hand) {
+      if (card.rank === "2" || card.rank === "Joker") {
+        wilds.push(card.id);
+      } else if (
+        MELD_RANKS.includes(card.rank as (typeof MELD_RANKS)[number])
+      ) {
+        const existing = byRank.get(card.rank) ?? [];
+        existing.push(card.id);
+        byRank.set(card.rank, existing);
+      }
+    }
+
+    // 2. Generate new meld candidates (3+ cards of same rank)
+    for (const [rank, cardIds] of byRank.entries()) {
+      const naturalCount = cardIds.length;
+
+      // Pure natural meld (3+ naturals, no wilds)
+      if (naturalCount >= 3) {
+        candidates.push({
+          id: `meld:new:${rank}:${cardIds.slice(0, 3).join(",")}`,
+          summary: `Meld 3 ${rank}s`,
+        });
+      }
+
+      // Meld with 1 wild (2 naturals + 1 wild)
+      if (naturalCount >= 2 && wilds.length >= 1) {
+        candidates.push({
+          id: `meld:new:${rank}:${cardIds.slice(0, 2).join(",")},${wilds[0]}`,
+          summary: `Meld 2 ${rank}s + wild`,
+        });
+      }
+
+      // Meld with 2 wilds (2 naturals + 2 wilds)
+      if (naturalCount >= 2 && wilds.length >= 2) {
+        candidates.push({
+          id: `meld:new:${rank}:${cardIds.slice(0, 2).join(",")},${wilds[0]},${wilds[1]}`,
+          summary: `Meld 2 ${rank}s + 2 wilds`,
+        });
+      }
+    }
+
+    // 3. Generate add-to-existing-meld candidates
+    const teamMeldPiles = publicData.piles.filter(
+      (p) =>
+        p.id.startsWith(`${team}-`) &&
+        p.id.includes("-meld") &&
+        p.cards &&
+        p.cards.length > 0
+    );
+
+    for (const meldPile of teamMeldPiles) {
+      const meldCards = meldPile.cards ?? [];
+      if (meldCards.length === 0) continue;
+
+      // Determine meld rank (first natural card)
+      const firstNatural = meldCards.find(
+        (c) => c.rank !== "2" && c.rank !== "Joker"
+      );
+      if (!firstNatural) continue;
+      const meldRank = firstNatural.rank;
+
+      // Add matching naturals
+      const matchingNaturals = byRank.get(meldRank) ?? [];
+      if (matchingNaturals.length > 0) {
+        candidates.push({
+          id: `meld:add:${meldPile.id}:${matchingNaturals.join(",")}`,
+          summary: `Add ${matchingNaturals.length} ${meldRank}${matchingNaturals.length > 1 ? "s" : ""} to meld`,
+        });
+      }
+
+      // Add wilds
+      if (wilds.length > 0) {
+        candidates.push({
+          id: `meld:add:${meldPile.id}:${wilds.join(",")}`,
+          summary: `Add ${wilds.length} wild${wilds.length > 1 ? "s" : ""} to ${meldRank} meld`,
+        });
+      }
+    }
+
+    // 4. Discard candidates (one per card in hand)
+    for (const card of hand) {
+      const label = `${card.rank}${card.suit.charAt(0)}`;
+      candidates.push({
+        id: `discard:${card.id}`,
+        summary: `Discard ${label}`,
+      });
+    }
+
+    // 5. Action candidates (e.g., commit turn)
+    if (publicData.actions) {
+      for (const action of publicData.actions) {
+        candidates.push({
+          id: `action:${action.id}`,
+          summary: action.label,
+        });
+      }
+    }
+
+    return candidates;
+  },
+
+  buildContext(view: AiView): AiContext {
+    const publicData = view.public as {
+      piles?: Array<{ id: string; totalCards?: number }>;
+      rulesState?: unknown;
+    };
+    const rulesState = getRulesState(publicData.rulesState);
+
+    // Build facts
+    const team = teamFor(view.seat);
+    const teamHasMeldNow =
+      publicData.piles?.some(
+        (pile) =>
+          pile.id.startsWith(`${team}-meld-`) && (pile.totalCards ?? 0) > 0
+      ) ?? false;
+    const facts: Record<string, unknown> = {
+      turnPhase: rulesState.turnPhase,
+      gameScore: rulesState.gameScore,
+      team,
+      teamHadMeldAtTurnStart: rulesState.turnStartTeamHadMeld?.[team] ?? false,
+      teamHasMeldNow,
+    };
+
+    return { recap: [], facts };
+  },
+
+  applyCandidateId(
+    state: GameState,
+    seat: string,
+    candidateId: string
+  ): ClientIntent | ClientIntent[] {
+    const team = teamFor(seat);
+
+    // Parse candidate ID format
+    if (candidateId.startsWith("meld:new:")) {
+      // Format: meld:new:<rank>:<cardId1>,<cardId2>,...
+      const parts = candidateId.split(":");
+      const rank = parts[2];
+      const cardIds = parts[3].split(",").map((id) => parseInt(id, 10));
+
+      // Find next available meld pile for this rank
+      const existingMelds = Object.values(state.piles).filter((p) =>
+        p.id.startsWith(`${team}-${rank}-meld`)
+      );
+      const nextIndex = existingMelds.length;
+      const toPileId = `${team}-${rank}-meld-${nextIndex}`;
+
+      return {
+        type: "move",
+        gameId: state.gameId,
+        playerId: seat,
+        fromPileId: `${seat}-hand`,
+        toPileId,
+        cardIds,
+      };
+    }
+
+    if (candidateId.startsWith("meld:add:")) {
+      // Format: meld:add:<pileId>:<cardId1>,<cardId2>,...
+      const parts = candidateId.split(":");
+      const toPileId = parts[2];
+      const cardIds = parts[3].split(",").map((id) => parseInt(id, 10));
+
+      return {
+        type: "move",
+        gameId: state.gameId,
+        playerId: seat,
+        fromPileId: `${seat}-hand`,
+        toPileId,
+        cardIds,
+      };
+    }
+
+    if (candidateId.startsWith("discard:")) {
+      // Format: discard:<cardId>
+      const cardId = parseInt(candidateId.substring(8), 10);
+      return {
+        type: "move",
+        gameId: state.gameId,
+        playerId: seat,
+        fromPileId: `${seat}-hand`,
+        toPileId: "discard",
+        cardId,
+      };
+    }
+
+    if (candidateId.startsWith("action:")) {
+      // Format: action:<actionId>
+      const action = candidateId.substring(7);
+      return {
+        type: "action",
+        gameId: state.gameId,
+        playerId: seat,
+        action,
+      };
+    }
+
+    throw new Error(`Unknown candidate ID: ${candidateId}`);
+  },
+};
+
 export const canastaPlugin: GamePlugin = {
   id: "canasta",
   gameName: META.gameName,
@@ -2113,4 +2498,5 @@ export const canastaPlugin: GamePlugin = {
     };
     return hints;
   })(),
+  aiSupport: canastaAiSupport,
 };

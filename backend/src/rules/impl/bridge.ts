@@ -18,7 +18,7 @@ import type {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
+import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -87,7 +87,8 @@ interface BridgeRulesState {
   gamesEW: number;
   rubberFinished: boolean;
   result: string | null;
-  agentGuide?: AgentGuide;
+  // Recap log for AI context (modern approach)
+  recap: string[];
 }
 
 const BID_LEVELS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -235,7 +236,7 @@ function getBridgeRulesState(raw: unknown): BridgeRulesState {
     gamesEW: 0,
     rubberFinished: false,
     result: null,
-    agentGuide: { historyDigest: [] },
+    recap: [],
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -243,7 +244,7 @@ function getBridgeRulesState(raw: unknown): BridgeRulesState {
   return {
     ...base,
     ...obj,
-    agentGuide: obj.agentGuide ?? base.agentGuide,
+    recap: obj.recap ?? base.recap,
     bidding: { ...base.bidding, ...(obj.bidding ?? {}) },
     currentTrick: { ...base.currentTrick, ...(obj.currentTrick ?? {}) },
   };
@@ -525,12 +526,16 @@ function resetForNextDeal(
   const nextDealer = NEXT_PLAYER[rulesState.dealerSeat];
   const nextDealNumber = rulesState.dealNumber + 1;
 
-  // Collapse previous round into one line if a summary is provided
-  const nextAgentGuide = appendHistoryDigest(
-    rulesState.agentGuide,
-    `Hand ${nextDealNumber} started (dealer ${nextDealer}).`,
-    { summarizePrevious: options?.summary }
-  );
+  // Build next recap: optionally collapse previous entries with summary
+  const nextRecap = options?.summary
+    ? [
+        options.summary,
+        `Hand ${nextDealNumber} started (dealer ${nextDealer}).`,
+      ]
+    : [
+        ...rulesState.recap,
+        `Hand ${nextDealNumber} started (dealer ${nextDealer}).`,
+      ];
 
   const nextRulesState: BridgeRulesState = {
     ...rulesState,
@@ -546,7 +551,7 @@ function resetForNextDeal(
     tricksNS: 0,
     tricksEW: 0,
     result: null,
-    agentGuide: nextAgentGuide,
+    recap: nextRecap,
   };
   events.push({ type: "set-rules-state", rulesState: nextRulesState });
   return { events, nextRulesState };
@@ -663,10 +668,7 @@ function handleBidding(
     play,
   };
   if (historyEntry) {
-    nextRulesState.agentGuide = appendHistoryDigest(
-      nextRulesState.agentGuide,
-      historyEntry
-    );
+    nextRulesState.recap = [...nextRulesState.recap, historyEntry];
   }
   return {
     valid: true,
@@ -699,14 +701,11 @@ function handlePlay(
   const play = rulesState.play!;
   const declarer = rulesState.contract!.declarer;
   const sourcePile = state.piles[intent.fromPileId];
-  const movedCard = sourcePile?.cards?.find((c) => c.id === intent.cardId);
-  if (!movedCard) {
-    return {
-      valid: false,
-      reason: "Card not in source pile.",
-      engineEvents: [],
-    };
-  }
+
+  // Engine guarantees cardId is defined for move intents
+  const cardId = intent.cardId!;
+  // Engine guarantees card exists in source pile
+  const movedCard = sourcePile.cards!.find((c) => c.id === cardId)!;
   const leadSuit = rulesState.currentTrick.leadSuit;
 
   if (intent.toPileId !== "trick") {
@@ -759,13 +758,13 @@ function handlePlay(
       type: "move-cards",
       fromPileId: intent.fromPileId,
       toPileId: "trick",
-      cardIds: [intent.cardId],
+      cardIds: [intent.cardId!],
     },
   ];
   const trickCards = [
     ...rulesState.currentTrick.cards,
     {
-      cardId: intent.cardId,
+      cardId: intent.cardId!,
       player: play.turnSeat,
       suit: movedCard!.suit,
       rank: movedCard!.rank,
@@ -792,10 +791,10 @@ function handlePlay(
       nextState.currentTrick.leadSuit,
       rulesState.contract!.trumpSuit
     );
-    nextState.agentGuide = appendHistoryDigest(
-      nextState.agentGuide,
-      formatTrickSummary(rulesState.currentTrickNumber, trickCards, winner)
-    );
+    nextState.recap = [
+      ...nextState.recap,
+      formatTrickSummary(rulesState.currentTrickNumber, trickCards, winner),
+    ];
     const side = partnership(winner)!;
     engineEvents.push({
       type: "move-cards",
@@ -968,10 +967,10 @@ export const bridgeRules: GameRuleModule = {
           hasDealt: true,
           dealNumber: nextDealNumber,
         };
-        nextRS.agentGuide = appendHistoryDigest(
-          nextRS.agentGuide,
-          `Hand ${nextDealNumber} started (dealer ${nextRS.dealerSeat}).`
-        );
+        nextRS.recap = [
+          ...nextRS.recap,
+          `Hand ${nextDealNumber} started (dealer ${nextRS.dealerSeat}).`,
+        ];
         events.push({ type: "set-rules-state", rulesState: nextRS });
         return {
           valid: true,
@@ -1013,6 +1012,59 @@ export const bridgePlugin: GamePlugin = {
       if (Array.isArray(cards))
         cards.forEach((c) => l.set(c.cardId, c.player ?? null));
       return l;
+    },
+  },
+  aiSupport: {
+    listCandidates: () => {
+      throw new Error("Bridge AI support not yet implemented");
+    },
+    buildContext: (view: AiView): AiContext => {
+      // Extract recap from rulesState
+      const rulesState = (view.public as { rulesState?: unknown })
+        .rulesState as BridgeRulesState | undefined;
+
+      if (!rulesState || !Array.isArray(rulesState.recap)) {
+        return {};
+      }
+
+      // Build facts from phase and game state
+      const facts: Record<string, unknown> = {
+        phase: rulesState.phase,
+        dealNumber: rulesState.dealNumber,
+      };
+
+      if (rulesState.phase === "bidding") {
+        facts.passesInRow = rulesState.bidding.passesInRow;
+        facts.highestBid = rulesState.bidding.highestBid
+          ? `${rulesState.bidding.highestBid.level}${rulesState.bidding.highestBid.denomination}`
+          : null;
+      } else if (rulesState.phase === "play" && rulesState.contract) {
+        facts.contract = `${rulesState.contract.level}${rulesState.contract.trumpSuit}`;
+        facts.declarer = rulesState.contract.declarer;
+        facts.trumpSuit = rulesState.contract.trumpSuit;
+        facts.currentTrickNumber = rulesState.currentTrickNumber;
+        facts.tricksNS = rulesState.tricksNS;
+        facts.tricksEW = rulesState.tricksEW;
+        if (rulesState.play) {
+          facts.dummySeat = rulesState.play.dummySeat;
+          facts.playSeat = rulesState.play.turnSeat;
+          facts.dummyRevealed = rulesState.play.dummyRevealed;
+          facts.playingDummy =
+            rulesState.play.dummyRevealed &&
+            rulesState.play.turnSeat !== view.seat;
+        }
+        if (rulesState.currentTrick.leadSuit) {
+          facts.leadSuit = rulesState.currentTrick.leadSuit;
+        }
+      }
+
+      return {
+        recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
+        facts,
+      };
+    },
+    applyCandidateId: () => {
+      throw new Error("Bridge AI support not yet implemented");
     },
   },
 };

@@ -1,155 +1,54 @@
 // backend/src/ai/ai-candidates.ts
+// Default implementations for AI candidate generation and summarization
+
 import type { ClientIntent, GameState } from "../../../shared/schemas.js";
-import type { AiCandidate } from "../../../shared/src/ai/types.js";
 import { listLegalIntentsForPlayer } from "../rule-engine.js";
 
-export function candidateIdForIntent(intent: ClientIntent): string {
-  switch (intent.type) {
-    case "action":
-      return `action:${intent.action}`;
-    case "move":
-      return `move:${intent.fromPileId}:cardId_${intent.cardId}->${intent.toPileId}`;
-    default:
-      return `intent:${(intent as { type: string }).type}`;
-  }
-}
-
+/**
+ * IMPORTANT: Candidate IDs must be opaque, simple, and NOT contain game data.
+ *
+ * Why: Semantic IDs like "move:P3-hand:271323504748399->discard" allow LLMs to
+ * hallucinate plausible-looking candidate IDs by pattern-matching card IDs from
+ * the game view. This causes the AI to select non-existent candidates.
+ *
+ * Solution: Use simple sequential IDs (c0, c1, c2, ...) that cannot be constructed
+ * from view data. The summary field provides human-readable context.
+ */
 export function assignCandidateId(
-  intent: ClientIntent,
-  usedIds: Map<string, number>
+  _intent: ClientIntent,
+  counter: { value: number }
 ): string {
-  const baseId = candidateIdForIntent(intent);
-  const count = usedIds.get(baseId) ?? 0;
-  const next = count + 1;
-  usedIds.set(baseId, next);
-  return count === 0 ? baseId : `${baseId}#${next}`;
+  const id = `c${counter.value}`;
+  counter.value++;
+  return id;
 }
 
+/**
+ * Builds AI candidates for a seat by listing all legal intents.
+ * Returns minimal candidate objects with just {intent, summary}.
+ *
+ * This is used by view.ts when a game doesn't implement the AiSupport interface.
+ * Games can optionally implement AiSupport to provide richer context and multi-move candidates.
+ */
 export function buildAiCandidatesForSeat(
   state: GameState,
   seatId: string
-): AiCandidate[] {
-  const intents = listLegalIntentsForPlayer(state.gameId, seatId);
-  const usedIds = new Map<string, number>();
+): Array<{ intent: ClientIntent; summary?: string }> {
+  const gameId = state.gameId;
+  const legalIntents = listLegalIntentsForPlayer(gameId, seatId);
 
-  if (intents.length > 0) {
-    // Sort intents: put discards and turn-ending actions first
-    const sortedIntents = [...intents].sort((a, b) => {
-      const aIsEnd =
-        a.type === "action" || (a.type === "move" && a.toPileId === "discard");
-      const bIsEnd =
-        b.type === "action" || (b.type === "move" && b.toPileId === "discard");
-      if (aIsEnd && !bIsEnd) return -1;
-      if (!aIsEnd && bIsEnd) return 1;
-      return 0;
-    });
-
-    return sortedIntents.map((intent) => {
-      warnIfNonAsciiIdentifiers(intent);
-      return {
-        id: assignCandidateId(intent, usedIds),
-        summary: summarizeIntent(intent, state),
-        intent,
-      };
-    });
-  }
-
-  // Fallback: enumerate generic candidates from current state so frontend AI is never empty.
-  const candidates: AiCandidate[] = [];
-
-  // Actions grid
-  const actionCells = state.actions?.cells ?? [];
-  for (const cell of actionCells) {
-    if (!cell.enabled) continue;
-    const intent: ClientIntent = {
-      type: "action",
-      gameId: state.gameId,
-      playerId: seatId,
-      action: cell.id,
-    };
-    warnIfNonAsciiIdentifiers(intent);
-    candidates.push({
-      id: assignCandidateId(intent, usedIds),
-      summary: summarizeIntent(intent, state),
-      intent,
-    });
-  }
-
-  // Card moves: any card in this player's piles to any other pile
-  const piles = Object.values(state.piles);
-  const fromPiles = piles.filter(
-    (p) =>
-      p.ownerId === seatId && Array.isArray(p.cardIds) && p.cardIds.length > 0
-  );
-
-  for (const from of fromPiles) {
-    for (const cardId of from.cardIds) {
-      for (const to of piles) {
-        if (to.id === from.id) continue;
-        const intent: ClientIntent = {
-          type: "move",
-          gameId: state.gameId,
-          playerId: seatId,
-          fromPileId: from.id,
-          toPileId: to.id,
-          cardId,
-        };
-        warnIfNonAsciiIdentifiers(intent);
-        candidates.push({
-          id: assignCandidateId(intent, usedIds),
-          summary: summarizeIntent(intent, state),
-          intent,
-        });
-      }
-    }
-  }
-
-  return candidates;
+  return legalIntents.map((intent) => ({
+    intent,
+    summary: summarizeIntent(intent),
+  }));
 }
 
-function summarizeIntent(intent: ClientIntent, state: GameState): string {
-  switch (intent.type) {
-    case "action":
-      return `Press action "${intent.action}"`;
-    case "move": {
-      const cardLabel = formatCardLabel(state, intent.cardId);
-      const to = intent.toPileId;
-      const suffix =
-        to === "discard"
-          ? " (ends turn)"
-          : to.includes("meld")
-            ? " (meld)"
-            : "";
-      return `Move ${cardLabel} from "${intent.fromPileId}" to "${intent.toPileId}"${suffix}`;
-    }
-    default:
-      return `Action: ${(intent as { type: string }).type}`;
-  }
-}
-
-function warnIfNonAsciiIdentifiers(intent: ClientIntent): void {
-  const warn = (value: string | undefined, label: string) => {
-    if (!value) return;
-    if (/[^\x20-\x7E]/.test(value)) {
-      console.warn(
-        `[AI-POLICY] WARNING: Unsafe ${label} detected: "${value}". ` +
-          `Action IDs and Pile IDs should be ASCII-only to ensure reliable LLM selection.`
-      );
-    }
-  };
-
+function summarizeIntent(intent: ClientIntent): string {
   if (intent.type === "action") {
-    warn(intent.action, "action id");
-  } else if (intent.type === "move") {
-    warn(intent.fromPileId, "fromPileId");
-    warn(intent.toPileId, "toPileId");
+    return `Press action "${intent.action}"`;
   }
-}
-
-function formatCardLabel(state: GameState, cardId: number): string {
-  const card = state.cards[cardId];
-  if (!card) return String(cardId);
-  const rank = card.rank ?? "?";
-  const suit = card.suit ?? "";
-  return `${rank}${suit}`;
+  if (intent.type === "move") {
+    return `Move card from "${intent.fromPileId}" to "${intent.toPileId}"`;
+  }
+  return `Perform intent of type "${(intent as { type: string }).type}"`;
 }

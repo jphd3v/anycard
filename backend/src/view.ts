@@ -26,6 +26,7 @@ export function buildViewForPlayer(
   const cardVisuals = state.cardVisuals as
     | Record<string, { rotationDeg?: number }>
     | undefined;
+  const pileProperties = state.pileProperties;
   const players = state.players.map((player: Player) => {
     const aiRuntime =
       player.aiRuntime ??
@@ -73,12 +74,15 @@ export function buildViewForPlayer(
       };
     });
 
+    const overrides = pileProperties?.[pile.id];
+
     return {
       id: pile.id,
-      label: pile.id,
+      label: overrides?.label ?? pile.id,
       ownerId: pile.ownerId,
       cards,
       totalCards: pile.cardIds.length,
+      layout: overrides?.layout,
     };
   });
 
@@ -114,8 +118,8 @@ export function buildViewForPlayer(
     const lower = key.toLowerCase();
     return (
       lower.includes("cardid") ||
-      lower.startsWith("card") ||
-      lower.startsWith("cards")
+      lower.endsWith("card") ||
+      lower.endsWith("cards")
     );
   };
 
@@ -126,10 +130,19 @@ export function buildViewForPlayer(
     if (!Array.isArray(value)) return false;
     const lower = key.toLowerCase();
     return (
-      lower.includes("cardids") ||
-      lower.startsWith("card") ||
-      lower.startsWith("cards")
+      lower.includes("cardid") ||
+      lower.endsWith("cardids") ||
+      lower.endsWith("cards")
     );
+  };
+
+  const mapRulesStateKeyCardIds = (key: string): string => {
+    if (!key.includes("cardId_")) return key;
+    return key.replace(/cardId_(\d+)/g, (_match, rawId) => {
+      const cardId = Number(rawId);
+      if (!Number.isFinite(cardId)) return _match;
+      return `cardId_${mapCardIdForView(cardId)}`;
+    });
   };
 
   const mapRulesStateCardIds = (value: unknown, key?: string): unknown => {
@@ -148,7 +161,8 @@ export function buildViewForPlayer(
       const obj = value as Record<string, unknown>;
       const next: Record<string, unknown> = {};
       for (const [childKey, childValue] of Object.entries(obj)) {
-        next[childKey] = mapRulesStateCardIds(childValue, childKey);
+        const mappedKey = mapRulesStateKeyCardIds(childKey);
+        next[mappedKey] = mapRulesStateCardIds(childValue, childKey);
       }
       return next;
     }
@@ -214,7 +228,7 @@ export function buildViewForPlayer(
 
       // These intents are executed as the current seat, not the viewer of this view.
       const seatViewerKey = currentSeatId;
-      const usedIds = new Map<string, number>();
+      const idCounter = { value: 0 };
 
       return candidates.map((candidate) => {
         const intent = candidate.intent as ClientIntent;
@@ -222,7 +236,7 @@ export function buildViewForPlayer(
 
         if (intent.type === "move") {
           const viewCardId = toViewCardId(
-            intent.cardId,
+            intent.cardId!,
             viewSalt,
             seatViewerKey
           );
@@ -231,7 +245,7 @@ export function buildViewForPlayer(
 
         return {
           ...candidate,
-          id: assignCandidateId(mappedIntent, usedIds),
+          id: assignCandidateId(mappedIntent, idCounter),
           intent: mappedIntent,
         };
       });

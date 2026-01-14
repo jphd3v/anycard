@@ -2,6 +2,7 @@ export type AiLogPhase =
   | "schedule"
   | "candidates"
   | "llm"
+  | "llm-markdown"
   | "llm-raw"
   | "llm-parsed"
   | "fallback"

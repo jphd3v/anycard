@@ -7,7 +7,6 @@ import type {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { gatherAllCards, shuffleAllCards } from "../util/dealing.js";
 
 const META = loadGameMeta("katko");
@@ -21,7 +20,6 @@ interface KatkoRulesState {
   leadSuit: string | null;
   trickCount: number; // 0 to 5
   result: string | null;
-  agentGuide?: AgentGuide;
 }
 
 const RANK_MAP: Record<string, number> = {
@@ -46,21 +44,6 @@ function getRankValue(rankStr: string): number {
 
 function getOtherPlayer(current: string): string {
   return current === "P1" ? "P2" : "P1";
-}
-
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return `${card.rank} of ${card.suit}`;
-}
-
-function formatTrickSummary(
-  cards: Array<{ player: string; rank: string; suit: string }>,
-  winner: string,
-  trickCount: number
-): string {
-  const plays = cards
-    .map((card) => `${card.player} ${formatCardLabel(card)}`)
-    .join(", ");
-  return `Trick ${trickCount}: ${plays}; winner ${winner}.`;
 }
 
 function buildScoreboard(rulesState: KatkoRulesState): Scoreboard[] {
@@ -158,11 +141,6 @@ export const katkoRules: GameRuleModule = {
             leadSuit: null,
             trickCount: 0,
             result: null,
-            agentGuide: appendHistoryDigest(
-              rulesState.agentGuide,
-              `Hand ${nextDealNumber} started (dealer ${rulesState.dealer}).`,
-              { summarizePrevious: rulesState.result || undefined }
-            ),
           },
         });
 
@@ -211,13 +189,8 @@ export const katkoRules: GameRuleModule = {
       };
 
     const hand = state.piles[handId];
-    const playedCard = hand?.cards?.find((c) => c.id === intent.cardId);
-    if (!playedCard)
-      return {
-        valid: false,
-        reason: "Card not in source pile.",
-        engineEvents: [],
-      };
+    // Engine guarantees card exists in source pile
+    const playedCard = hand.cards!.find((c) => c.id === intent.cardId)!;
 
     // Check Suit
     const trick = state.piles["trick"];
@@ -288,27 +261,6 @@ export const katkoRules: GameRuleModule = {
         toPileId: "discard",
         cardIds: [c1.id, c2.id],
       });
-
-      const trickNumber = nextRulesState.trickCount + 1;
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        formatTrickSummary(
-          [
-            {
-              player: getOtherPlayer(intent.playerId),
-              rank: c1.rank,
-              suit: c1.suit,
-            },
-            {
-              player: intent.playerId,
-              rank: c2.rank,
-              suit: c2.suit,
-            },
-          ],
-          winnerId,
-          trickNumber
-        )
-      );
 
       nextRulesState.trickCount++;
       nextRulesState.leadSuit = null;

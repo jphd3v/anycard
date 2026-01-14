@@ -1,6 +1,6 @@
 import type { EngineEvent } from "../../shared/validation.js";
 import { appendEvent } from "./state.js";
-import type { GameEvent } from "../../shared/schemas.js";
+import type { GameEvent, PileLayout } from "../../shared/schemas.js";
 import type { LastAction } from "../../shared/schemas.js";
 
 export function emitFatalErrorEvent(
@@ -38,4 +38,20 @@ export function emitFatalErrorEvent(
     };
     broadcastStateCallback(gameId, [engineEvent]);
   }
+}
+
+export function emitSetPilePropertiesEvent(
+  gameId: string,
+  properties: Record<string, { layout?: PileLayout; label?: string }>,
+  appendEventCallback: (gameId: string, event: GameEvent) => void
+): void {
+  const event: GameEvent = {
+    id: Date.now(),
+    gameId,
+    playerId: null,
+    type: "set-pile-properties",
+    properties,
+  };
+
+  appendEventCallback(gameId, event);
 }

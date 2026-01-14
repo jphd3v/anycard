@@ -22,6 +22,16 @@ type ScenarioExpect = {
   scoreboards?: unknown;
   rulesState?: unknown;
   cardVisuals?: Record<number, { rotationDeg?: number }>;
+  piles?:
+    | Record<
+        string,
+        {
+          cardIds?: number[];
+          size?: number;
+          minSize?: number;
+        }
+      >
+    | undefined;
 };
 
 type ScenarioPlayer = {
@@ -166,10 +176,11 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
     ) {
       const expectedRS = expect.rulesState as Record<string, unknown>;
       const actualRS = actualRulesState as Record<string, unknown>;
-      // If the expectation doesn't explicitly check agentGuide, ignore it.
+      // If the expectation doesn't explicitly check recap, ignore it.
+      // Recap is managed centrally now, not per-game.
       let filteredRS = { ...actualRS };
-      if (!("agentGuide" in expectedRS) && "agentGuide" in filteredRS) {
-        const { agentGuide: _, ...rest } = filteredRS;
+      if (!("recap" in expectedRS) && "recap" in filteredRS) {
+        const { recap: _, ...rest } = filteredRS;
         filteredRS = rest as any;
       }
       actualRulesState = filteredRS;
@@ -187,6 +198,36 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
       expect.cardVisuals,
       "cardVisuals mismatch"
     );
+  }
+
+  if (expect.piles !== undefined) {
+    for (const [pileId, pileExpectation] of Object.entries(expect.piles)) {
+      const pile = state.piles[pileId];
+      assert.ok(pile, `pile '${pileId}' missing`);
+
+      if (pileExpectation.cardIds !== undefined) {
+        assert.deepStrictEqual(
+          pile.cardIds,
+          pileExpectation.cardIds,
+          `pile '${pileId}' cardIds mismatch`
+        );
+      }
+
+      if (pileExpectation.size !== undefined) {
+        assert.equal(
+          pile.cardIds.length,
+          pileExpectation.size,
+          `pile '${pileId}' size mismatch`
+        );
+      }
+
+      if (pileExpectation.minSize !== undefined) {
+        assert.ok(
+          pile.cardIds.length >= pileExpectation.minSize,
+          `pile '${pileId}' expected minSize ${pileExpectation.minSize}, got ${pile.cardIds.length}`
+        );
+      }
+    }
   }
 }
 
@@ -299,7 +340,13 @@ async function runAutoScenario(label: string, scenario: Scenario) {
 
     if (intentWithGameId.type === "move") {
       const fromPile = state.piles[intentWithGameId.fromPileId];
-      if (!fromPile || !fromPile.cardIds.includes(intentWithGameId.cardId)) {
+      const cardIds =
+        intentWithGameId.cardIds ??
+        (intentWithGameId.cardId !== undefined
+          ? [intentWithGameId.cardId]
+          : []);
+
+      if (!fromPile || cardIds.length === 0) {
         const rulesState = state.rulesState as {
           play?: { turnSeat?: string };
         } | null;
@@ -307,9 +354,24 @@ async function runAutoScenario(label: string, scenario: Scenario) {
         throw new Error(
           `[integration] ${label}: auto intent card missing at step ${index}\n` +
             `player=${currentPlayer} turnSeat=${turnSeat}\n` +
-            `fromPile=${intentWithGameId.fromPileId} cardId=${intentWithGameId.cardId}\n` +
+            `fromPile=${intentWithGameId.fromPileId} cardId=${intentWithGameId.cardId} cardIds=${JSON.stringify(intentWithGameId.cardIds)}\n` +
             `pileCards=${JSON.stringify(fromPile?.cardIds ?? [])}`
         );
+      }
+
+      for (const cardId of cardIds) {
+        if (!fromPile.cardIds.includes(cardId)) {
+          const rulesState = state.rulesState as {
+            play?: { turnSeat?: string };
+          } | null;
+          const turnSeat = rulesState?.play?.turnSeat ?? null;
+          throw new Error(
+            `[integration] ${label}: auto intent card missing at step ${index}\n` +
+              `player=${currentPlayer} turnSeat=${turnSeat}\n` +
+              `fromPile=${intentWithGameId.fromPileId} cardId=${cardId}\n` +
+              `pileCards=${JSON.stringify(fromPile?.cardIds ?? [])}`
+          );
+        }
       }
     }
 

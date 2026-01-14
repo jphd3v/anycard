@@ -227,8 +227,7 @@ export function StartGameOverlay({
         <div className="flex flex-col gap-1">
           <p className="leading-relaxed">
             The <strong className="text-red-600">ACTIONS</strong> label appears
-            when special moves like passing, bidding, or declaring are
-            available.
+            when special moves beyond drawing and playing cards are available.
           </p>
         </div>
       )}

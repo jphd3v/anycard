@@ -6,8 +6,9 @@ import type {
 } from "../../../shared/schemas.js";
 import { ClientIntentSchema } from "../../../shared/schemas.js";
 import { buildAiMessages } from "../../../shared/src/ai/prompts.js";
-import { parseAiChoice } from "../../../shared/src/ai/parser.js";
+import { parseAiOutput } from "../../../shared/src/ai/parser.js";
 import type { AiIntentCandidate } from "./ai-policy.js";
+import type { AiCandidate, AiTurnInput } from "../../../shared/src/ai/types.js";
 import { appendAiLogEntry, sendGlobalStatus } from "./ai-log.js";
 import {
   createChatModel,
@@ -106,25 +107,16 @@ export async function chooseAiIntentWithLlm(
   const { buildAiRequestPayload } = await import("./ai-policy.js");
   const { req, idMap } = await buildAiRequestPayload(input);
 
-  const messages = buildAiMessages(req);
-  const systemPrompt = messages.find((m) => m.role === "system")?.content ?? "";
-  let userPromptObject: unknown = {};
-  const userMessage = messages.find((m) => m.role === "user")?.content;
-  if (userMessage) {
-    try {
-      userPromptObject = JSON.parse(userMessage);
-    } catch {
-      userPromptObject = userMessage;
-    }
-  }
+  const basePrompt = buildPrompt(req);
 
-  logPolicyRequest(input, messages);
+  logPolicyRequest(input, basePrompt.messages);
 
+  const decisionStart = Date.now();
   let content: string;
   try {
     content = await callPolicyLlm(
-      systemPrompt,
-      userPromptObject,
+      basePrompt.systemPrompt,
+      basePrompt.userPromptObject,
       (info: SystemFallbackInfo) => {
         appendAiLogEntry({
           gameId: input.view.gameId ?? "unknown",
@@ -145,6 +137,21 @@ export async function chooseAiIntentWithLlm(
     logPolicyError(input, err);
     throw err;
   }
+  const decisionMs = Date.now() - decisionStart;
+  const decisionSeconds = (decisionMs / 1000).toFixed(1);
+  appendAiLogEntry({
+    gameId: input.view.gameId ?? "unknown",
+    turnNumber: input.turnNumber,
+    playerId: input.playerId,
+    phase: "llm",
+    level: "info",
+    message: `AI decision time: ${decisionSeconds}s`,
+    source: "backend",
+    details: {
+      kind: "llm-timing",
+      durationMs: decisionMs,
+    },
+  });
 
   // Log the raw LLM response
   appendAiLogEntry({
@@ -161,7 +168,7 @@ export async function chooseAiIntentWithLlm(
     },
   });
 
-  const parsed = parseAiChoice(content);
+  let parsed = parseAiOutput(content);
   if (!parsed) {
     console.error("Failed to parse AI policy output:", content);
     appendAiLogEntry({
@@ -191,18 +198,70 @@ export async function chooseAiIntentWithLlm(
     },
   });
 
-  const chosen = idMap.get(parsed.chosenCandidateId);
+  let resolution = resolveChoice(req, idMap, parsed);
+  if (!resolution) {
+    console.warn(`AI policy returned unknown candidate id: ${parsed.id ?? ""}`);
+    const retryPrompt = buildPrompt(req, {
+      kind: "invalid-chosen",
+      got: {
+        chosenId: parsed.id,
+      },
+      hint: "Choose a chosenId that appears verbatim in <candidates>.",
+      validIdsSample: req.candidates.slice(0, 6).map((c) => c.id),
+    });
+    try {
+      content = await callPolicyLlm(
+        retryPrompt.systemPrompt,
+        retryPrompt.userPromptObject
+      );
+    } catch (err) {
+      logPolicyError(input, err);
+      throw err;
+    }
 
-  if (!chosen) {
-    console.warn(
-      `AI policy returned unknown candidate id: ${parsed.chosenCandidateId}`
-    );
-    return null;
+    appendAiLogEntry({
+      gameId: input.view.gameId ?? "unknown",
+      turnNumber: input.turnNumber,
+      playerId: input.playerId,
+      phase: "llm-raw",
+      level: "info",
+      message: "Received raw AI policy response from LLM (retry).",
+      source: "backend",
+      details: {
+        kind: "llm-response-raw",
+        content,
+      },
+    });
+
+    parsed = parseAiOutput(content);
+    if (!parsed) {
+      return null;
+    }
+    resolution = resolveChoice(req, idMap, parsed);
+    if (!resolution) {
+      const fallback = pickFallbackCandidate(req.candidates, idMap);
+      if (!fallback) return null;
+      appendAiLogEntry({
+        gameId: input.view.gameId ?? "unknown",
+        turnNumber: input.turnNumber,
+        playerId: input.playerId,
+        phase: "llm",
+        level: "warn",
+        message:
+          "AI response unresolved after retry; using fallback candidate.",
+        source: "backend",
+        details: { candidateId: fallback.candidate.id },
+      });
+      resolution = fallback;
+      // Just log why we used fallback (parsed remains from previous attempt)
+    }
   }
+
+  // Note: becauseTags and aiMemory removed in new contract
 
   let safeIntent: ClientIntent;
   try {
-    safeIntent = ClientIntentSchema.parse(chosen.intent);
+    safeIntent = ClientIntentSchema.parse(resolution.candidate.intent);
   } catch {
     appendAiLogEntry({
       gameId: input.view.gameId ?? "unknown",
@@ -215,7 +274,85 @@ export async function chooseAiIntentWithLlm(
     return null;
   }
 
-  return { ...chosen, intent: safeIntent };
+  return { ...resolution.candidate, intent: safeIntent };
+}
+
+function pickFallbackCandidate(
+  candidates: AiCandidate[],
+  idMap: Map<string, AiIntentCandidate>
+): {
+  candidate: AiIntentCandidate;
+  promptId: string;
+  repaired: boolean;
+} | null {
+  if (candidates.length === 0) return null;
+  // Just use first candidate as fallback (no tags concept anymore)
+  const chosen = candidates[0];
+  const resolved = idMap.get(chosen.id);
+  if (!resolved) return null;
+  return { candidate: resolved, promptId: chosen.id, repaired: true };
+}
+
+function buildPrompt(
+  req: AiTurnInput,
+  lastRejection?: Record<string, unknown>
+): {
+  messages: unknown[];
+  systemPrompt: string;
+  userPromptObject: unknown;
+} {
+  // If there's a last rejection, add it to context.facts
+  const nextReq = lastRejection
+    ? {
+        ...req,
+        context: {
+          ...(req.context ?? {}),
+          facts: {
+            ...(req.context?.facts ?? {}),
+            lastRejection,
+          },
+        },
+      }
+    : req;
+  const messages = buildAiMessages(nextReq);
+  const systemPrompt = messages.find((m) => m.role === "system")?.content ?? "";
+  let userPromptObject: unknown = {};
+  const userMessage = messages.find((m) => m.role === "user")?.content;
+  if (userMessage) {
+    try {
+      userPromptObject = JSON.parse(userMessage);
+    } catch {
+      userPromptObject = userMessage;
+    }
+  }
+  return { messages, systemPrompt, userPromptObject };
+}
+
+function resolveChoice(
+  req: { candidates: AiCandidate[] },
+  idMap: Map<string, AiIntentCandidate>,
+  parsed: {
+    id?: string;
+  }
+): {
+  candidate: AiIntentCandidate;
+  promptId: string;
+  repaired: boolean;
+} | null {
+  if (parsed.id) {
+    const match = req.candidates.find(
+      (candidate) => candidate.id === parsed.id
+    );
+    if (match) {
+      const resolved = idMap.get(match.id);
+      if (resolved) {
+        return { candidate: resolved, promptId: match.id, repaired: false };
+      }
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function maskApiKey(apiKey: string | undefined): string | undefined {
@@ -230,6 +367,8 @@ function buildPolicyUrl(baseUrl: string | undefined): string {
 
 function logPolicyRequest(input: AiPolicyInput, messages: unknown) {
   const cfg = getPolicyLlmConfig();
+
+  // Log the full JSON structure (for programmatic access)
   appendAiLogEntry({
     gameId: input.view.gameId ?? "unknown",
     turnNumber: input.turnNumber,

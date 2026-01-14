@@ -24,7 +24,6 @@ import type {
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
 import { createRandom, fisherYates, stringToSeed } from "../../util/random.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import { gatherAllCards, distributeRoundRobin } from "../util/dealing.js";
 
@@ -41,7 +40,6 @@ interface ScopaRulesState {
   lastCapturer: string | null;
   scopas: Record<string, number>;
   result: string | null;
-  agentGuide?: AgentGuide;
 }
 
 type SimpleCard = { id: number; rank: string; suit: string };
@@ -91,7 +89,6 @@ function getScopaRulesState(raw: unknown, players: string[]): ScopaRulesState {
     lastCapturer: null,
     scopas: Object.fromEntries(players.map((p) => [p, 0])),
     result: null,
-    agentGuide: { historyDigest: [] },
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -109,7 +106,6 @@ function getScopaRulesState(raw: unknown, players: string[]): ScopaRulesState {
     lastCapturer: obj.lastCapturer ?? base.lastCapturer,
     scopas: { ...base.scopas, ...(obj.scopas ?? {}) },
     result: obj.result ?? base.result,
-    agentGuide: obj.agentGuide ?? base.agentGuide,
   };
 
   for (const p of merged.players) {
@@ -124,10 +120,6 @@ function getScopaRulesState(raw: unknown, players: string[]): ScopaRulesState {
 function getOtherPlayer(current: string, players: string[]): string {
   const other = players.find((p) => p !== current);
   return other ?? current;
-}
-
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return `${card.rank} of ${card.suit}`;
 }
 
 function cardValue(rank: string): number {
@@ -569,13 +561,6 @@ const scopaRules: GameRuleModule = {
         phase: "playing",
       };
 
-      // Collapse history when starting new hand
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        `Hand ${nextDealNumber} started.`,
-        { summarizePrevious: rulesState.result || undefined }
-      );
-
       engineEvents.push({
         type: "set-rules-state",
         rulesState: nextRulesState,
@@ -659,15 +644,8 @@ const scopaRules: GameRuleModule = {
       };
     }
 
-    const played = handPile.cards.find((c) => c.id === intent.cardId);
-    if (!played) {
-      return {
-        valid: false,
-        reason: "Card not in source pile.",
-        engineEvents: [],
-      };
-    }
-    let historyEntry: string | null = null;
+    // Engine guarantees card exists in source pile
+    const played = handPile.cards.find((c) => c.id === intent.cardId)!;
 
     const tableCards = tablePile.cards;
     const capture = computeCapture(played, tableCards);
@@ -695,7 +673,7 @@ const scopaRules: GameRuleModule = {
         type: "move-cards",
         fromPileId: `${playerId}-hand`,
         toPileId: `${playerId}-won`,
-        cardIds: [intent.cardId],
+        cardIds: [intent.cardId!],
       });
 
       engineEvents.push({
@@ -735,15 +713,13 @@ const scopaRules: GameRuleModule = {
           };
         }
       }
-      historyEntry = `${playerId} captured with ${formatCardLabel(played)}.`;
     } else {
       engineEvents.push({
         type: "move-cards",
         fromPileId: `${playerId}-hand`,
         toPileId: "table",
-        cardIds: [intent.cardId],
+        cardIds: [intent.cardId!],
       });
-      historyEntry = `${playerId} trailed ${formatCardLabel(played)}.`;
     }
 
     const nextPlayer: string | null = getOtherPlayer(playerId, players);
@@ -838,9 +814,6 @@ const scopaRules: GameRuleModule = {
       type: "set-rules-state",
       rulesState: {
         ...nextRulesState,
-        agentGuide: historyEntry
-          ? appendHistoryDigest(nextRulesState.agentGuide, historyEntry)
-          : nextRulesState.agentGuide,
       },
     });
 

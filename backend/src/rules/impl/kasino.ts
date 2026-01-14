@@ -7,7 +7,6 @@ import type {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -35,17 +34,16 @@ const META = loadGameMeta("kasino");
 
 interface KasinoRulesState {
   hasDealt?: boolean;
-  dealNumber: number; // NEW: tracks full deck deals for Next Round overlay
+  dealNumber: number;
   phase: "dealing" | "playing" | "ended";
-  roundNumber: number; // 1..N (deals of 4 cards within one deck)
+  roundNumber: number;
   players: string[];
   lastCapturer: string | null;
-  sweeps: Record<string, number>; // Sweeps in the current hand
-  scores: Record<string, number>; // Total points across hands
-  handPoints: Record<string, number>; // Immediate points in the current hand (Aces, Kasinos)
+  sweeps: Record<string, number>;
+  scores: Record<string, number>;
+  handPoints: Record<string, number>;
   isLastDeal: boolean;
   result: string | null;
-  agentGuide?: AgentGuide;
 }
 
 const RANK_VALUE: Record<string, number> = {
@@ -79,10 +77,6 @@ function getOtherPlayer(current: string, players: string[]): string {
   const idx = players.indexOf(current);
   if (idx === -1) return players[0];
   return players[(idx + 1) % players.length];
-}
-
-function formatCardLabel(card: { rank: string; suit: string }): string {
-  return `${card.rank} of ${card.suit}`;
 }
 
 function generateGroupsToTarget(
@@ -384,7 +378,6 @@ export const kasinoRules: GameRuleModule = {
       handPoints: rawRulesState.handPoints ?? {},
       isLastDeal: rawRulesState.isLastDeal ?? false,
       result: rawRulesState.result ?? null,
-      agentGuide: rawRulesState.agentGuide ?? { historyDigest: [] },
     };
 
     const gameId = state.gameId;
@@ -460,7 +453,6 @@ export const kasinoRules: GameRuleModule = {
       handPoints: rawRulesState.handPoints ?? {},
       isLastDeal: rawRulesState.isLastDeal ?? false,
       result: rawRulesState.result ?? null,
-      agentGuide: rawRulesState.agentGuide ?? { historyDigest: [] },
     };
 
     if (intent.type === "action" && intent.action === "start-game") {
@@ -496,13 +488,6 @@ export const kasinoRules: GameRuleModule = {
           rulesState.handPoints[p] = 0;
         });
       }
-
-      // Collapse history when starting new hand
-      rulesState.agentGuide = appendHistoryDigest(
-        rulesState.agentGuide,
-        `Hand ${rulesState.dealNumber} started.`,
-        { summarizePrevious: rulesState.result || undefined }
-      );
 
       // Gather all cards back to deck explicitly (avoid using 'any')
       engineEvents.push(...gatherAllCards(state));
@@ -549,12 +534,17 @@ export const kasinoRules: GameRuleModule = {
 
     if (intent.type === "move") {
       const { playerId, fromPileId, toPileId, cardId } = intent;
-      let historyEntry: string | null = null;
 
       if (state.currentPlayer !== playerId)
         return {
           valid: false,
           reason: "It is not your turn.",
+          engineEvents: [],
+        };
+      if (cardId === undefined)
+        return {
+          valid: false,
+          reason: "Move requires cardId.",
           engineEvents: [],
         };
       if (fromPileId !== `${playerId}-hand`)
@@ -576,13 +566,8 @@ export const kasinoRules: GameRuleModule = {
       }
 
       const handPile = state.piles[fromPileId];
-      const playedCard = handPile?.cards?.find((c) => c.id === cardId);
-      if (!playedCard)
-        return {
-          valid: false,
-          reason: "Card not in source pile.",
-          engineEvents: [],
-        };
+      // Engine guarantees card exists in source pile
+      const playedCard = handPile.cards!.find((c) => c.id === cardId)!;
 
       const tablePile = state.piles["table"];
       const tableCards = tablePile?.cards ?? [];
@@ -639,9 +624,6 @@ export const kasinoRules: GameRuleModule = {
         ) {
           rulesState.sweeps[playerId] = (rulesState.sweeps[playerId] || 0) + 1;
         }
-        historyEntry = `${playerId} captured with ${formatCardLabel(
-          playedCard
-        )}.`;
       } else {
         engineEvents.push({
           type: "move-cards",
@@ -649,7 +631,6 @@ export const kasinoRules: GameRuleModule = {
           toPileId: "table",
           cardIds: [cardId],
         });
-        historyEntry = `${playerId} trailed ${formatCardLabel(playedCard)}.`;
       }
 
       const nextPlayer = getOtherPlayer(playerId, rulesState.players);
@@ -740,12 +721,6 @@ export const kasinoRules: GameRuleModule = {
         }
       }
 
-      if (historyEntry) {
-        rulesState.agentGuide = appendHistoryDigest(
-          rulesState.agentGuide,
-          historyEntry
-        );
-      }
       engineEvents.push({ type: "set-rules-state", rulesState });
       engineEvents.push({
         type: "set-scoreboards",

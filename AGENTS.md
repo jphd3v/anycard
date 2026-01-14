@@ -278,7 +278,7 @@ consistent, or explicitly update both.
       modules need.
   - **AI policy DSL is fixed and minimal**
     - The AI policy model must continue to return a single JSON object of the
-      form `{ "chosenCandidateId": "<candidate id>" }`.
+      form `{ "chosenPickId": "<pickId>" }`.
     - Candidate ids are opaque strings (e.g. `rules:0`, `action:pass`,
       `move:P1-hand:37->table`). Do not introduce new parsing logic for these
       ids in the engine; if you need more structure, add it explicitly to the

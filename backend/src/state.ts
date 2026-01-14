@@ -316,6 +316,12 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
         cardVisuals: event.visuals,
       };
       break;
+    case "set-pile-properties":
+      nextState = {
+        ...state,
+        pileProperties: event.properties,
+      };
+      break;
     case "set-current-player":
       nextState = {
         ...state,

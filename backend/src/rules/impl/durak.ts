@@ -21,7 +21,6 @@ import type {
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol, formatCard } from "../../util/card-notation.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents } from "../util/piles.js";
 import { gatherAllCards, distributeRoundRobin } from "../util/dealing.js";
 
@@ -42,7 +41,6 @@ interface DurakRulesState {
     defenseRank?: string;
     defenseSuit?: string;
   }>;
-  agentGuide?: AgentGuide;
 }
 
 const RANK_MAP: Record<string, number> = {
@@ -59,23 +57,6 @@ const RANK_MAP: Record<string, number> = {
 
 function getRank(rankStr: string): number {
   return RANK_MAP[rankStr] || 0;
-}
-
-function formatBoutSummary(
-  rulesState: DurakRulesState,
-  outcome: "defended" | "took"
-): string {
-  const attacker = rulesState.attackerId ?? "Attacker";
-  const defender = rulesState.defenderId ?? "Defender";
-  const attackCount = rulesState.bout.length;
-  const defendedCount = rulesState.bout.filter(
-    (b) => b.defenseCardId !== null
-  ).length;
-  const outcomeText =
-    outcome === "took" ? `${defender} took the cards` : `${defender} defended`;
-  return `Bout: ${attacker} attacked ${attackCount} card${
-    attackCount === 1 ? "" : "s"
-  } (${defendedCount} defended), ${outcomeText}.`;
 }
 
 function getOtherPlayer(current: string): string {
@@ -228,10 +209,6 @@ function dealFromDeck(state: ValidationState): EngineEvent[] {
     defenderId: getOtherPlayer(attackerId),
     result: null,
     bout: [],
-    agentGuide: appendHistoryDigest(
-      undefined,
-      `Hand started (trump ${trumpSuit}).`
-    ),
   };
 
   engineEvents.push({ type: "set-rules-state", rulesState: nextRulesState });
@@ -377,17 +354,11 @@ export const durakRules: GameRuleModule = {
 
     const nextRulesState = { ...rulesState };
     let nextPlayer = state.currentPlayer;
-    let historyEntry: string | null = null;
 
     if (intent.type === "move") {
       const fromPile = state.piles[intent.fromPileId];
-      const card = fromPile?.cards?.find((c) => c.id === intent.cardId);
-      if (!card)
-        return {
-          valid: false,
-          reason: "Card not in source pile.",
-          engineEvents: [],
-        };
+      // Engine guarantees card exists in source pile
+      const card = fromPile.cards!.find((c) => c.id === intent.cardId)!;
 
       if (isAttacker) {
         if (nextRulesState.bout.some((b) => b.defenseCardId === null)) {
@@ -519,7 +490,6 @@ export const durakRules: GameRuleModule = {
           )
         );
 
-        historyEntry = formatBoutSummary(nextRulesState, "defended");
         const newAttacker = defenderId;
         nextRulesState.attackerId = newAttacker;
         nextRulesState.defenderId = getOtherPlayer(newAttacker);
@@ -546,19 +516,11 @@ export const durakRules: GameRuleModule = {
           )
         );
 
-        historyEntry = formatBoutSummary(nextRulesState, "took");
         nextRulesState.bout = [];
         nextPlayer = attackerId;
       } else {
         return { valid: false, reason: "Invalid action.", engineEvents: [] };
       }
-    }
-
-    if (historyEntry) {
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        historyEntry
-      );
     }
 
     engineEvents.push({ type: "set-rules-state", rulesState: nextRulesState });

@@ -1,0 +1,18 @@
+{
+  "id": "canasta-multicard-candidates",
+  "rulesId": "canasta",
+  "seed": "CANASTA-TEST-CANDIDATES",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100,
+    "stopWhen": {
+      "dealNumberAtLeast": 1
+    },
+    "logEvery": 0
+  },
+  "comment": "Auto-play game to verify AI gets multi-card meld candidates. With first-legal policy, if multi-card candidates are generated and come before single-card/discard candidates, AI should use them.",
+  "expect": {
+    "dealNumber": 1
+  }
+}

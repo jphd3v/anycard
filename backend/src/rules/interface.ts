@@ -5,6 +5,10 @@ import type {
 } from "../../../shared/schemas.js";
 import type { ValidationResult } from "../../../shared/validation.js";
 import type { ValidationState } from "../validation-state.js";
+import type { AiSupport } from "./ai-support.js";
+
+// Re-export AiSupport for game plugins
+export type { AiSupport };
 
 export interface ValidationHints {
   /**
@@ -96,4 +100,17 @@ export interface GamePlugin {
    * Optional hints that customize how ValidationState is built for this game.
    */
   validationHints?: ValidationHints;
+
+  /**
+   * Optional AI support plugin for advanced AI features.
+   *
+   * When provided, enables:
+   * - Custom candidate generation (including multi-move macros)
+   * - Game-specific context building (recap + facts)
+   * - Macro candidate execution
+   *
+   * If not provided, the engine falls back to default candidate generation
+   * from listLegalIntentsForPlayer.
+   */
+  aiSupport?: AiSupport;
 }

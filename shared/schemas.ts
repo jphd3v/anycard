@@ -112,6 +112,11 @@ export const ScoreboardSchema = z.object({
 export type ScoreboardCell = z.infer<typeof ScoreboardCellSchema>;
 export type Scoreboard = z.infer<typeof ScoreboardSchema>;
 
+export const PilePropertyOverridesSchema = z.object({
+  layout: PileLayoutSchema.optional(),
+  label: z.string().optional(),
+});
+
 export const GameStateSchema = z.object({
   gameId: z.string(),
   rulesId: z.string(),
@@ -119,6 +124,7 @@ export const GameStateSchema = z.object({
   seed: z.string().optional(),
   cards: z.record(CardIdKeySchema, CardSchema),
   cardVisuals: z.record(CardIdKeySchema, CardVisualSchema).optional(),
+  pileProperties: z.record(z.string(), PilePropertyOverridesSchema).optional(),
   piles: z.record(z.string(), PileSchema),
   players: z.array(PlayerSchema),
   currentPlayer: z.string().nullable(),
@@ -179,6 +185,11 @@ export const SetCardVisualsEventSchema = EventBaseSchema.extend({
   visuals: z.record(CardIdKeySchema, CardVisualSchema),
 });
 
+export const SetPilePropertiesEventSchema = EventBaseSchema.extend({
+  type: z.literal("set-pile-properties"),
+  properties: z.record(z.string(), PilePropertyOverridesSchema),
+});
+
 export const FatalErrorEventSchema = EventBaseSchema.extend({
   type: z.literal("fatal-error"),
   message: z.string(),
@@ -194,6 +205,7 @@ export const GameEventSchema = z.discriminatedUnion("type", [
   SetActionsEventSchema,
   SetPileVisibilityEventSchema,
   SetCardVisualsEventSchema,
+  SetPilePropertiesEventSchema,
   FatalErrorEventSchema,
 ]);
 
@@ -240,6 +252,12 @@ const SetCardVisualsEventPayloadSchema = SetCardVisualsEventSchema.omit({
   playerId: true,
 });
 
+const SetPilePropertiesEventPayloadSchema = SetPilePropertiesEventSchema.omit({
+  id: true,
+  gameId: true,
+  playerId: true,
+});
+
 const FatalErrorEventPayloadSchema = FatalErrorEventSchema.omit({
   id: true,
   gameId: true,
@@ -255,6 +273,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion("type", [
   SetActionsEventPayloadSchema,
   SetPileVisibilityEventPayloadSchema,
   SetCardVisualsEventPayloadSchema,
+  SetPilePropertiesEventPayloadSchema,
   FatalErrorEventPayloadSchema,
 ]);
 
@@ -268,18 +287,61 @@ export type SetPileVisibilityEvent = z.infer<
   typeof SetPileVisibilityEventSchema
 >;
 export type SetCardVisualsEvent = z.infer<typeof SetCardVisualsEventSchema>;
+export type SetPilePropertiesEvent = z.infer<
+  typeof SetPilePropertiesEventSchema
+>;
 export type FatalErrorEvent = z.infer<typeof FatalErrorEventSchema>;
 export type GameEvent = z.infer<typeof GameEventSchema>;
 export type GameEventPayload = z.infer<typeof GameEventPayloadSchema>;
 
-export const MoveIntentSchema = z.object({
+// Base move intent schema
+const MoveIntentBaseSchema = z.object({
   type: z.literal("move"),
   gameId: z.string(),
   playerId: z.string(),
   fromPileId: z.string(),
   toPileId: z.string(),
-  cardId: CardIdSchema,
+  cardId: CardIdSchema.optional(),
+  cardIds: z.array(CardIdSchema).optional(),
 });
+
+// Helper to enforce the mutual-exclusion and array rules for move intents
+function validateMoveIntentShape(
+  data: z.infer<typeof MoveIntentBaseSchema>,
+  ctx: z.RefinementCtx
+): void {
+  const hasCardId = data.cardId !== undefined;
+  const hasCardIds = data.cardIds !== undefined;
+
+  if (hasCardId === hasCardIds) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Exactly one of 'cardId' or 'cardIds' must be provided",
+    });
+  }
+
+  if (hasCardIds) {
+    const cardIds = data.cardIds ?? [];
+    if (cardIds.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cardIds array cannot be empty",
+      });
+    }
+    const unique = new Set(cardIds);
+    if (unique.size !== cardIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cardIds contains duplicate card IDs",
+      });
+    }
+  }
+}
+
+// Move intent schema with validation refinements
+export const MoveIntentSchema = MoveIntentBaseSchema.superRefine(
+  validateMoveIntentShape
+);
 
 export const ActionIntentSchema = z.object({
   type: z.literal("action"),
@@ -288,12 +350,15 @@ export const ActionIntentSchema = z.object({
   action: z.string(), // The action ID (e.g. "1♠", "Pass", "Double")
 });
 
-export const ClientIntentSchema = z.discriminatedUnion("type", [
-  MoveIntentSchema,
-  ActionIntentSchema,
-]);
+export const ClientIntentSchema = z
+  .discriminatedUnion("type", [MoveIntentBaseSchema, ActionIntentSchema])
+  .superRefine((data, ctx) => {
+    if (data.type !== "move") return;
+    validateMoveIntentShape(data, ctx);
+  });
 
 export type ClientIntent = z.infer<typeof ClientIntentSchema>;
+export type MoveIntent = z.infer<typeof MoveIntentSchema>;
 
 export const LastActionSchema = z.object({
   id: z.string(),
@@ -355,8 +420,8 @@ export type PileView = z.infer<typeof PileViewSchema>;
 
 export const AiCandidateSchema = z.object({
   id: z.string(),
-  summary: z.string(),
-  intent: z.unknown(),
+  summary: z.string().optional(),
+  intent: z.unknown().optional(),
 });
 
 export type AiCandidate = z.infer<typeof AiCandidateSchema>;
@@ -522,3 +587,47 @@ export const GameLayoutSchema = z.object({
 });
 
 export type GameLayout = z.infer<typeof GameLayoutSchema>;
+
+// ==============================================================================
+// AI Support Schemas (New simplified contract)
+// ==============================================================================
+
+export const AiViewSchema = z.object({
+  seat: z.string(),
+  public: z.unknown(),
+  private: z.unknown(),
+});
+
+export type AiView = z.infer<typeof AiViewSchema>;
+
+export const AiContextSchema = z.object({
+  recap: z.array(z.string()).optional(),
+  facts: z.record(z.unknown()).optional(),
+});
+
+export type AiContext = z.infer<typeof AiContextSchema>;
+
+export const AiCandidateNewSchema = z.object({
+  id: z.string().min(1),
+  summary: z.string().optional(),
+});
+
+export type AiCandidateNew = z.infer<typeof AiCandidateNewSchema>;
+
+export const AiTurnInputSchema = z.object({
+  view: AiViewSchema,
+  context: AiContextSchema.optional(),
+  candidates: z.array(AiCandidateNewSchema),
+  rulesMarkdown: z.string(),
+});
+
+export type AiTurnInput = z.infer<typeof AiTurnInputSchema>;
+
+export const AiTurnOutputSchema = z
+  .object({
+    id: z.string().min(1),
+    why: z.string().optional(),
+  })
+  .strict();
+
+export type AiTurnOutput = z.infer<typeof AiTurnOutputSchema>;

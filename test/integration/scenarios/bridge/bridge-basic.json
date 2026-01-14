@@ -87,6 +87,11 @@
         "dummySeat": "S",
         "turnSeat": "S"
       },
+      "recap": [
+        "Hand 1 started (dealer N).",
+        "Bidding ended: 3 NT by N.",
+        "Trick 1: E 4 of diamonds, S 9 of diamonds, W 5 of diamonds, N 2 of diamonds; winner S."
+      ],
       "result": null,
       "rubberFinished": false,
       "trickLeader": "S",

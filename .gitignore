@@ -25,6 +25,7 @@ pnpm-debug.log*
 
 # AI agents
 .gemini-clipboard
+.claude
 
 # E2E artifacts
 .test-artifacts/

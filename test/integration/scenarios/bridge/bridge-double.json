@@ -89,6 +89,11 @@
         "dummySeat": "S",
         "turnSeat": "E"
       },
+      "recap": [
+        "Hand 1 started (dealer N).",
+        "Bidding ended: 1 hearts redoubled by N.",
+        "Trick 1: E A of clubs, S 6 of clubs, W 2 of clubs, N K of clubs; winner E."
+      ],
       "result": null,
       "rubberFinished": false,
       "trickLeader": "E",

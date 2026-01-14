@@ -199,7 +199,8 @@
     "gamesNS": 0,
     "gamesEW": 0,
     "rubberFinished": false,
-    "result": null
+    "result": null,
+    "recap": []
   },
   "scoreboards": [
     {

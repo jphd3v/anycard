@@ -13,7 +13,6 @@ import type {
   ValidationResult,
 } from "../../../../shared/validation.js";
 import { loadGameMeta } from "../meta.js";
-import { appendHistoryDigest, type AgentGuide } from "../util/agent-guide.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
@@ -61,7 +60,6 @@ interface GinRulesState {
   matchScores: Record<string, number>;
   handWins: Record<string, number>;
   matchWinner: string | null;
-  agentGuide?: AgentGuide;
 }
 
 type SimpleCard = { id: number; rank: string; suit: string };
@@ -127,7 +125,6 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     matchScores: Object.fromEntries(validPlayers.map((p) => [p, 0])),
     handWins: Object.fromEntries(validPlayers.map((p) => [p, 0])),
     matchWinner: null,
-    agentGuide: { historyDigest: [] },
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -138,7 +135,6 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     ...obj,
     matchScores: obj.matchScores ?? base.matchScores,
     handWins: obj.handWins ?? base.handWins,
-    agentGuide: obj.agentGuide ?? base.agentGuide,
     layoffCardIds: Array.isArray(obj.layoffCardIds)
       ? obj.layoffCardIds.filter((id): id is number => typeof id === "number")
       : base.layoffCardIds,
@@ -915,6 +911,81 @@ function deriveActions(
 
 // ------- main rule module -------
 
+/**
+ * Generate multi-card meld candidates from a hand.
+ * Returns arrays of card IDs that form valid sets or runs.
+ *
+ * Rules:
+ * - Set: 3+ cards of same rank
+ * - Run: 3+ consecutive same suit
+ */
+function generateGinMeldCandidates(hand: SimpleCard[]): number[][] {
+  if (hand.length < 3) return [];
+
+  const melds: number[][] = [];
+
+  // Generate sets (3+ same rank)
+  const byRank = new Map<string, SimpleCard[]>();
+  for (const card of hand) {
+    if (!byRank.has(card.rank)) byRank.set(card.rank, []);
+    byRank.get(card.rank)!.push(card);
+  }
+
+  for (const cards of byRank.values()) {
+    if (cards.length >= 3) {
+      // Generate all sizes from 3 to max
+      for (let size = 3; size <= cards.length; size++) {
+        melds.push(cards.slice(0, size).map((c) => c.id));
+      }
+    }
+  }
+
+  // Generate runs (3+ consecutive same suit)
+  const bySuit = new Map<string, SimpleCard[]>();
+  for (const card of hand) {
+    if (!bySuit.has(card.suit)) bySuit.set(card.suit, []);
+    bySuit.get(card.suit)!.push(card);
+  }
+
+  for (const cards of bySuit.values()) {
+    if (cards.length < 3) continue;
+
+    // Sort by rank value
+    const sorted = cards
+      .map((c) => ({ card: c, rankNum: RANK_TO_NUM[c.rank] ?? 0 }))
+      .sort((a, b) => a.rankNum - b.rankNum);
+
+    // Find consecutive sequences
+    let start = 0;
+    while (start < sorted.length) {
+      let end = start;
+      while (
+        end + 1 < sorted.length &&
+        sorted[end + 1].rankNum === sorted[end].rankNum + 1
+      ) {
+        end++;
+      }
+
+      const len = end - start + 1;
+      if (len >= 3) {
+        // Generate all runs of length 3 or more from this sequence
+        for (let runStart = start; runStart <= end - 2; runStart++) {
+          for (let runEnd = runStart + 2; runEnd <= end; runEnd++) {
+            const run = sorted
+              .slice(runStart, runEnd + 1)
+              .map((item) => item.card.id);
+            melds.push(run);
+          }
+        }
+      }
+
+      start = end + 1;
+    }
+  }
+
+  return melds;
+}
+
 export const ginRules: GameRuleModule = {
   deriveScoreboardsForView(
     gameState: GameState,
@@ -1109,6 +1180,32 @@ export const ginRules: GameRuleModule = {
       }
     } else if (turnPhase === "must-discard") {
       const handCards = cardsInPile(state, playerHandPileId);
+
+      // Generate multi-card meld candidates for AI efficiency
+      const meldCandidates = generateGinMeldCandidates(handCards);
+      for (const cardIds of meldCandidates) {
+        // Determine which meld pile to use - use first empty meld pile
+        const meldPiles = meldPileIdsForPlayer(playerId);
+        for (const meldPileId of meldPiles) {
+          const pileSize = state.piles[meldPileId]?.size ?? 0;
+          if (pileSize === 0) {
+            const candidate: ClientIntent = {
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: playerHandPileId,
+              toPileId: meldPileId,
+              cardIds,
+            };
+            if (this.validate(state, candidate).valid) {
+              intents.push(candidate);
+            }
+            break; // Only add to first empty meld pile
+          }
+        }
+      }
+
+      // Keep single-card discards
       for (const card of handCards) {
         const candidate: ClientIntent = {
           type: "move",
@@ -1123,6 +1220,7 @@ export const ginRules: GameRuleModule = {
         }
       }
 
+      // Single-card melds for building/extending
       for (const card of handCards) {
         for (const meldPileId of meldPileIdsForPlayer(playerId)) {
           const candidate: ClientIntent = {
@@ -1188,7 +1286,6 @@ export const ginRules: GameRuleModule = {
     const rulesState = getGinRulesState(state.rulesState, players);
     const engineEvents: EngineEvent[] = [];
     let nextRulesState: GinRulesState = { ...rulesState };
-    let historyEntry: string | null = null;
 
     if (!rulesState.hasDealt) {
       if (intent.type !== "action" || intent.action !== "start-game") {
@@ -1224,13 +1321,6 @@ export const ginRules: GameRuleModule = {
         layoffCardIds: [],
         result: null,
       };
-
-      // Collapse history when starting new hand
-      nextRulesState.agentGuide = appendHistoryDigest(
-        nextRulesState.agentGuide,
-        `Hand ${nextDealNumber} started (dealer ${dealer}).`,
-        { summarizePrevious: rulesState.result || undefined }
-      );
 
       const { events: dealEvents, nextIndex: afterDealIdx } =
         distributeRoundRobin(
@@ -1297,7 +1387,6 @@ export const ginRules: GameRuleModule = {
           const dealer = rulesState.dealer;
           nextRulesState = { ...nextRulesState, phase: "first-upcard-dealer" };
           engineEvents.push({ type: "set-current-player", player: dealer });
-          historyEntry = `${currentPlayer} passed the upcard.`;
         } else
           return { valid: false, reason: "Invalid action.", engineEvents: [] };
       } else if (rulesState.phase === "first-upcard-dealer") {
@@ -1309,7 +1398,6 @@ export const ginRules: GameRuleModule = {
             turnPhase: "must-draw",
           };
           engineEvents.push({ type: "set-current-player", player: nonDealer });
-          historyEntry = `${currentPlayer} passed the upcard.`;
         } else
           return { valid: false, reason: "Invalid action.", engineEvents: [] };
       } else if (rulesState.phase === "layoff") {
@@ -1337,7 +1425,6 @@ export const ginRules: GameRuleModule = {
           }
         }
         nextRulesState = finalizeHand(state, nextRulesState, engineEvents);
-        historyEntry = `${currentPlayer} finished layoff.`;
       } else {
         return {
           valid: false,
@@ -1346,12 +1433,6 @@ export const ginRules: GameRuleModule = {
         };
       }
 
-      if (historyEntry) {
-        nextRulesState.agentGuide = appendHistoryDigest(
-          nextRulesState.agentGuide,
-          historyEntry
-        );
-      }
       engineEvents.push({
         type: "set-rules-state",
         rulesState: nextRulesState,
@@ -1388,17 +1469,10 @@ export const ginRules: GameRuleModule = {
 
       const from = intent.fromPileId;
       const to = intent.toPileId;
-      const cardId = intent.cardId;
 
       const fromPile = state.piles[from];
-      const movedCard = fromPile?.cards?.find((c) => c.id === cardId);
-      if (!fromPile || !movedCard) {
-        return {
-          valid: false,
-          reason: "Card not in source pile.",
-          engineEvents: [],
-        };
-      }
+      // Engine guarantees fromPile exists and card is in source pile
+      const movedCard = fromPile.cards!.find((c) => c.id === intent.cardId)!;
 
       if (rulesState.phase === "layoff") {
         if (!rulesState.knockPlayer || rulesState.knockType !== "knock") {
@@ -1440,17 +1514,17 @@ export const ginRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: handPileId,
             toPileId: to,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
           nextRulesState = {
             ...nextRulesState,
-            layoffCardIds: [...nextRulesState.layoffCardIds, cardId],
+            layoffCardIds: [...nextRulesState.layoffCardIds, intent.cardId!],
           };
         } else if (from === handPileId && isPlayerMeldPile(to, defender)) {
           const meldCards = cardsInPile(state, to);
           if (
             meldCards.length === 0 &&
-            hasExistingSetMeld(state, defender, movedCard.rank)
+            hasExistingSetMeld(state, defender, movedCard!.rank)
           ) {
             return {
               valid: false,
@@ -1459,7 +1533,7 @@ export const ginRules: GameRuleModule = {
               engineEvents: [],
             };
           }
-          if (!canAddToMeld(meldCards, movedCard)) {
+          if (!canAddToMeld(meldCards, movedCard!)) {
             return {
               valid: false,
               reason: "Card does not fit that meld.",
@@ -1470,21 +1544,21 @@ export const ginRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: handPileId,
             toPileId: to,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
         } else if (isPlayerMeldPile(from, defender) && to === handPileId) {
           engineEvents.push({
             type: "move-cards",
             fromPileId: from,
             toPileId: handPileId,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
         } else if (
           isPlayerMeldPile(from, defender) &&
           isPlayerMeldPile(to, defender)
         ) {
           const meldCards = cardsInPile(state, to);
-          if (!canAddToMeld(meldCards, movedCard)) {
+          if (!canAddToMeld(meldCards, movedCard!)) {
             return {
               valid: false,
               reason: "Card does not fit that meld.",
@@ -1495,10 +1569,10 @@ export const ginRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: from,
             toPileId: to,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
         } else if (isPlayerMeldPile(from, knocker) && to === handPileId) {
-          if (!rulesState.layoffCardIds.includes(cardId)) {
+          if (!rulesState.layoffCardIds.includes(intent.cardId!)) {
             return {
               valid: false,
               reason: "You can only take back cards you laid off.",
@@ -1509,12 +1583,12 @@ export const ginRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: from,
             toPileId: handPileId,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
           nextRulesState = {
             ...nextRulesState,
             layoffCardIds: nextRulesState.layoffCardIds.filter(
-              (id) => id !== cardId
+              (id) => id !== intent.cardId!
             ),
           };
         } else {
@@ -1526,12 +1600,6 @@ export const ginRules: GameRuleModule = {
           };
         }
 
-        if (historyEntry) {
-          nextRulesState.agentGuide = appendHistoryDigest(
-            nextRulesState.agentGuide,
-            historyEntry
-          );
-        }
         engineEvents.push({
           type: "set-rules-state",
           rulesState: nextRulesState,
@@ -1599,9 +1667,6 @@ export const ginRules: GameRuleModule = {
             turnPhase: "must-discard",
             lastDrawSource: "discard",
           };
-          if (tookUpcard) {
-            historyEntry = `${currentPlayer} took the upcard.`;
-          }
         } else
           return {
             valid: false,
@@ -1611,6 +1676,10 @@ export const ginRules: GameRuleModule = {
       } else {
         const handPileId = `${currentPlayer}-hand`;
         if (from === handPileId && isPlayerMeldPile(to, currentPlayer)) {
+          // Support both single-card and multi-card melds
+          const cardIds =
+            intent.cardId !== undefined ? [intent.cardId] : intent.cardIds!;
+
           const hasMeldCards = meldPileIdsForPlayer(currentPlayer).some(
             (pileId) => (state.piles[pileId]?.size ?? 0) > 0
           );
@@ -1625,44 +1694,92 @@ export const ginRules: GameRuleModule = {
               };
             }
           }
+
           const meldCards = cardsInPile(state, to);
-          if (
-            meldCards.length === 0 &&
-            hasExistingSetMeld(state, currentPlayer, movedCard.rank)
-          ) {
-            return {
-              valid: false,
-              reason:
-                "You already have a meld of that rank. Add to the existing meld instead.",
-              engineEvents: [],
-            };
+
+          // For multi-card melds, validate as a complete group
+          if (cardIds.length >= 3 && meldCards.length === 0) {
+            const movingCards = cardIds
+              .map((id) => fromPile?.cards?.find((c) => c.id === id))
+              .filter((c): c is SimpleCard => !!c);
+
+            if (movingCards.length !== cardIds.length) {
+              return {
+                valid: false,
+                reason: "One or more cards not in source pile.",
+                engineEvents: [],
+              };
+            }
+
+            // Validate the group forms a valid meld
+            const meldError = validateMeld(movingCards);
+            if (meldError) {
+              return {
+                valid: false,
+                reason: `Invalid meld: ${meldError}`,
+                engineEvents: [],
+              };
+            }
+
+            // Check for duplicate rank meld
+            const firstCard = movingCards[0];
+            if (hasExistingSetMeld(state, currentPlayer, firstCard.rank)) {
+              return {
+                valid: false,
+                reason:
+                  "You already have a meld of that rank. Add to the existing meld instead.",
+                engineEvents: [],
+              };
+            }
+
+            engineEvents.push({
+              type: "move-cards",
+              fromPileId: handPileId,
+              toPileId: to,
+              cardIds: cardIds as [number, ...number[]],
+            });
+          } else {
+            // Single card or extending existing meld
+            // Engine guarantees movedCard exists (validated earlier in this function)
+
+            if (
+              meldCards.length === 0 &&
+              hasExistingSetMeld(state, currentPlayer, movedCard.rank)
+            ) {
+              return {
+                valid: false,
+                reason:
+                  "You already have a meld of that rank. Add to the existing meld instead.",
+                engineEvents: [],
+              };
+            }
+            if (!canAddToMeld(meldCards, movedCard)) {
+              return {
+                valid: false,
+                reason: "Card does not fit that meld.",
+                engineEvents: [],
+              };
+            }
+            engineEvents.push({
+              type: "move-cards",
+              fromPileId: handPileId,
+              toPileId: to,
+              cardIds: [intent.cardId!],
+            });
           }
-          if (!canAddToMeld(meldCards, movedCard)) {
-            return {
-              valid: false,
-              reason: "Card does not fit that meld.",
-              engineEvents: [],
-            };
-          }
-          engineEvents.push({
-            type: "move-cards",
-            fromPileId: handPileId,
-            toPileId: to,
-            cardIds: [cardId],
-          });
         } else if (isPlayerMeldPile(from, currentPlayer) && to === handPileId) {
           engineEvents.push({
             type: "move-cards",
             fromPileId: from,
             toPileId: handPileId,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
         } else if (
           isPlayerMeldPile(from, currentPlayer) &&
           isPlayerMeldPile(to, currentPlayer)
         ) {
           const meldCards = cardsInPile(state, to);
-          if (!canAddToMeld(meldCards, movedCard)) {
+          if (!canAddToMeld(meldCards, movedCard!)) {
             return {
               valid: false,
               reason: "Card does not fit that meld.",
@@ -1673,16 +1790,16 @@ export const ginRules: GameRuleModule = {
             type: "move-cards",
             fromPileId: from,
             toPileId: to,
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
         } else if (from === handPileId && to === "discard") {
           engineEvents.push({
             type: "move-cards",
             fromPileId: handPileId,
             toPileId: "discard",
-            cardIds: [cardId],
+            cardIds: [intent.cardId!],
           });
-          historyEntry = formatTurnDigest(currentPlayer, rulesState, movedCard);
+          formatTurnDigest(currentPlayer, rulesState, movedCard);
 
           const projected = projectPilesAfterEvents(state, engineEvents);
           const meldInfo = collectMeldInfo(projected, currentPlayer);
@@ -1736,10 +1853,6 @@ export const ginRules: GameRuleModule = {
                 player: defender,
               });
             }
-
-            historyEntry = `${historyEntry} ${currentPlayer} ${
-              knockType === "gin" ? "went gin" : "knocked"
-            }.`;
           } else if (projected["deck"].size <= 2) {
             nextRulesState = {
               ...nextRulesState,
@@ -1767,12 +1880,6 @@ export const ginRules: GameRuleModule = {
         }
       }
 
-      if (historyEntry) {
-        nextRulesState.agentGuide = appendHistoryDigest(
-          nextRulesState.agentGuide,
-          historyEntry
-        );
-      }
       engineEvents.push({
         type: "set-rules-state",
         rulesState: nextRulesState,

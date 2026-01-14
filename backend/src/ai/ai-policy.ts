@@ -4,8 +4,8 @@ import type {
   ClientIntent,
   GameView as PlayerGameView,
   GameState,
-} from "../../../shared/schemas.js"; // adjust to your actual types
-import type { AiCandidate as SharedAiCandidate } from "../../../shared/src/ai/types.js";
+} from "../../../shared/schemas.js";
+import type { AiCandidate, AiView } from "../../../shared/src/ai/types.js";
 import {
   chooseAiIntentWithLlm,
   resolveRulesMarkdown,
@@ -13,17 +13,16 @@ import {
 import { assignCandidateId } from "./ai-candidates.js";
 import { listLegalIntentsForPlayer } from "../rule-engine.js";
 import { appendAiLogEntry } from "./ai-log.js";
-import { getHumanTurnNumber, getViewSalt } from "../state.js";
-import { toViewCardId } from "../view-ids.js";
+import { getHumanTurnNumber } from "../state.js";
 import { getEnvironmentConfig } from "../config.js";
-import {
-  makeCompactAiView,
-  remapCandidatesForCompactView,
-} from "../../../shared/src/ai/compact-view.js";
-import type { AiRequest } from "../../../shared/src/ai/types.js";
 import { buildAiMessages } from "../../../shared/src/ai/prompts.js";
+import type { AiTurnInput } from "../../../shared/src/ai/types.js";
+import { getViewSalt } from "../state.js";
+import { toViewCardId } from "../view-ids.js";
+import { GAME_PLUGINS } from "../rules/registry.js";
+import { getRecap } from "./recap-manager.js";
 
-export type AiIntentCandidate = SharedAiCandidate & {
+export type AiIntentCandidate = AiCandidate & {
   intent: ClientIntent;
 };
 
@@ -35,8 +34,109 @@ export interface AiPolicyInput {
   turnNumber: number;
 }
 
+/**
+ * Render scoreboards as compact ASCII text instead of verbose JSON cell arrays.
+ * Much more token-efficient and easier for LLMs to read.
+ */
+function renderScoreboardsAsText(
+  scoreboards: Array<{
+    id: string;
+    title?: string;
+    rows: number;
+    cols: number;
+    cells: Array<{
+      row: number;
+      col: number;
+      text: string;
+      colspan?: number;
+    }>;
+  }>
+): string[] {
+  return scoreboards.map((sb) => {
+    const lines: string[] = [];
+
+    // Add title if present
+    if (sb.title) {
+      lines.push(`[${sb.title}]`);
+    }
+
+    // Build a 2D grid from cells
+    const grid: string[][] = Array.from({ length: sb.rows }, () =>
+      Array.from({ length: sb.cols }, () => "")
+    );
+
+    for (const cell of sb.cells) {
+      if (cell.row < sb.rows && cell.col < sb.cols) {
+        grid[cell.row][cell.col] = cell.text;
+      }
+    }
+
+    // Render each row as pipe-separated values
+    for (const row of grid) {
+      const rowText = row.map((cell) => cell.trim()).join(" | ");
+      if (rowText.replace(/\|/g, "").trim()) {
+        // Skip empty rows
+        lines.push(rowText);
+      }
+    }
+
+    return lines.join("\n");
+  });
+}
+
+/**
+ * Builds a hardened, seat-specific view for the AI.
+ * Explicitly picks only fields needed for strategy to prevent leakage.
+ * Optimized to minimize token usage by omitting hidden card details.
+ */
+function buildHardenedAiView(view: PlayerGameView, seatId: string): AiView {
+  return {
+    seat: seatId,
+    public: {
+      gameId: view.gameId,
+      currentPlayer: view.currentPlayer,
+      piles: view.piles
+        .filter((p) => (p.totalCards ?? 0) > 0) // Omit empty piles entirely
+        .map((p) => {
+          // Check if any cards in this pile are visible (have rank/suit)
+          const hasVisibleCards = p.cards?.some((c) => c.rank !== undefined);
+
+          if (hasVisibleCards) {
+            // Include full card details for visible piles
+            return {
+              id: p.id,
+              label: p.label,
+              ownerId: p.ownerId,
+              totalCards: p.totalCards,
+              cards: p.cards
+                ?.filter((c) => c.rank !== undefined) // Only include visible cards
+                .map((c) => ({
+                  rank: c.rank,
+                  suit: c.suit,
+                })),
+            };
+          } else {
+            // For hidden piles, just show count (no cards array)
+            return {
+              id: p.id,
+              label: p.label,
+              ownerId: p.ownerId,
+              totalCards: p.totalCards,
+            };
+          }
+        }),
+      scoreboards: renderScoreboardsAsText(view.scoreboards),
+      rulesState: view.rulesState,
+    },
+    private: {
+      // AI only needs to know its legal intents from the hardened view
+      legalIntents: view.legalIntents,
+    },
+  };
+}
+
 export async function buildAiRequestPayload(input: AiPolicyInput): Promise<{
-  req: AiRequest;
+  req: AiTurnInput;
   idMap: Map<string, AiIntentCandidate>;
 }> {
   // Log the candidates
@@ -57,27 +157,38 @@ export async function buildAiRequestPayload(input: AiPolicyInput): Promise<{
     },
   });
 
-  const agentGuide = (
-    input.view.rulesState as Record<string, unknown> | undefined
-  )?.agentGuide;
-  const { view: compactView, cardIdMap } = makeCompactAiView(input.view);
-  const { candidates: promptCandidates, idMap } = remapCandidatesForCompactView(
-    input.candidates,
-    cardIdMap
-  );
+  // Build hardened view for new contract
+  const view = buildHardenedAiView(input.view, input.playerId);
 
-  const req: AiRequest = {
-    rulesId: input.rulesId,
-    seatId: input.playerId,
-    view: compactView,
-    candidates: promptCandidates,
-    rulesMarkdown: await resolveRulesMarkdown(input.rulesId),
-    agentGuide,
+  // Get plugin and call buildContext if available
+  const plugin = GAME_PLUGINS[input.rulesId];
+  const context = plugin?.aiSupport?.buildContext?.(view) ?? {};
+
+  // If plugin didn't provide recap, fetch from recap-manager
+  if (!context.recap) {
+    context.recap = getRecap(input.view.gameId!, input.playerId);
+  }
+
+  // Try to resolve rules markdown for this game
+  const rulesMarkdown = (await resolveRulesMarkdown(input.rulesId)) ?? "";
+
+  const req: AiTurnInput = {
+    view,
+    context,
+    rulesMarkdown,
+    candidates: input.candidates.map((c) => ({
+      id: c.id,
+      summary: c.summary,
+    })),
   };
 
-  // The idMap from remapCandidatesForCompactView maps compact IDs to original candidates.
-  // We need to ensure the caller gets the original AiIntentCandidate objects.
-  return { req, idMap: idMap as Map<string, AiIntentCandidate> };
+  // Build ID map for looking up intents after LLM responds
+  const idMap = new Map<string, AiIntentCandidate>();
+  for (const candidate of input.candidates) {
+    idMap.set(candidate.id, candidate);
+  }
+
+  return { req, idMap };
 }
 
 export class AiPolicyError extends Error {
@@ -132,23 +243,44 @@ function describeError(err: unknown): string {
   }
 }
 
-function formatCardLabel(card: {
-  label?: string;
-  rank?: string;
-  suit?: string;
-  faceDown?: boolean;
-}): string {
-  if (card.faceDown) return "face-down card";
-  const rank = card.rank ?? "?";
-  const suit = card.suit ?? "";
-  return `${rank}${suit}`;
+/**
+ * Sorts intents deterministically to ensure stable ID assignment.
+ */
+function sortIntents(intents: ClientIntent[]): ClientIntent[] {
+  return [...intents].sort((a, b) => {
+    // 1. Sort by type
+    if (a.type !== b.type) return a.type.localeCompare(b.type);
+
+    // 2. Sort by action/pile/card specific fields
+    if (a.type === "action" && b.type === "action") {
+      return a.action.localeCompare(b.action);
+    }
+
+    if (a.type === "move" && b.type === "move") {
+      if (a.fromPileId !== b.fromPileId)
+        return a.fromPileId.localeCompare(b.fromPileId);
+      if (a.toPileId !== b.toPileId)
+        return a.toPileId.localeCompare(b.toPileId);
+
+      // XOR cardId vs cardIds
+      const aId = a.cardId ?? 0;
+      const targetCardId = b.cardId ?? 0;
+      if (aId !== targetCardId) return aId - targetCardId;
+
+      const aIds = (a.cardIds ?? []).join(",");
+      const bIds = (b.cardIds ?? []).join(",");
+      return aIds.localeCompare(bIds);
+    }
+
+    return 0;
+  });
 }
 
 function enumerateCandidatesFromView(
-  game: GameState,
+  _game: GameState,
   view: PlayerGameView,
   playerId: string,
-  usedIds: Map<string, number>
+  idCounter: { value: number }
 ): AiIntentCandidate[] {
   const candidates: AiIntentCandidate[] = [];
   const gameId = view.gameId;
@@ -168,9 +300,13 @@ function enumerateCandidatesFromView(
 
     warnIfNonAsciiIdentifiers(intent);
     const summary = `Press action "${cell.id}"`;
-    const id = assignCandidateId(intent, usedIds);
+    const id = assignCandidateId(intent, idCounter);
 
-    candidates.push({ id, intent, summary });
+    candidates.push({
+      id,
+      intent,
+      summary,
+    });
 
     // Check if we've reached the limit
     if (candidates.length >= MAX_TOTAL_CANDIDATES) {
@@ -211,11 +347,15 @@ function enumerateCandidatesFromView(
         };
 
         warnIfNonAsciiIdentifiers(intent);
-        const cardLabel = formatCardLabel(card);
+        const cardLabel = formatPrimaryLabel(intent, view) || "card";
         const summary = `Move ${cardLabel} from "${from.label}" to "${to.label}"`;
-        const moveId = assignCandidateId(intent, usedIds);
+        const moveId = assignCandidateId(intent, idCounter);
 
-        candidates.push({ id: moveId, intent, summary });
+        candidates.push({
+          id: moveId,
+          intent,
+          summary,
+        });
 
         // Basic safety cap: stop if we exceed max
         if (candidates.length >= MAX_TOTAL_CANDIDATES) {
@@ -238,9 +378,17 @@ function summarizeIntent(view: PlayerGameView, intent: ClientIntent): string {
     const to = pilesById.get(intent.toPileId);
     const fromLabel = from?.label ?? intent.fromPileId;
     const toLabel = to?.label ?? intent.toPileId;
-    const card = from?.cards?.find((c) => c.id === intent.cardId);
-    const cardLabel = card ? formatCardLabel(card) : "card";
-    return `Move ${cardLabel} from "${fromLabel}" to "${toLabel}"`;
+    const cardLabel = formatPrimaryLabel(intent, view) || "card";
+    let pileNote = "";
+    if (intent.cardIds && intent.cardIds.length > 1) {
+      if (!to) {
+        pileNote = " (pile)";
+      } else {
+        pileNote =
+          (to.totalCards ?? 0) > 0 ? " (add to pile)" : " (start pile)";
+      }
+    }
+    return `Move ${cardLabel} from "${fromLabel}" to "${toLabel}"${pileNote}`;
   }
   // Future-proof: if ClientIntent gets new variants, fall back to type name
   return `Perform intent of type "${(intent as { type: string }).type}"`;
@@ -265,6 +413,48 @@ function warnIfNonAsciiIdentifiers(intent: ClientIntent): void {
   }
 }
 
+function formatPrimaryLabel(
+  intent: ClientIntent,
+  view: PlayerGameView
+): string {
+  if (intent.type === "action") return intent.action;
+  if (intent.type !== "move") return "";
+
+  const pilesById = new Map(view.piles.map((p) => [p.id, p]));
+  const from = pilesById.get(intent.fromPileId);
+
+  const formatCardLabel = (card: {
+    label?: string;
+    rank?: string;
+    suit?: string;
+  }): string => {
+    if (card.label) return card.label;
+    const rank = card.rank ?? "?";
+    const suit = card.suit ?? "";
+    return `${rank}${suit}`.trim() || "?";
+  };
+
+  // Handle multi-card moves (cardIds array)
+  if (intent.cardIds && intent.cardIds.length > 0) {
+    const cards = intent.cardIds
+      .map((id) => from?.cards?.find((c) => c.id === id))
+      .filter((c) => c !== undefined);
+
+    if (cards.length === 0) return "?";
+    if (cards.length === 1) {
+      return formatCardLabel(cards[0]);
+    }
+
+    const labels = cards.map((card) => formatCardLabel(card));
+    return `${cards.length} cards (${labels.join(", ")})`;
+  }
+
+  // Handle single-card moves (cardId)
+  const card = from?.cards?.find((c) => c.id === intent.cardId);
+  if (!card) return "?";
+  return formatCardLabel(card);
+}
+
 /**
  * Prepares the filtered candidate list and other metadata needed for an AI decision.
  */
@@ -278,39 +468,52 @@ export function getAiDecisionContext(
   allowStartGame: boolean;
 } {
   let rawCandidates: AiIntentCandidate[] = [];
-  const usedIds = new Map<string, number>();
+  const idCounter = { value: 0 };
 
   // 1. Try rules-provided legal intents (preferred, game-agnostic)
   const viewSalt = getViewSalt(gameId);
   const viewerKey = playerId;
-  const legalIntents = listLegalIntentsForPlayer(gameId, playerId).map(
-    (intent) =>
-      intent.type === "move"
-        ? {
-            ...intent,
-            cardId: toViewCardId(intent.cardId, viewSalt, viewerKey),
-          }
-        : intent
+  const legalIntents = sortIntents(
+    listLegalIntentsForPlayer(gameId, playerId)
+  ).map((intent) =>
+    intent.type === "move"
+      ? {
+          ...intent,
+          cardId:
+            intent.cardId !== undefined
+              ? toViewCardId(intent.cardId, viewSalt, viewerKey)
+              : undefined,
+          cardIds: intent.cardIds?.map((id) =>
+            toViewCardId(id, viewSalt, viewerKey)
+          ),
+        }
+      : intent
   );
 
   if (legalIntents.length > 0) {
     rawCandidates = legalIntents.map((intent) => {
       warnIfNonAsciiIdentifiers(intent);
+      const id = assignCandidateId(intent, idCounter);
       return {
-        id: assignCandidateId(intent, usedIds),
+        id,
         intent,
         summary: summarizeIntent(view, intent),
       };
     });
   } else {
     // 2. Fallback: generic enumeration from GameView
-    rawCandidates = enumerateCandidatesFromView(game, view, playerId, usedIds);
+    rawCandidates = enumerateCandidatesFromView(
+      game,
+      view,
+      playerId,
+      idCounter
+    );
   }
 
   const allowStartGame = areAllSeatsAutomated(game);
 
   // Only allow AI to consider "start-game" in fully automated tables.
-  const candidates = rawCandidates.filter((c) => {
+  const filteredCandidates = rawCandidates.filter((c) => {
     const intent = c.intent;
     return !(
       intent.type === "action" &&
@@ -319,7 +522,44 @@ export function getAiDecisionContext(
     );
   });
 
+  // Deduplicate summaries by adding minimal suffixes (#1, #2) for identical cards
+  const candidates = deduplicateCandidateSummaries(filteredCandidates);
+
   return { candidates, allowStartGame };
+}
+
+/**
+ * When multiple candidates have identical summaries (e.g., two Q♣ from a double deck),
+ * add minimal suffixes (#1, #2) to distinguish them without drawing too much attention.
+ */
+function deduplicateCandidateSummaries(
+  candidates: AiIntentCandidate[]
+): AiIntentCandidate[] {
+  // Count occurrences of each summary
+  const summaryCounts = new Map<string, number>();
+  for (const c of candidates) {
+    const key = c.summary ?? "";
+    const count = summaryCounts.get(key) ?? 0;
+    summaryCounts.set(key, count + 1);
+  }
+
+  // Only process summaries that appear more than once
+  const summaryIndexes = new Map<string, number>();
+
+  return candidates.map((c) => {
+    const key = c.summary ?? "";
+    const count = summaryCounts.get(key) ?? 1;
+    if (count <= 1) return c; // No duplicates, keep as-is
+
+    // Assign incrementing index for this summary
+    const idx = (summaryIndexes.get(key) ?? 0) + 1;
+    summaryIndexes.set(key, idx);
+
+    return {
+      ...c,
+      summary: `${c.summary ?? ""} #${idx}`,
+    };
+  });
 }
 
 /**
@@ -352,14 +592,14 @@ export async function prepareAiPromptPayload(
     (candidate) => {
       const original = idMap.get(candidate.id);
       if (!original) {
-        console.warn(
-          `[AI] Missing original candidate for compact id "${candidate.id}"`
+        throw new Error(
+          `[AI] Critical mapping failure: Missing original candidate for id "${candidate.id}"`
         );
       }
       return {
         id: candidate.id,
-        summary: candidate.summary,
-        intent: (original?.intent ?? candidate.intent) as ClientIntent,
+        summary: candidate.summary ?? "",
+        intent: original.intent,
       };
     }
   );
@@ -368,7 +608,7 @@ export async function prepareAiPromptPayload(
     messages,
     candidates: req.candidates.map((c) => ({
       id: c.id,
-      summary: c.summary,
+      summary: c.summary ?? "",
     })),
     context: { candidates: contextCandidates },
   };
