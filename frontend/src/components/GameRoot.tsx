@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   DndContext,
   DragEndEvent,
@@ -12,6 +13,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import type { CardView, GameView, PileLayout } from "../../../shared/schemas";
 import {
   cardSetAtom,
+  activeTransitionCardIdsAtom,
   gameIdAtom,
   gameViewAtom,
   isEvaluatingMoveAtom,
@@ -64,6 +66,8 @@ export function GameRoot({
   const isEvaluatingMove = useAtomValue(isEvaluatingMoveAtom);
   const setIsEvaluating = useSetAtom(isEvaluatingMoveAtom);
   const setPendingDragMove = useSetAtom(pendingDragMoveAtom);
+  const activeTransitionCardIds = useAtomValue(activeTransitionCardIdsAtom);
+  const setActiveTransitionCardIds = useSetAtom(activeTransitionCardIdsAtom);
   const [activeCard, setActiveCard] = useState<CardView | null>(null);
   const [pileSortSelections, setPileSortSelections] = useState<
     Record<string, string>
@@ -77,6 +81,7 @@ export function GameRoot({
   const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const lastActionKeyRef = useRef<string | null>(null);
   const dragCursorRef = useRef<string | null>(null);
+  const activeTransitionCardIdsRef = useRef<Set<number> | null>(null);
 
   const layout = useMemo(() => {
     if (!rawLayout || !view || !playerId || !autoRotateSeat) return rawLayout;
@@ -173,6 +178,10 @@ export function GameRoot({
       return () => clearTimeout(timer);
     }
   }, [activeHighlight]);
+
+  useEffect(() => {
+    activeTransitionCardIdsRef.current = activeTransitionCardIds;
+  }, [activeTransitionCardIds]);
 
   useEffect(() => {
     return () => {
@@ -403,7 +412,72 @@ export function GameRoot({
           allowViewerToggle && sort?.options?.length
             ? (id) => {
                 if (!sort.options?.some((opt) => opt.id === id)) return;
-                setPileSortSelections((prev) => ({ ...prev, [pileId]: id }));
+                if (id === resolvedId) return;
+                if (typeof document === "undefined") {
+                  setPileSortSelections((prev) => ({ ...prev, [pileId]: id }));
+                  return;
+                }
+
+                const startViewTransition = (
+                  document as Document & {
+                    startViewTransition?: (
+                      callback: () => void
+                    ) => { finished?: Promise<unknown> } | void;
+                  }
+                ).startViewTransition?.bind(document);
+
+                const canAnimateSort =
+                  !!startViewTransition &&
+                  document.visibilityState === "visible" &&
+                  !activeTransitionCardIds;
+
+                if (!canAnimateSort) {
+                  setPileSortSelections((prev) => ({ ...prev, [pileId]: id }));
+                  return;
+                }
+
+                const transitionCardIds = new Set(
+                  sortedCards.map((card) => card.id)
+                );
+
+                flushSync(() => {
+                  setActiveTransitionCardIds(transitionCardIds);
+                });
+                activeTransitionCardIdsRef.current = transitionCardIds;
+
+                let transition: { finished?: Promise<unknown> } | void;
+                try {
+                  transition = startViewTransition(() => {
+                    flushSync(() => {
+                      setPileSortSelections((prev) => ({
+                        ...prev,
+                        [pileId]: id,
+                      }));
+                    });
+                  });
+                } catch {
+                  setActiveTransitionCardIds(null);
+                  activeTransitionCardIdsRef.current = null;
+                  setPileSortSelections((prev) => ({ ...prev, [pileId]: id }));
+                  return;
+                }
+
+                const finalizeTransition = () => {
+                  if (
+                    activeTransitionCardIdsRef.current === transitionCardIds
+                  ) {
+                    setActiveTransitionCardIds(null);
+                    activeTransitionCardIdsRef.current = null;
+                  }
+                };
+
+                if (transition && transition.finished) {
+                  transition.finished.then(finalizeTransition).catch(() => {
+                    finalizeTransition();
+                  });
+                } else {
+                  finalizeTransition();
+                }
               }
             : undefined
         }

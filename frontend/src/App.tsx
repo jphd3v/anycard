@@ -71,9 +71,11 @@ import { shareGameInfo } from "./utils/share";
 import type {
   CardView,
   GameView,
+  GameLayout,
   ViewEventPayload,
   LayoutZone,
   AnnounceAnchor,
+  PileLayout,
 } from "../../shared/schemas";
 import { GameHUD } from "./components/GameHUD";
 import { GameHeader } from "./components/GameHeader";
@@ -364,6 +366,15 @@ function getCardViewsForIds(view: GameView, cardIds: number[]): CardView[] {
   return ordered;
 }
 
+function normalizePileLayout(val?: string): PileLayout | undefined {
+  return val === "horizontal" ||
+    val === "vertical" ||
+    val === "complete" ||
+    val === "spread"
+    ? (val as PileLayout)
+    : undefined;
+}
+
 function hasGameDealt(view: GameView | null): boolean {
   if (
     !view ||
@@ -404,6 +415,49 @@ function getDynamicDuration(queueLength: number, isMyTurn: boolean): number {
 }
 
 const DEFAULT_CARD_FLIP_MS = 320;
+const MAX_TRANSITION_CARDS_PER_PILE = 24;
+
+type PileTransitionConfig = {
+  layoutsByPileId: Record<string, string | undefined>;
+  isHandByPileId: Record<string, boolean>;
+  hasSortByPileId: Record<string, boolean>;
+};
+
+function buildPileTransitionConfig(
+  layout: GameLayout | null
+): PileTransitionConfig {
+  const layoutsByPileId: Record<string, string | undefined> = {};
+  const isHandByPileId: Record<string, boolean> = {};
+  const hasSortByPileId: Record<string, boolean> = {};
+
+  const pileStyles = layout?.pileStyles ?? {};
+  for (const [pileId, style] of Object.entries(pileStyles)) {
+    layoutsByPileId[pileId] = style.layout;
+    isHandByPileId[pileId] = !!style.isHand;
+    hasSortByPileId[pileId] = !!style.sort;
+  }
+
+  return { layoutsByPileId, isHandByPileId, hasSortByPileId };
+}
+
+function shouldAnimatePileReflow(
+  pileId: string,
+  view: GameView,
+  config: PileTransitionConfig
+): boolean {
+  const basePile = view.piles.find((pile) => pile.id === pileId);
+  const baseLayout = normalizePileLayout(basePile?.layout);
+  const overrideLayout = normalizePileLayout(config.layoutsByPileId[pileId]);
+  const layout = baseLayout ?? overrideLayout ?? "complete";
+
+  if (layout === "spread") {
+    return true;
+  }
+  if (layout === "horizontal" || layout === "vertical") {
+    return config.isHandByPileId[pileId] || config.hasSortByPileId[pileId];
+  }
+  return false;
+}
 
 function parseDurationMs(value: string, fallback: number): number {
   const trimmed = value.trim();
@@ -513,6 +567,9 @@ export default function App() {
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
   const lastAction = view?.lastAction;
+  const pileTransitionConfigRef = useRef<PileTransitionConfig>(
+    buildPileTransitionConfig(gameLayout)
+  );
 
   useEffect(() => {
     if (!lastAction || lastAction.action !== "start-game") return;
@@ -546,6 +603,10 @@ export default function App() {
     visiblePileIdsRef.current = new Set(
       gameLayout?.zones.flatMap((zone) => zone.piles) ?? []
     );
+  }, [gameLayout]);
+
+  useEffect(() => {
+    pileTransitionConfigRef.current = buildPileTransitionConfig(gameLayout);
   }, [gameLayout]);
 
   // Settings UI State
@@ -1580,6 +1641,7 @@ export default function App() {
         );
 
         const visiblePileIds = visiblePileIdsRef.current;
+        const pileTransitionConfig = pileTransitionConfigRef.current;
         const fromVisible = visiblePileIds.has(event.fromPileId);
         const toVisible = visiblePileIds.has(event.toPileId);
         const entryCards =
@@ -1593,7 +1655,33 @@ export default function App() {
         const hasHeaderAnchors = entryCards.length > 0 || exitCards.length > 0;
 
         flushSync(() => {
-          setActiveTransitionCardIds(movingIds);
+          const transitionIds = new Set<number>(movingIds);
+          const addPileCards = (pileId: string) => {
+            if (!visiblePileIds.has(pileId)) {
+              return;
+            }
+            const pile = workingView.piles.find((p) => p.id === pileId);
+            if (!pile || pile.cards.length > MAX_TRANSITION_CARDS_PER_PILE) {
+              return;
+            }
+            if (
+              !shouldAnimatePileReflow(
+                pileId,
+                workingView,
+                pileTransitionConfig
+              )
+            ) {
+              return;
+            }
+            for (const card of pile.cards) {
+              transitionIds.add(card.id);
+            }
+          };
+
+          addPileCards(event.fromPileId);
+          addPileCards(event.toPileId);
+
+          setActiveTransitionCardIds(transitionIds);
           setHeaderTransitionCards(entryCards);
         });
 
