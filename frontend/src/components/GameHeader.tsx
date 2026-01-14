@@ -20,6 +20,7 @@ interface GameHeaderProps {
   isActionsOpen: boolean;
   isScoreboardOpen: boolean;
   className?: string;
+  isOverlayActive?: boolean;
 }
 
 export function GameHeader({
@@ -32,6 +33,7 @@ export function GameHeader({
   isActionsOpen,
   isScoreboardOpen,
   className,
+  isOverlayActive = false,
 }: GameHeaderProps) {
   const view = useAtomValue(gameViewAtom);
   const availableGames = useAtomValue(availableGamesAtom);
@@ -67,9 +69,10 @@ export function GameHeader({
         <button
           id="tutorial-menu-btn"
           onClick={onMenuClick}
+          disabled={isOverlayActive}
           className={`button-base button-icon transition-all duration-300 h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${
             isMenuOpen ? "button-primary rotate-90" : "button-secondary"
-          }`}
+          } ${isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}`}
           aria-label="Menu"
         >
           <svg
@@ -99,7 +102,8 @@ export function GameHeader({
         <button
           id="tutorial-rules-btn"
           onClick={onRulesClick}
-          className="button-base button-icon button-secondary h-9 w-9 sm:h-11 sm:w-11 shrink-0"
+          disabled={isOverlayActive}
+          className={`button-base button-icon button-secondary h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}`}
           aria-label="Game Rules"
           title="View Rules"
         >
@@ -151,11 +155,12 @@ export function GameHeader({
           <button
             id="tutorial-actions-btn"
             onClick={onActionsClick}
+            disabled={isOverlayActive}
             className={`button-base button-icon transition-all relative ${
               isActionsOpen
                 ? "bg-indigo-600 text-white shadow-inner"
                 : "bg-surface-2 text-indigo-600 hover:bg-indigo-50 border border-indigo-200"
-            }`}
+            } ${isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}`}
             title="Actions"
           >
             <LightningIcon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -173,7 +178,8 @@ export function GameHeader({
           myPlayerId={playerId}
           seats={view.seats || seats}
           compact={true}
-          onClick={onTurnBadgeClick}
+          onClick={isOverlayActive ? undefined : onTurnBadgeClick}
+          className={isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}
         />
       </div>
     </header>

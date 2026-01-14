@@ -8,6 +8,7 @@ interface TurnStatusBadgeProps {
   seats: (SeatStatus | SeatView)[];
   onClick?: () => void;
   compact?: boolean;
+  className?: string;
 }
 
 export function TurnStatusBadge({
@@ -17,6 +18,7 @@ export function TurnStatusBadge({
   seats,
   onClick,
   compact = false,
+  className = "",
 }: TurnStatusBadgeProps) {
   const isMyTurn = turnPlayer === myPlayerId;
   const currentSeat = seats.find((s) =>
@@ -150,17 +152,20 @@ export function TurnStatusBadge({
     backgroundImage: `conic-gradient(from 0deg, transparent 0deg, ${borderColor} 360deg)`,
   };
 
+  const isClickable = !!onClick;
+
   return (
     <div
       id="tutorial-log-btn"
       className={`
         relative group pointer-events-auto flex items-center justify-center p-[2px] rounded-full overflow-hidden shadow-sm transition-transform duration-200
-        cursor-pointer hover:scale-105 active:scale-95
+        ${isClickable ? "cursor-pointer hover:scale-105 active:scale-95" : "cursor-default"}
         ${animationClass}
+        ${className}
       `}
       onClick={onClick}
-      role="button"
-      aria-label="Show game log"
+      role={isClickable ? "button" : undefined}
+      aria-label={isClickable ? "Show game log" : undefined}
     >
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500%] aspect-square animate-spin"

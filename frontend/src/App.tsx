@@ -2524,6 +2524,7 @@ export default function App() {
           <div className="game-layout flex flex-col h-full w-full overflow-hidden">
             <GameHeader
               className={isAnyEndOverlayVisible ? "z-[1100]" : "z-50"}
+              isOverlayActive={isAnyEndOverlayVisible}
               onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
               isMenuOpen={isMenuOpen}
               onRulesClick={() => setRulesVisible(true)}
