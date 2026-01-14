@@ -878,32 +878,143 @@ Example recap (Gin Rummy):
 ];
 ```
 
-#### 8.9.5 Multi-Card Move Intents
+#### 8.9.5 Multi-Card Move Intents and AI Candidate Constraints
 
-For rummy-style games where players meld multiple cards at once, use multi-card
-move intents in `listLegalIntentsForPlayer`:
+For games requiring multi-card operations (forming groups, sets, builds of minimum size), use multi-card move intents in `listLegalIntentsForPlayer`:
 
 ```ts
-// Multi-card meld (e.g., 3 Kings at once)
+// Multi-card group (e.g., 3 Kings forming a set)
 {
   type: "move",
   gameId,
   playerId,
   fromPileId: "P1-hand",
-  toPileId: "P1-meld-K",
+  toPileId: "P1-target",
   cardIds: [42, 43, 44],  // Array of card IDs
 }
 ```
 
-This reduces AI decision space by presenting complete melds as single choices
-rather than requiring the AI to plan sequences of individual moves.
+This reduces AI decision space by presenting complete groups as single choices rather than requiring the AI to plan sequences of individual moves.
 
-**Important:** When generating multi-card candidates, filter out redundant
-single-card moves for the same cards to the same destination. Otherwise the AI
-sees both `Move 3 cards (10♠, J♠, Q♠)` AND individual `Move 10♠`, `Move J♠`,
-`Move Q♠` options, which confuses the LLM. Track which cards are covered by
-multi-card intents and skip them when generating single-card moves to the same
-destination type.
+**Applies to any game type:**
+
+- Rummy-style games: Melds of 3+ cards (Gin Rummy, Canasta)
+- Set collection: Complete sets before scoring
+- Building games: Multi-card foundations or tableaus
+- Any game where partial multi-card structures are invalid
+
+**Critical Constraints for Multi-Card Operations:**
+
+Without proper constraints, AI players can get stuck in "dead-end" states by building groups one card at a time. Implement these three layers:
+
+**1. AI Candidate Generation Constraints:**
+
+- **Starting new groups requires multi-card intents**: Generate intents with minimum card count when targeting empty piles
+- **Single-card additions only to existing valid groups**: Only offer when target already meets minimum size
+- **Removal preserves validity**: Only expose options when remaining cards still form valid groups
+- **Filter redundant single-card moves**: Track cards covered by multi-card intents to reduce noise
+
+```typescript
+// Example: Rummy-style game with MIN_SIZE = 3
+// (Replace "meld" with your terminology: set, foundation, build, etc.)
+
+// Generate multi-card group candidates for starting new groups
+const groupCandidates = generateValidGroups(handCards); // Returns MIN_SIZE+ card arrays
+for (const cardIds of groupCandidates) {
+  for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+    const pileSize = state.piles[targetPileId]?.size ?? 0;
+    if (pileSize === 0) {
+      // Empty pile - needs multi-card group
+      intents.push({
+        type: "move",
+        gameId,
+        playerId,
+        fromPileId: handPileId,
+        toPileId: targetPileId,
+        cardIds, // Multiple cards (MIN_SIZE+)
+      });
+    }
+  }
+}
+
+// Single-card moves only for extending existing valid groups
+for (const card of handCards) {
+  for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+    const existingSize = state.piles[targetPileId]?.size ?? 0;
+    // Only allow single-card additions to groups meeting minimum size
+    if (existingSize < MIN_GROUP_SIZE) continue;
+
+    intents.push({
+      type: "move",
+      gameId,
+      playerId,
+      fromPileId: handPileId,
+      toPileId: targetPileId,
+      cardId: card.id,
+    });
+  }
+}
+
+// Removal moves only when remaining cards still form valid group
+for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+  const groupCards = cardsInPile(state, targetPileId);
+  for (const card of groupCards) {
+    const remainingCards = groupCards.filter((c) => c.id !== card.id);
+    if (remainingCards.length > 0 && remainingCards.length < MIN_GROUP_SIZE) {
+      continue; // Would leave invalid group
+    }
+    intents.push({
+      type: "move",
+      gameId,
+      playerId,
+      fromPileId: targetPileId,
+      toPileId: playerHandPileId,
+      cardId: card.id,
+    });
+  }
+}
+```
+
+**2. Validation Layer Constraints:**
+
+Even with AI filtering, validation must enforce the same rules for human players:
+
+```typescript
+// Example: Replace MIN_SIZE with your game's minimum group size
+
+// Reject single cards to empty group piles
+if (targetCards.length === 0) {
+  return {
+    valid: false,
+    reason: `You must create groups with at least ${MIN_SIZE} cards.`,
+    engineEvents: [],
+  };
+}
+
+// Validate remaining cards on removal
+if (remainingCards.length > 0 && remainingCards.length < MIN_SIZE) {
+  return {
+    valid: false,
+    reason: `Cannot remove card. Groups must have at least ${MIN_SIZE} cards.`,
+    engineEvents: [],
+  };
+}
+```
+
+**Benefits:**
+
+- Prevents AI dead-ends where invalid intermediate states block turn completion
+- Matches human player experience (UI typically enforces multi-card selection)
+- Reduces AI confusion by eliminating invalid candidate options
+- Maintains clear separation between starting groups and extending groups
+- Generalizable pattern works for any game with multi-card requirements
+
+**Reference Implementations (Rummy Games as Examples):**
+
+The pattern applies broadly, but these rummy implementations demonstrate it:
+
+- Gin Rummy (3-card melds): `backend/src/rules/impl/gin-rummy.ts` (lines 1237-1315, 1888-1916)
+- Canasta (3-card melds + natural card requirements): `backend/src/rules/impl/canasta.ts` (lines 1219-1299)
 
 #### 8.9.6 Example Contract Snapshot
 

@@ -1989,6 +1989,261 @@ This optimization:
 
 **Note:** Only filter single-card moves to the **same destination** as the multi-card intent. Single-card moves to different destinations (e.g., layoffs to opponent's piles in rummy games) should still be offered since they serve a different purpose.
 
+### 7.4 AI Candidate Generation with Multi-Card Intents
+
+**CRITICAL:** When games require multi-card operations (e.g., placing 3+ cards together, moving groups atomically), AI players can get stuck in "dead-end" states if they attempt to build these groups one card at a time. This section describes the required pattern to prevent these issues.
+
+This pattern applies to any game with multi-card minimum requirements:
+
+- **Rummy-style games**: Melds of 3+ cards (Gin Rummy, Canasta, Rummy 500)
+- **Set collection games**: Complete sets before scoring
+- **Building games**: Multi-card foundations or tableaus
+- **Any game**: Where partial multi-card structures are invalid
+
+#### The Problem
+
+Without proper constraints, AI may:
+
+1. Place single cards into empty target piles that require minimum group sizes
+2. Remove cards from valid groups, leaving invalid partial groups
+3. Get stuck in states where they cannot complete their turn
+
+This happens because AI generates candidate moves based on what's structurally possible, not what leads to valid final states.
+
+**Example (Rummy Games):** AI places 1-2 cards into an empty meld pile (invalid: melds require 3+ cards), then cannot complete the meld and cannot end their turn.
+
+#### The Solution Pattern
+
+Implement **three layers of constraints** in AI candidate generation and validation:
+
+**1. AI Candidate Generation Constraints (in `listLegalIntentsForPlayer`):**
+
+- **Starting new groups requires multi-card intents**: Generate intents with minimum card count when targeting empty piles that require groups
+- **Single-card additions only to existing valid groups**: Only offer single-card moves when the target already meets minimum requirements
+- **Removal candidates preserve validity**: Only expose removal options when remaining cards still form valid groups
+- **Skip redundant candidates**: Track cards covered by multi-card intents to avoid noise
+
+These constraints apply regardless of game type—replace "3+ cards" with your game's minimum group size, replace "meld" with your game's terminology (set, foundation, build, etc.).
+
+**Example Pattern (Rummy Games with 3-card minimum melds):**
+
+```typescript
+// ✅ CORRECT: Multi-card groups for starting new groups
+// (Replace "meld" with your game's terminology: set, foundation, build, etc.)
+// (Replace "3" with your game's minimum group size)
+const groupCandidates = generateValidGroups(handCards); // Returns arrays of MIN_SIZE+ cards
+for (const cardIds of groupCandidates) {
+  for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+    const pileSize = state.piles[targetPileId]?.size ?? 0;
+    if (pileSize === 0) {
+      // Empty pile - needs multi-card group
+      const candidate: ClientIntent = {
+        type: "move",
+        gameId,
+        playerId,
+        fromPileId: handPileId,
+        toPileId: targetPileId,
+        cardIds, // ← Multiple cards (MIN_SIZE+)
+      };
+      if (this.validate(state, candidate).valid) {
+        intents.push(candidate);
+      }
+    }
+  }
+}
+
+// ✅ CORRECT: Single-card moves only for extending existing valid groups
+for (const card of handCards) {
+  for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+    const existingSize = state.piles[targetPileId]?.size ?? 0;
+    // Only allow single-card additions to groups that meet minimum size
+    if (existingSize < MIN_GROUP_SIZE) continue;
+
+    const candidate: ClientIntent = {
+      type: "move",
+      gameId,
+      playerId,
+      fromPileId: handPileId,
+      toPileId: targetPileId,
+      cardId: card.id,
+    };
+    if (this.validate(state, candidate).valid) {
+      intents.push(candidate);
+    }
+  }
+}
+
+// ✅ CORRECT: Removal moves only when remaining cards still form valid group
+for (const targetPileId of targetPileIdsForPlayer(playerId)) {
+  const groupCards = cardsInPile(state, targetPileId);
+  for (const card of groupCards) {
+    // Check if remaining cards would still meet minimum size
+    const remainingCards = groupCards.filter((c) => c.id !== card.id);
+    if (remainingCards.length > 0 && remainingCards.length < MIN_GROUP_SIZE) {
+      // Would leave invalid group, skip this candidate
+      continue;
+    }
+    const candidate: ClientIntent = {
+      type: "move",
+      gameId,
+      playerId,
+      fromPileId: targetPileId,
+      toPileId: playerHandPileId,
+      cardId: card.id,
+    };
+    if (this.validate(state, candidate).valid) {
+      intents.push(candidate);
+    }
+  }
+}
+```
+
+**2. Validation Layer Constraints (in `validate`):**
+
+Even though AI candidate generation filters properly, validation must enforce the same rules for human players:
+
+**Example Pattern (replace MIN_SIZE, validateGroup, and canAddToGroup with your game's values):**
+
+```typescript
+// Multi-card groups to empty pile
+if (cardIds.length >= MIN_SIZE && targetCards.length === 0) {
+  // Validate the group forms a valid structure
+  const groupError = validateGroup(movingCards);
+  if (groupError) {
+    return {
+      valid: false,
+      reason: `Invalid group: ${groupError}`,
+      engineEvents: [],
+    };
+  }
+  // Additional game-specific checks...
+  engineEvents.push({
+    type: "move-cards",
+    fromPileId: handPileId,
+    toPileId: to,
+    cardIds: cardIds as [number, ...number[]],
+  });
+} else {
+  // Single card path
+  // Prevent single-card operations to empty piles that require groups
+  if (targetCards.length === 0) {
+    return {
+      valid: false,
+      reason: `You must create groups with at least ${MIN_SIZE} cards. Use multi-card selection.`,
+      engineEvents: [],
+    };
+  }
+  // For existing groups, validate the card fits
+  if (!canAddToGroup(targetCards, movedCard)) {
+    return {
+      valid: false,
+      reason: "Card does not fit this group.",
+      engineEvents: [],
+    };
+  }
+  engineEvents.push({
+    type: "move-cards",
+    fromPileId: handPileId,
+    toPileId: to,
+    cardIds: [intent.cardId!],
+  });
+}
+
+// Validation for removing cards from groups
+if (isPlayerGroupPile(from, currentPlayer) && to === handPileId) {
+  const groupCards = cardsInPile(state, from);
+  const remainingCards = groupCards.filter((c) => c.id !== intent.cardId);
+
+  if (remainingCards.length > 0 && remainingCards.length < MIN_SIZE) {
+    return {
+      valid: false,
+      reason: `Cannot remove card. Groups must have at least ${MIN_SIZE} cards.`,
+      engineEvents: [],
+    };
+  }
+
+  // Also validate that remaining cards still form a valid group pattern
+  if (remainingCards.length >= MIN_SIZE) {
+    const groupError = validateGroup(remainingCards);
+    if (groupError) {
+      return {
+        valid: false,
+        reason: `Cannot remove card. Remaining cards would not form a valid group: ${groupError}`,
+        engineEvents: [],
+      };
+    }
+  }
+
+  engineEvents.push({
+    type: "move-cards",
+    fromPileId: from,
+    toPileId: handPileId,
+    cardIds: [intent.cardId!],
+  });
+}
+```
+
+**3. Helper Function Constraints:**
+
+If you use a helper function to check if cards fit together, ensure it's **not** used for validating new groups:
+
+```typescript
+function canAddToGroup(groupCards: SimpleCard[], card: SimpleCard): boolean {
+  if (groupCards.length === 0) return true; // ⚠️ OK for extending, NOT for validation
+  // ... validation for adding to existing group
+}
+```
+
+This function should only be called **after** checking `groupCards.length >= MIN_SIZE` in your validation path.
+
+#### Key Constraints Summary
+
+**For AI Candidate Generation:**
+
+1. Starting new groups requires multi-card intents (MIN_SIZE+ cards) to empty piles
+2. Single-card additions only when target already meets minimum size
+3. Removal candidates only when remaining cards still form valid groups (MIN_SIZE+)
+4. Track and skip cards covered by multi-card intents to reduce noise
+
+**For Validation:**
+
+1. Reject single cards to empty group piles explicitly
+2. Validate multi-card operations form valid groups (minimum size, correct pattern)
+3. Validate remaining groups on removal (either 0 cards or MIN_SIZE+ valid cards)
+4. Apply game-specific constraints (e.g., suit matching, rank sequences, special card requirements)
+
+#### Benefits
+
+- **Prevents AI dead-ends**: AI never creates invalid intermediate states it cannot escape
+- **Matches human player experience**: Human UI typically enforces multi-card selection for group operations
+- **Reduces AI confusion**: Fewer invalid candidates means clearer, faster decisions
+- **Maintainable**: Clear separation between "starting groups" and "extending groups"
+- **Generalizable**: Same pattern works for any game with multi-card minimum requirements
+
+#### Reference Implementations (Rummy Games as Examples)
+
+These implementations demonstrate the pattern but it applies to any multi-card grouping game:
+
+- **Gin Rummy** (3-card melds): `backend/src/rules/impl/gin-rummy.ts`
+  - Lines 1237-1264: Multi-card group generation
+  - Lines 1281-1298: Single-card extension with size check
+  - Lines 1300-1315: Removal with remaining validation
+  - Lines 1888-1916: Validation rejects single cards to empty piles
+
+- **Canasta** (3-card melds with natural card requirements): `backend/src/rules/impl/canasta.ts`
+  - Lines 1219-1266: Multi-card with additional game-specific constraints
+  - Lines 1268-1299: Single-card extension with size check
+
+#### Common Pitfalls
+
+1. **Relying only on validation**: Don't generate all candidates and filter with validation. Filter at generation time using size checks.
+
+2. **Helper returns true for empty piles**: Functions checking "can this card fit" should not be used for validating new group creation. Always check pile size first.
+
+3. **Missing check in validation "else" branch**: When handling single-card moves, always check `targetCards.length === 0` and reject before calling fit-checking helpers.
+
+4. **Forgetting special phases**: In special phases (like Gin Rummy's layoff), ensure the same minimum size constraints apply consistently.
+
 ---
 
 ## 8. Final checklist

@@ -132,63 +132,21 @@
       "playerId": "P2",
       "fromPileId": "P2-hand",
       "toPileId": "P2-meld-1",
-      "cardId": 27
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-1",
-      "cardId": 1
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-1",
-      "cardId": 40
+      "cardIds": [27, 1, 40]
     },
     {
       "type": "move",
       "playerId": "P2",
       "fromPileId": "P2-hand",
       "toPileId": "P2-meld-2",
-      "cardId": 10
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-2",
-      "cardId": 36
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-2",
-      "cardId": 23
+      "cardIds": [10, 36, 23]
     },
     {
       "type": "move",
       "playerId": "P2",
       "fromPileId": "P2-hand",
       "toPileId": "P2-meld-3",
-      "cardId": 37
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-3",
-      "cardId": 38
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-3",
-      "cardId": 39
+      "cardIds": [37, 38, 39]
     },
     {
       "type": "move",
