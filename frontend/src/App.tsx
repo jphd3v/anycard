@@ -3240,9 +3240,17 @@ export default function App() {
       {/* 3. Offline State */}
       {!isConnected && (
         <FullScreenMessage
-          title="Connection Lost"
-          tone="error"
-          description="The connection to the game server has been interrupted. Attempting to reconnect..."
+          title="Reconnecting"
+          tone="neutral"
+          description={
+            <div className="flex flex-col items-center gap-6 py-2">
+              <div className="text-lg font-medium">
+                Reconnecting to your game, just a moment
+                <span className="dots-loading" />
+              </div>
+              <div className="spinner h-10 w-10 border-4" />
+            </div>
+          }
           blurredOverlay
         />
       )}

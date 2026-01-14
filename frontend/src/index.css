@@ -1059,6 +1059,15 @@ body,
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-subtle-bounce {
   animation: subtle-bounce 2.5s ease-in-out infinite;
 }
