@@ -1254,6 +1254,22 @@ export default function App() {
       // can animate DOM diffs between steps.
       let workingView = prevView;
 
+      // Trigger the action animation (FloatingActionOverlay) immediately before card moves
+      if (
+        duration > 0 &&
+        workingView &&
+        nextView.lastAction &&
+        nextView.lastAction.id !== workingView.lastAction?.id
+      ) {
+        workingView = {
+          ...workingView,
+          lastAction: nextView.lastAction,
+        };
+        flushSync(() => {
+          setView(workingView);
+        });
+      }
+
       for (const event of animationEvents) {
         const movingIds =
           event.type === "move-cards"
