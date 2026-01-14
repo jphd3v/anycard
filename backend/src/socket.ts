@@ -15,6 +15,7 @@ import {
   getEvents,
   initGame,
   projectState,
+  projectStateWithEvents,
   resetGame,
   resetGameWithSeed,
   closeGame,
@@ -650,6 +651,46 @@ function preValidateIntentLocally(
   };
 }
 
+function buildEventStatesForViewEvents(
+  gameId: string,
+  rawEvents: EngineEvent[],
+  viewEvents: EngineEvent[]
+): GameState[] | null {
+  if (viewEvents.length === 0) {
+    return null;
+  }
+
+  const allEvents = getEvents(gameId);
+  if (allEvents.length < rawEvents.length) {
+    return null;
+  }
+
+  const preEvents = allEvents.slice(0, allEvents.length - rawEvents.length);
+  const preState = projectStateWithEvents(gameId, preEvents);
+  if (!preState) {
+    return null;
+  }
+
+  const states: GameState[] = [];
+  let workingState = preState;
+  const baseId = Date.now();
+
+  for (let idx = 0; idx < viewEvents.length; idx += 1) {
+    const engineEvent = viewEvents[idx];
+    const gameEvent = {
+      id: baseId + idx,
+      gameId,
+      playerId: null,
+      ...engineEvent,
+    } as GameEvent;
+
+    workingState = applyEvent(workingState, gameEvent);
+    states.push(workingState);
+  }
+
+  return states;
+}
+
 function broadcastState(
   io: Server,
   registry: Map<string, PlayerRegistryEntry>,
@@ -659,6 +700,15 @@ function broadcastState(
 ) {
   const viewSalt = getViewSalt(state.gameId);
   const roomId = state.gameId;
+  const rawLastEngineEvents = lastEngineEvents ?? [];
+  const viewEvents = rawLastEngineEvents.filter(
+    (event) => event.type !== "fatal-error"
+  );
+  const eventStates = buildEventStatesForViewEvents(
+    state.gameId,
+    rawLastEngineEvents,
+    viewEvents
+  );
   io.in(roomId)
     .fetchSockets()
     .then((sockets) => {
@@ -696,7 +746,7 @@ function broadcastState(
             : undefined;
 
         const lastFatalErrors =
-          lastEngineEvents?.filter((event) => event.type === "fatal-error") ??
+          rawLastEngineEvents.filter((event) => event.type === "fatal-error") ??
           [];
 
         let personalizedLastAction = lastAction;
@@ -724,38 +774,64 @@ function broadcastState(
           };
         }
 
-        const lastViewEvents = (lastEngineEvents ?? [])
-          .filter((event) => event.type !== "fatal-error")
-          .map((event) => {
-            if (event.type === "move-cards") {
-              return {
-                ...event,
-                cardIds: event.cardIds.map((id) =>
-                  toViewCardId(id, viewSalt, viewerKey)
-                ),
-              };
-            }
+        const lastViewEvents = viewEvents.map((event, index) => {
+          if (event.type === "move-cards") {
+            const eventState = eventStates?.[index];
+            const toPile = eventState?.piles[event.toPileId];
+            const pileVisible =
+              eventState && toPile
+                ? isPileVisibleToPlayer(toPile, viewId)
+                : false;
+            const cardViews =
+              pileVisible && eventState
+                ? event.cardIds
+                    .map((id) => {
+                      const card = eventState.cards[id];
+                      if (!card) {
+                        return null;
+                      }
+                      return {
+                        id: toViewCardId(id, viewSalt, viewerKey),
+                        label: card.label,
+                        rank: card.rank,
+                        suit: card.suit,
+                        faceDown: false,
+                        rotationDeg: eventState.cardVisuals?.[id]?.rotationDeg,
+                      };
+                    })
+                    .filter(
+                      (cardView): cardView is NonNullable<typeof cardView> =>
+                        cardView !== null
+                    )
+                : [];
 
-            if (event.type === "set-card-visuals") {
-              const visuals: Record<string, { rotationDeg?: number }> = {};
-              for (const [engineIdKey, visual] of Object.entries(
-                event.visuals
-              )) {
-                const engineId = Number(engineIdKey);
-                if (!Number.isInteger(engineId)) {
-                  continue;
-                }
-                visuals[String(toViewCardId(engineId, viewSalt, viewerKey))] =
-                  visual;
+            return {
+              ...event,
+              cardIds: event.cardIds.map((id) =>
+                toViewCardId(id, viewSalt, viewerKey)
+              ),
+              ...(cardViews.length > 0 ? { cardViews } : {}),
+            };
+          }
+
+          if (event.type === "set-card-visuals") {
+            const visuals: Record<string, { rotationDeg?: number }> = {};
+            for (const [engineIdKey, visual] of Object.entries(event.visuals)) {
+              const engineId = Number(engineIdKey);
+              if (!Number.isInteger(engineId)) {
+                continue;
               }
-              return {
-                ...event,
-                visuals,
-              };
+              visuals[String(toViewCardId(engineId, viewSalt, viewerKey))] =
+                visual;
             }
+            return {
+              ...event,
+              visuals,
+            };
+          }
 
-            return event;
-          });
+          return event;
+        });
 
         const stateVersion = getEvents(state.gameId).length;
         const payload = {

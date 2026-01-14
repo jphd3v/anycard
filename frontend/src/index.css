@@ -102,6 +102,10 @@ body {
   --zone-gap: 8px;
   --pile-gap: 24px;
   --table-padding: 0.5rem;
+  --card-move-ease: cubic-bezier(0.25, 0.4, 0.45, 0.95);
+  --card-flip-duration: 320ms;
+  --card-flip-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --card-flip-perspective: 900px;
 
   /* Scoreboard font sizes - default for large screens */
   --scoreboard-font-normal: clamp(0.75rem, 2vw, 0.9rem);
@@ -713,8 +717,37 @@ body,
     --transition-duration,
     1.05s
   ); /* Slow card view transitions ~2x for moves */
-  animation-timing-function: ease-in-out;
+  animation-timing-function: var(--card-move-ease, ease-in-out);
   pointer-events: none;
+}
+
+.card-scene {
+  perspective: var(--card-flip-perspective, 900px);
+}
+
+.card-flip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--card-flip-duration, 320ms)
+    var(--card-flip-ease, ease-in-out);
+  will-change: transform;
+}
+
+.card-flip.is-face-down {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.card-face-back {
+  transform: rotateY(180deg);
 }
 
 /* Reduced motion support */
@@ -726,6 +759,10 @@ body,
     animation-duration: 0s !important;
     animation-delay: 0s !important;
     pointer-events: none !important;
+  }
+
+  .card-flip {
+    transition-duration: 0ms !important;
   }
 }
 

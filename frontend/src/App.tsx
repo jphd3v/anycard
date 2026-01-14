@@ -123,6 +123,9 @@ function applyViewEventToView(
       const { fromPileId, toPileId, cardIds } = event;
 
       const idSet = new Set(cardIds);
+      const eventCardById = new Map(
+        event.cardViews?.map((card) => [card.id, card]) ?? []
+      );
 
       // 1. Capture cards from the source pile in the previous view,
       //    preserving source order.
@@ -142,10 +145,33 @@ function applyViewEventToView(
       }
 
       // 3. Replace movedCards with their final representation when available.
-      if (finalCardById.size > 0) {
-        movedCards = movedCards.map(
-          (card) => finalCardById.get(card.id) ?? card
-        );
+      if (finalCardById.size > 0 || eventCardById.size > 0) {
+        movedCards = movedCards.map((card) => {
+          const eventCard = eventCardById.get(card.id);
+          if (eventCard && !card.faceDown) {
+            return eventCard;
+          }
+          const finalCard = finalCardById.get(card.id);
+          if (!finalCard) {
+            return card;
+          }
+          if (card.faceDown && !finalCard.faceDown) {
+            // Keep the card back while it moves; flip after settling.
+            return { ...finalCard, faceDown: true };
+          }
+          if (!card.faceDown && finalCard.faceDown) {
+            // Keep the face-up front during travel; flip after movement settles.
+            return {
+              id: finalCard.id,
+              label: card.label ?? finalCard.label,
+              rank: card.rank ?? finalCard.rank,
+              suit: card.suit ?? finalCard.suit,
+              faceDown: false,
+              rotationDeg: finalCard.rotationDeg ?? card.rotationDeg,
+            };
+          }
+          return finalCard;
+        });
       }
 
       const piles = prev.piles.map((pile) => {
@@ -220,6 +246,51 @@ function applyViewEventToView(
       // Unknown event types are ignored for now
       return next;
   }
+}
+
+function applyMoveRevealToView(
+  prev: GameView,
+  event: ViewEventPayload
+): GameView {
+  if (event.type !== "move-cards" || !event.cardViews?.length) {
+    return prev;
+  }
+
+  const revealById = new Map(event.cardViews.map((card) => [card.id, card]));
+  let changed = false;
+
+  const piles = prev.piles.map((pile) => {
+    let nextCards = pile.cards;
+    for (let idx = 0; idx < pile.cards.length; idx += 1) {
+      const card = pile.cards[idx];
+      const reveal = revealById.get(card.id);
+      if (!reveal) continue;
+      if (
+        card.faceDown === reveal.faceDown &&
+        card.label === reveal.label &&
+        card.rank === reveal.rank &&
+        card.suit === reveal.suit &&
+        card.rotationDeg === reveal.rotationDeg
+      ) {
+        continue;
+      }
+      if (nextCards === pile.cards) {
+        nextCards = [...pile.cards];
+      }
+      nextCards[idx] = reveal;
+      changed = true;
+    }
+    if (nextCards === pile.cards) {
+      return pile;
+    }
+    return { ...pile, cards: nextCards };
+  });
+
+  if (!changed) {
+    return prev;
+  }
+
+  return { ...prev, piles };
 }
 
 function hasGameDealt(view: GameView | null): boolean {
@@ -1321,6 +1392,15 @@ export default function App() {
           await (transition as { finished?: Promise<void> })?.finished;
         } catch {
           // Ignore transition errors; continue to next step
+        }
+
+        const revealView = applyMoveRevealToView(workingView, event);
+        if (revealView !== workingView) {
+          flushSync(() => {
+            workingView = revealView;
+            lastAuthoritativeViewRef.current = workingView;
+            setView(workingView);
+          });
         }
       }
 

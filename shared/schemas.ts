@@ -387,6 +387,7 @@ export type CardView = z.infer<typeof CardViewSchema>;
 export const ViewMoveCardsEventPayloadSchema =
   MoveCardsEventPayloadSchema.extend({
     cardIds: z.array(CardViewIdSchema).nonempty(),
+    cardViews: z.array(CardViewSchema).optional(),
   });
 
 export const ViewSetCardVisualsEventPayloadSchema =

@@ -212,6 +212,27 @@ export function projectState(gameId: string): GameState | null {
   );
 }
 
+export function projectStateWithEvents(
+  gameId: string,
+  events: GameEvent[]
+): GameState | null {
+  const initial = initialStateByGame.get(gameId);
+  if (!initial) {
+    return null;
+  }
+
+  return events.reduce<GameState>((state, event) => applyEvent(state, event), {
+    ...initial,
+    cards: { ...initial.cards },
+    piles: { ...initial.piles },
+    players: [...initial.players],
+    currentPlayer: initial.currentPlayer,
+    winner: initial.winner,
+    rulesState: initial.rulesState,
+    scoreboards: initial.scoreboards ? [...initial.scoreboards] : [],
+  });
+}
+
 export function getHumanTurnNumber(gameId: string): number {
   const state = projectState(gameId);
   if (!state) return 0;

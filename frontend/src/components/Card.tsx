@@ -1,4 +1,4 @@
-import { forwardRef, HTMLAttributes, CSSProperties } from "react";
+import { forwardRef, HTMLAttributes, CSSProperties, useEffect } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import type { CardView, PileLayout } from "../../../shared/schemas";
 import {
@@ -9,22 +9,37 @@ import {
 import {
   activeTransitionCardIdsAtom,
   cardSetAtom,
+  gameViewAtom,
   selectedCardAtom,
 } from "../state";
 import { normalizeRank, normalizeSuit } from "../utils/cardCodes";
 import { isTestMode } from "../utils/testMode";
 
+const frontCacheByGame = new Map<string, Map<number, string>>();
+
+const getFrontCache = (gameId?: string | null) => {
+  if (!gameId) return null;
+  const existing = frontCacheByGame.get(gameId);
+  if (existing) return existing;
+  const next = new Map<number, string>();
+  frontCacheByGame.set(gameId, next);
+  return next;
+};
+
 const buildCardAssetPath = (
   card: CardView,
   cardSet: string,
   supportsJokers: boolean,
-  cardSetPath?: string
+  cardSetPath?: string,
+  options?: { forceFaceDown?: boolean }
 ) => {
   const assetBase = cardSetPath
     ? `/cards/${cardSetPath}/`
     : `/cards/${cardSet}/`;
 
-  if (card.faceDown) {
+  const faceDown = options?.forceFaceDown ?? card.faceDown;
+
+  if (faceDown) {
     return `${assetBase}${DEFAULT_CARD_BACK}.svg`;
   }
 
@@ -51,37 +66,51 @@ const buildCardAssetPath = (
   return `${assetBase}${rankCode}${suitCode}.svg`;
 };
 
-const getCardAssetPath = (card: CardView, selectedCardSet: string): string => {
+const getCardAssetPaths = (
+  card: CardView,
+  selectedCardSet: string
+): { front: string; back: string; frontCandidate?: string } => {
   const selectedSet = findCardSetById(selectedCardSet);
   const fallbackSet = findCardSetById(DEFAULT_CARD_SET);
 
-  const primary = buildCardAssetPath(
+  const primaryFront = buildCardAssetPath(
     card,
     selectedSet?.id ?? selectedCardSet,
     selectedSet?.supportsJokers ?? true,
-    selectedSet?.path
+    selectedSet?.path,
+    { forceFaceDown: false }
   );
 
-  if (primary) {
-    return primary;
-  }
+  const primaryBack = buildCardAssetPath(
+    card,
+    selectedSet?.id ?? selectedCardSet,
+    selectedSet?.supportsJokers ?? true,
+    selectedSet?.path,
+    { forceFaceDown: true }
+  );
 
-  if (selectedSet?.id !== fallbackSet?.id && fallbackSet) {
-    const fallback = buildCardAssetPath(
+  let frontCandidate = primaryFront;
+
+  if (!frontCandidate && selectedSet?.id !== fallbackSet?.id && fallbackSet) {
+    frontCandidate = buildCardAssetPath(
       card,
       fallbackSet.id,
       fallbackSet.supportsJokers,
-      fallbackSet.path
+      fallbackSet.path,
+      { forceFaceDown: false }
     );
-    if (fallback) {
-      return fallback;
-    }
   }
 
   const backSet =
     selectedSet ?? fallbackSet ?? findCardSetById(DEFAULT_CARD_SET);
   const backSetPath = backSet?.path ?? backSet?.id ?? DEFAULT_CARD_SET;
-  return `/cards/${backSetPath}/${DEFAULT_CARD_BACK}.svg`;
+  const back = primaryBack ?? `/cards/${backSetPath}/${DEFAULT_CARD_BACK}.svg`;
+
+  return {
+    front: frontCandidate ?? back,
+    back,
+    frontCandidate: frontCandidate ?? undefined,
+  };
 };
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -105,7 +134,14 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     ref
   ) => {
     const selectedCardSet = useAtomValue(cardSetAtom);
-    const assetPath = getCardAssetPath(card, selectedCardSet);
+    const view = useAtomValue(gameViewAtom);
+    const frontCache = getFrontCache(view?.gameId);
+    const { front, back, frontCandidate } = getCardAssetPaths(
+      card,
+      selectedCardSet
+    );
+    const cachedFront = frontCache?.get(card.id);
+    const frontAsset = frontCandidate ?? cachedFront ?? front;
     const [selectedCard, setSelectedCard] = useAtom(selectedCardAtom);
     const testMode = isTestMode();
 
@@ -139,7 +175,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
     const isSelected = selectedCard?.cardId === card.id;
     const finalClassName = `
-      relative select-none
+      relative select-none card-scene
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
       ${className}
       ${
@@ -149,6 +185,20 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       }
       ${testMode ? "cursor-pointer hover:ring-2 hover:ring-blue-300" : ""}
     `;
+
+    const rotationStyle: CSSProperties | undefined =
+      typeof card.rotationDeg === "number"
+        ? {
+            transform: `rotate(${card.rotationDeg}deg)`,
+            transformOrigin: "center center",
+          }
+        : undefined;
+
+    useEffect(() => {
+      if (!card.faceDown && frontCandidate && frontCache) {
+        frontCache.set(card.id, frontCandidate);
+      }
+    }, [card.faceDown, card.id, frontCandidate, frontCache]);
 
     return (
       <div
@@ -162,19 +212,28 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         tabIndex={0}
         {...rest}
       >
-        <img
-          src={assetPath}
-          alt={card.faceDown ? "Face-down card" : (card.label ?? "Card")}
-          className="w-full h-full object-contain drop-shadow-md"
-          style={{
-            transform:
-              typeof card.rotationDeg === "number"
-                ? `rotate(${card.rotationDeg}deg)`
-                : undefined,
-            transformOrigin: "center center",
-          }}
-          draggable={false}
-        />
+        <div
+          className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"}`}
+        >
+          <div className="card-face card-face-front">
+            <img
+              src={frontAsset}
+              alt={card.label ?? "Card"}
+              className="w-full h-full object-contain drop-shadow-md"
+              style={rotationStyle}
+              draggable={false}
+            />
+          </div>
+          <div className="card-face card-face-back">
+            <img
+              src={back}
+              alt="Face-down card"
+              className="w-full h-full object-contain drop-shadow-md"
+              style={rotationStyle}
+              draggable={false}
+            />
+          </div>
+        </div>
       </div>
     );
   }
