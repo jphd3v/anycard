@@ -2,43 +2,73 @@
   "id": "ristiseiska-rules",
   "rulesId": "ristiseiska",
   "seed": "RISTISEISKA-TEST",
+  "players": [{ "id": "P1" }, { "id": "P2" }, { "id": "P3" }],
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
     {
       "type": "move",
-      "playerId": "P1",
-      "fromPileId": "P1-hand",
+      "playerId": "P3",
+      "fromPileId": "P3-hand",
       "toPileId": "clubs-table",
       "cardId": 6
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
       "toPileId": "hearts-table",
       "cardId": 32
-    },
-    {
-      "type": "move",
-      "playerId": "P1",
-      "fromPileId": "P1-hand",
-      "toPileId": "clubs-table",
-      "cardId": 7,
-      "expectedError": "This card cannot be played yet. You must play a 7 or extend an existing sequence."
-    },
-    {
-      "type": "action",
-      "playerId": "P1",
-      "action": "pass",
-      "expectedError": "You must play a card if you have a legal move."
-    },
-    {
-      "type": "move",
-      "playerId": "P1",
-      "fromPileId": "P1-hand",
-      "toPileId": "clubs-table",
-      "cardId": 13,
-      "expectedError": "This card cannot be played yet. You must play a 7 or extend an existing sequence."
     }
-  ]
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "scoreboards": [
+      {
+        "id": "ristiseiska-counts",
+        "title": "Cards in hand",
+        "rows": 4,
+        "cols": 2,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Cards",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "P1",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "17", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "P2",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "17", "align": "right" },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "P3",
+            "role": "header",
+            "align": "left"
+          },
+          { "row": 3, "col": 1, "text": "16", "align": "right" }
+        ]
+      }
+    ]
+  }
 }

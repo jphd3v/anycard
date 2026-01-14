@@ -58,35 +58,49 @@ function getSuitPileId(suit: string): string {
   return `${suit}-table`;
 }
 
-function otherPlayer(playerId: string): string {
-  return playerId === "P1" ? "P2" : "P1";
+function getNextPlayer(state: ValidationState, playerId: string): string {
+  const playerIds = state.players.map((p) => p.id);
+  const idx = playerIds.indexOf(playerId);
+  return playerIds[(idx + 1) % playerIds.length];
 }
 
 function buildScoreboard(
   state: ValidationState,
   projected: ProjectedPiles
 ): Scoreboard {
-  const rows = 3;
+  const players = state.players;
+  const rows = players.length + 1;
   const cols = 2;
 
-  const p1Count =
-    projected["P1-hand"]?.size ?? state.piles["P1-hand"]?.size ?? 0;
-  const p2Count =
-    projected["P2-hand"]?.size ?? state.piles["P2-hand"]?.size ?? 0;
+  const cells: Scoreboard["cells"] = [
+    { row: 0, col: 0, text: "Player", role: "header", align: "left" },
+    { row: 0, col: 1, text: "Cards", role: "header", align: "right" },
+  ];
+
+  players.forEach((p, i: number) => {
+    const handId = `${p.id}-hand`;
+    const count = projected[handId]?.size ?? state.piles[handId]?.size ?? 0;
+    cells.push({
+      row: i + 1,
+      col: 0,
+      text: p.id,
+      role: "header",
+      align: "left",
+    });
+    cells.push({
+      row: i + 1,
+      col: 1,
+      text: String(count),
+      align: "right",
+    });
+  });
 
   return {
     id: "ristiseiska-counts",
     title: "Cards in hand",
     rows,
     cols,
-    cells: [
-      { row: 0, col: 0, text: "Player", role: "header", align: "left" },
-      { row: 0, col: 1, text: "Cards", role: "header", align: "right" },
-      { row: 1, col: 0, text: "P1", role: "header", align: "left" },
-      { row: 1, col: 1, text: String(p1Count), align: "right" },
-      { row: 2, col: 0, text: "P2", role: "header", align: "left" },
-      { row: 2, col: 1, text: String(p2Count), align: "right" },
-    ],
+    cells,
   };
 }
 
@@ -104,19 +118,21 @@ function dealFromDeck(
 
   const shuffledCardIds = shuffleAllCards(state, 0, "RISTISEISKA");
 
-  const hands = ["P1-hand", "P2-hand"] as const;
+  const playerIds = state.players.map((p) => p.id);
+  const hands = playerIds.map((pid) => `${pid}-hand`);
+  const cardsPerPlayer = Math.ceil(shuffledCardIds.length / hands.length);
   const { events: dealEvents } = distributeRoundRobin(
     shuffledCardIds,
     hands,
-    26
+    cardsPerPlayer
   );
   engineEvents.push(...dealEvents);
 
   let starter: string | null = null;
-  shuffledCardIds.forEach((cardId, idx) => {
+  shuffledCardIds.forEach((cardId: number, idx: number) => {
     const card = state.allCards[cardId];
     if (card && card.suit === "clubs" && card.rank === "7") {
-      starter = hands[idx % hands.length].startsWith("P1") ? "P1" : "P2";
+      starter = playerIds[idx % playerIds.length];
     }
   });
 
@@ -376,12 +392,12 @@ export const ristiseiskaRules: GameRuleModule = {
 
       engineEvents.push({
         type: "set-current-player",
-        player: otherPlayer(intent.playerId),
+        player: getNextPlayer(state, intent.playerId),
       });
 
-      const otherId = otherPlayer(intent.playerId);
-      const otherHand = state.piles[`${otherId}-hand`];
-      if (otherHand && otherHand.size > 0) {
+      const nextId = getNextPlayer(state, intent.playerId);
+      const nextHand = state.piles[`${nextId}-hand`];
+      if (nextHand && nextHand.size > 0) {
         const tableCardIds = new Set<number>();
         for (const suit of SUITS) {
           const pile = state.piles[getSuitPileId(suit)];
@@ -402,7 +418,13 @@ export const ristiseiskaRules: GameRuleModule = {
           .sort((a, b) => a - b);
         for (const cardId of allCardIds) {
           if (!tableCardIds.has(cardId) && !myHandCardIds.has(cardId)) {
-            otherCardIds.push(cardId);
+            // Check if card belongs to next player's hand specifically
+            const isNextPlayerCard = (
+              state.piles[`${nextId}-hand`]?.cards ?? []
+            ).some((c) => c.id === cardId);
+            if (isNextPlayerCard) {
+              otherCardIds.push(cardId);
+            }
           }
         }
 
@@ -413,14 +435,14 @@ export const ristiseiskaRules: GameRuleModule = {
             0
           );
           const random = createRandom(
-            baseSeed + tableCardCount + otherHand.size
+            baseSeed + tableCardCount + nextHand.size
           );
           const shuffled = fisherYates(otherCardIds, random);
           const penaltyCardId = shuffled[0];
 
           engineEvents.push({
             type: "move-cards",
-            fromPileId: `${otherId}-hand`,
+            fromPileId: `${nextId}-hand`,
             toPileId: `${intent.playerId}-hand`,
             cardIds: [penaltyCardId],
           });
@@ -532,7 +554,7 @@ export const ristiseiskaRules: GameRuleModule = {
     } else {
       engineEvents.push({
         type: "set-current-player",
-        player: otherPlayer(intent.playerId),
+        player: getNextPlayer(state, intent.playerId),
       });
       engineEvents.push({
         type: "set-rules-state",
@@ -571,6 +593,7 @@ export const ristiseiskaPlugin: GamePlugin = {
         "hearts-table",
         "spades-table",
       ],
+      isPileAlwaysVisibleToRules: (pid) => pid.endsWith("-hand"),
     };
     return hints;
   })(),

@@ -1,6 +1,6 @@
 {
   "rulesId": "ristiseiska",
-  "rows": 4,
+  "rows": 5,
   "cols": 2,
   "zones": [
     {
@@ -34,9 +34,15 @@
       "piles": ["spades-table"]
     },
     {
+      "id": "p3-area",
+      "label": "Player 3",
+      "cell": { "row": 3, "col": 0, "colspan": 2 },
+      "piles": ["P3-hand"]
+    },
+    {
       "id": "p1-area",
       "label": "Player 1",
-      "cell": { "row": 3, "col": 0, "colspan": 2 },
+      "cell": { "row": 4, "col": 0, "colspan": 2 },
       "piles": ["P1-hand"]
     }
   ],
@@ -71,6 +77,35 @@
       }
     },
     "P2-hand": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "P3-hand": {
       "layout": "horizontal",
       "isHand": true,
       "sort": {

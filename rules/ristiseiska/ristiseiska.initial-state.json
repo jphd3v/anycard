@@ -338,6 +338,12 @@
       "visibility": "owner",
       "cardIds": []
     },
+    "P3-hand": {
+      "id": "P3-hand",
+      "ownerId": "P3",
+      "visibility": "owner",
+      "cardIds": []
+    },
     "clubs-table": {
       "id": "clubs-table",
       "ownerId": null,
@@ -371,6 +377,10 @@
     {
       "id": "P2",
       "name": "Player 2"
+    },
+    {
+      "id": "P3",
+      "name": "Player 3"
     }
   ],
   "currentPlayer": "P1",
@@ -390,7 +400,7 @@
     {
       "id": "ristiseiska-counts",
       "title": "Cards in hand",
-      "rows": 3,
+      "rows": 4,
       "cols": 2,
       "cells": [
         {
@@ -410,7 +420,9 @@
         { "row": 1, "col": 0, "text": "P1", "role": "header", "align": "left" },
         { "row": 1, "col": 1, "text": "0", "align": "right" },
         { "row": 2, "col": 0, "text": "P2", "role": "header", "align": "left" },
-        { "row": 2, "col": 1, "text": "0", "align": "right" }
+        { "row": 2, "col": 1, "text": "0", "align": "right" },
+        { "row": 3, "col": 0, "text": "P3", "role": "header", "align": "left" },
+        { "row": 3, "col": 1, "text": "0", "align": "right" }
       ]
     }
   ]

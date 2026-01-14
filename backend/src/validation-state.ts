@@ -48,6 +48,8 @@ export interface ValidationState {
   recentEvents: SimplifiedEvent[];
   /** Full card registry for rule validation. */
   allCards: Record<number, { id: number; rank: string; suit: string }>;
+  /** List of players joined in the game. */
+  players: Array<{ id: string; name: string }>;
 }
 
 function shouldIncludeFullCards(
@@ -183,5 +185,6 @@ export function buildValidationState(
     moveIndex: events.length,
     recentEvents,
     allCards,
+    players: gameState.players.map((p) => ({ id: p.id, name: p.name ?? p.id })),
   };
 }

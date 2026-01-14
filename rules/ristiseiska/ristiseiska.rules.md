@@ -1,13 +1,13 @@
 ## Overview
 
-Two-player Ristiseiska using a standard 52-card deck, based on [rules on Finnish Wikipedia](https://fi.wikipedia.org/wiki/Ristiseiska). Players compete to build sequential runs in each suit, starting with the 7 of clubs ♣️. The game emphasizes strategic card placement and sequence building, with the winner being the first to play all cards from their hand.
+Three-player Ristiseiska using a standard 52-card deck, based on [rules on Finnish Wikipedia](https://fi.wikipedia.org/wiki/Ristiseiska). Players compete to build sequential runs in each suit, starting with the 7 of clubs ♣️. The game emphasizes strategic card placement and sequence building, with the winner being the first to play all cards from their hand.
 
 ## Setup
 
 - **Deck**: Standard 52-card deck.
 - **Ranking**: Sequences build from 7 up to King and down to 2. Ace is the final card played to close a suit.
-- **Players**: 2 players (P1 and P2).
-- **Dealing**: All 52 cards are dealt (26 per player).
+- **Players**: 3 players (P1, P2, and P3).
+- **Dealing**: All 52 cards are dealt as evenly as possible (17 or 18 cards per player).
 - **Starting Player**: The player who receives the 7♣️ starts the game.
 - **Table Piles**: Four suit piles (♣️, ♦️, ♥️, ♠️) are built on the table.
 
@@ -19,14 +19,14 @@ Each turn consists of either playing a card or passing:
 
 1. **Choosing a playable card**: The player selects a card that can be legally played.
 2. **Placing on the table**: The card is moved to its suit's table pile.
-3. **Turn alternation**: After playing a card, the turn switches to the other player.
+3. **Turn alternation**: After playing a card, the turn switches to the next player.
 
 ### Pass Option (Pawn)
 
 - **Unable to play**: If no cards are playable, the player must pass.
-- **Pawn penalty**: In the 2-player game, passing requires taking one random card from the opponent's hand ("pawn" or "pantti").
+- **Pawn penalty**: In the multi-player game, passing requires taking one random card from the next player's hand ("pawn" or "pantti").
 - **Mandatory play**: A player cannot pass if any legal moves exist.
-- **Turn alternation**: Passing switches the turn to the other player.
+- **Turn alternation**: Passing switches the turn to the next player.
 
 ## Card Placement Rules
 
@@ -74,4 +74,4 @@ Each turn consists of either playing a card or passing:
 ## Scoring
 
 - **Winner**: The player who plays all their cards first is the winner.
-- **2-Player**: No complex scoring is typically used in the basic 2-player version; it's a race to empty the hand.
+- **3-Player**: No complex scoring is typically used in the basic version; it's a race to empty the hand.
