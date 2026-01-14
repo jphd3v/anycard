@@ -1,0 +1,44 @@
+{
+  "id": "canasta-take-discard-frozen-missing-pair",
+  "rulesId": "canasta",
+  "seed": "CANASTA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 71
+    },
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "deck",
+      "toPileId": "P3-hand",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "P3-hand",
+      "toPileId": "discard",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P4",
+      "fromPileId": "discard",
+      "toPileId": "B-meld-4",
+      "cardId": 30,
+      "expectedError": "Discard is frozen: you need two natural cards of rank 4 to take it."
+    }
+  ]
+}

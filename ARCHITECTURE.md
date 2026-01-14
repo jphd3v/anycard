@@ -118,9 +118,9 @@ Rules must obey:
 - If the move is **legal**:
   - `valid` must be `true`,
   - `engineEvents` must fully describe the consequences:
-    - the actual card move(s) (`move-cards`),
-    - phase/score/turn changes (`set-rules-state`, `set-current-player`,
-      `set-scoreboards`, `set-actions`, `set-winner`).
+
+Minimal guardrails are allowed. Even in multi-step turns, rule modules may block clearly illegal starts when a rule requires a prerequisite (e.g., Canasta's initial meld minimum). Keep these checks small and rule-driven: the goal is to prevent obvious misplays and AI blunders without over-automating the full turn. - the actual card move(s) (`move-cards`), - phase/score/turn changes (`set-rules-state`, `set-current-player`,
+`set-scoreboards`, `set-actions`, `set-winner`).
 
 ---
 

@@ -338,18 +338,6 @@ function computeCardVisuals(
     }
   }
 
-  // Mixed canasta marker: rotate one wild card in each mixed canasta.
-  for (const team of ["A", "B"] as const) {
-    for (const rank of MELD_RANKS) {
-      const pileId = meldPileId(team, rank);
-      const cards = pileCards(state.piles[pileId]);
-      if (cards.length < 7) continue;
-      const firstWild = cards.find(isWild);
-      if (!firstWild) continue;
-      visuals[firstWild.id] = { rotationDeg: 90 };
-    }
-  }
-
   return visuals;
 }
 
@@ -600,6 +588,180 @@ function validateMeldPileContents(
   return null;
 }
 
+function canStartOrExtendMeld(
+  state: ValidationState,
+  playerId: string,
+  targetPileId: string,
+  moving: SimpleCard
+): string | null {
+  const meldIndex = targetPileId.indexOf("-meld-");
+  const targetRank =
+    meldIndex >= 0 ? targetPileId.slice(meldIndex + "-meld-".length) : "";
+  const targetPile = pileCards(state.piles[targetPileId] ?? null);
+  const targetNaturals = targetPile.filter(
+    (c) => !isWild(c) && c.rank === targetRank
+  ).length;
+  const movingIsNatural = !isWild(moving) && moving.rank === targetRank;
+
+  const hand = pileCards(state.piles[`${playerId}-hand`] ?? null);
+  const remainingNaturals = hand.filter(
+    (c) => c.id !== moving.id && !isWild(c) && c.rank === targetRank
+  ).length;
+  const totalNaturalsAvailable =
+    targetNaturals + (movingIsNatural ? 1 : 0) + remainingNaturals;
+
+  if (targetPile.length === 0) {
+    if (!movingIsNatural) {
+      return "A meld cannot start with a wild card. Place two natural cards first.";
+    }
+    if (totalNaturalsAvailable < 2) {
+      return `You need two natural ${targetRank}s to start a meld.`;
+    }
+  } else if (!movingIsNatural && targetNaturals < 2) {
+    return "Wild cards can only be added after at least two natural cards are in the meld.";
+  }
+
+  return null;
+}
+
+function canGoOutWithoutInitialMeldMinimum(
+  state: ValidationState,
+  rulesState: CanastaRulesState,
+  playerId: string,
+  movingCard: SimpleCard | null
+): boolean {
+  if (rulesState.turnPhase !== "meld-or-discard") return false;
+  if (rulesState.tookDiscardThisTurn) return false;
+
+  const team = teamFor(playerId);
+  const hadMeldBefore = rulesState.turnStartTeamHadMeld?.[team] ?? false;
+  if (hadMeldBefore) return false;
+
+  const hand = pileCards(state.piles[`${playerId}-hand`] ?? null);
+  const cards =
+    movingCard && !hand.some((c) => c.id === movingCard.id)
+      ? [...hand, movingCard]
+      : hand;
+
+  if (cards.some(isRedThree)) return false;
+
+  const discardOptions = [null, ...cards];
+  for (const discard of discardOptions) {
+    const remaining = discard
+      ? cards.filter((c) => c.id !== discard.id)
+      : cards;
+
+    const black3Count = remaining.filter(isBlackThree).length;
+    if (!(black3Count === 0 || black3Count === 3 || black3Count === 4)) {
+      continue;
+    }
+
+    let wildCount = 0;
+    const naturalsByRank: Record<string, number> = {};
+    for (const c of remaining) {
+      if (isBlackThree(c)) continue;
+      if (isWild(c)) {
+        wildCount += 1;
+        continue;
+      }
+      if (!isNaturalMeldRank(c.rank)) return false;
+      naturalsByRank[c.rank] = (naturalsByRank[c.rank] ?? 0) + 1;
+    }
+
+    const entries = Object.entries(naturalsByRank);
+    if (entries.length === 0) continue;
+    if (entries.some(([, count]) => count === 1)) continue;
+
+    const maxWildCapacity = entries.length * 3;
+    if (wildCount > maxWildCapacity) continue;
+
+    const rankCounts = entries.map(([, count]) => count);
+    const dfs = (
+      idx: number,
+      remainingWilds: number,
+      hasCanasta: boolean
+    ): boolean => {
+      if (idx >= rankCounts.length) {
+        return remainingWilds === 0 && hasCanasta;
+      }
+      const naturals = rankCounts[idx];
+      const minWild = Math.max(0, 3 - naturals);
+      const maxWild = Math.min(3, remainingWilds);
+      if (minWild > maxWild) return false;
+
+      for (let w = minWild; w <= maxWild; w += 1) {
+        const canastaNow = hasCanasta || naturals + w >= 7;
+        if (dfs(idx + 1, remainingWilds - w, canastaNow)) return true;
+      }
+      return false;
+    };
+
+    if (dfs(0, wildCount, false)) return true;
+  }
+
+  return false;
+}
+
+function canMeetInitialMeldMinimum(
+  state: ValidationState,
+  rulesState: CanastaRulesState,
+  playerId: string,
+  movingCard: SimpleCard | null
+): boolean {
+  const team = teamFor(playerId);
+  const hadMeldBefore = rulesState.turnStartTeamHadMeld?.[team] ?? false;
+  if (hadMeldBefore) return true;
+
+  const hasMeldNow = allMeldPileIdsForTeam(team).some(
+    (id) => (state.piles[id]?.size ?? 0) >= 3
+  );
+  if (hasMeldNow) return true;
+
+  const min = initialMeldMinForScore(rulesState.gameScore[team] ?? 0);
+  const hand = pileCards(state.piles[`${playerId}-hand`] ?? null);
+  const cards =
+    movingCard && !hand.some((c) => c.id === movingCard.id)
+      ? [...hand, movingCard]
+      : hand;
+
+  let totalPoints = 0;
+  let wildCount = 0;
+  const naturalsByRank: Record<string, number> = {};
+  for (const c of cards) {
+    if (isRedThree(c) || isBlackThree(c)) continue;
+    totalPoints += cardPointValue(c);
+    if (isWild(c)) {
+      wildCount += 1;
+    } else if (isNaturalMeldRank(c.rank)) {
+      naturalsByRank[c.rank] = (naturalsByRank[c.rank] ?? 0) + 1;
+    }
+  }
+
+  if (totalPoints < min) {
+    return canGoOutWithoutInitialMeldMinimum(
+      state,
+      rulesState,
+      playerId,
+      movingCard
+    );
+  }
+
+  for (const rank of Object.keys(naturalsByRank)) {
+    const naturalCount = naturalsByRank[rank] ?? 0;
+    if (naturalCount < 2) continue;
+    if (naturalCount + Math.min(wildCount, 3) >= 3) {
+      return true;
+    }
+  }
+
+  return canGoOutWithoutInitialMeldMinimum(
+    state,
+    rulesState,
+    playerId,
+    movingCard
+  );
+}
+
 function sumMeldCardValues(
   state: ValidationState,
   team: Team,
@@ -678,7 +840,8 @@ function computeHandScore(
 function checkBoardValidity(
   state: ValidationState,
   team: Team,
-  rulesState: CanastaRulesState
+  rulesState: CanastaRulesState,
+  currentPlayerId: string | null
 ): string | null {
   // Validate meld pile invariants at end of turn.
   for (const rank of MELD_RANKS) {
@@ -711,15 +874,22 @@ function checkBoardValidity(
   );
 
   if (!hadMeldBefore && hasMeldAfter) {
-    const min = initialMeldMinForScore(rulesState.gameScore[team] ?? 0);
-    const exclude = new Set<number>(
-      rulesState.tookDiscardThisTurn
-        ? (rulesState.pickedUpFromDiscardCardIds ?? [])
-        : []
-    );
-    const value = sumMeldCardValues(state, team, exclude);
-    if (value < min) {
-      return `Initial meld minimum is ${min} points (your current meld value: ${value}).`;
+    const canSkipInitialMinimum =
+      !!currentPlayerId &&
+      (state.piles[`${currentPlayerId}-hand`]?.size ?? 0) === 0 &&
+      teamHasCanasta(state, team) &&
+      !rulesState.tookDiscardThisTurn;
+    if (!canSkipInitialMinimum) {
+      const min = initialMeldMinForScore(rulesState.gameScore[team] ?? 0);
+      const exclude = new Set<number>(
+        rulesState.tookDiscardThisTurn
+          ? (rulesState.pickedUpFromDiscardCardIds ?? [])
+          : []
+      );
+      const value = sumMeldCardValues(state, team, exclude);
+      if (value < min) {
+        return `Initial meld minimum is ${min} points (your current meld value: ${value}).`;
+      }
     }
   }
 
@@ -795,7 +965,7 @@ function recomputeDerived(
 
   // Board validity check for "canCommitNow"
   const boardError = team
-    ? checkBoardValidity(projectedState, team, rulesState)
+    ? checkBoardValidity(projectedState, team, rulesState, current)
     : "No team";
   // Structured rejection codes for AI
   const rejectReasons: string[] = [];
@@ -937,7 +1107,12 @@ export const canastaRules: GameRuleModule = {
       }
 
       const discardTop = topCard(state.piles["discard"] ?? null);
-      if (discardTop) {
+      if (
+        discardTop &&
+        isNaturalMeldRank(discardTop.rank) &&
+        !isWild(discardTop) &&
+        !isBlackThree(discardTop)
+      ) {
         candidates.push({
           type: "move",
           gameId,
@@ -974,15 +1149,31 @@ export const canastaRules: GameRuleModule = {
           toPileId: `${myTeam}-black3-out`,
           cardId: c.id,
         });
-        for (const mid of meldPiles) {
-          candidates.push({
-            type: "move",
-            gameId,
-            playerId,
-            fromPileId: `${playerId}-hand`,
-            toPileId: mid,
-            cardId: c.id,
-          });
+        if (isWild(c)) {
+          for (const mid of meldPiles) {
+            if (!canStartOrExtendMeld(state, playerId, mid, c)) {
+              candidates.push({
+                type: "move",
+                gameId,
+                playerId,
+                fromPileId: `${playerId}-hand`,
+                toPileId: mid,
+                cardId: c.id,
+              });
+            }
+          }
+        } else if (isNaturalMeldRank(c.rank)) {
+          const mid = meldPileId(myTeam, c.rank);
+          if (!canStartOrExtendMeld(state, playerId, mid, c)) {
+            candidates.push({
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: `${playerId}-hand`,
+              toPileId: mid,
+              cardId: c.id,
+            });
+          }
         }
       }
 
@@ -1404,6 +1595,15 @@ export const canastaRules: GameRuleModule = {
         const meldPileBefore = pileCards(state.piles[expectedMeldPile]);
         const hasExistingMeld = meldPileBefore.length > 0;
 
+        if (!canMeetInitialMeldMinimum(state, rulesState, current, top)) {
+          return {
+            valid: false,
+            reason:
+              "You do not meet the initial meld minimum to start melding.",
+            engineEvents: [],
+          };
+        }
+
         let neededFromHand: SimpleCard[] = [];
         if (frozenAgainstMe) {
           if (naturals.length < 2) {
@@ -1613,7 +1813,8 @@ export const canastaRules: GameRuleModule = {
           const boardError = checkBoardValidity(
             afterDiscardState,
             myTeam,
-            rulesState
+            rulesState,
+            current
           );
 
           if (boardError) {
@@ -1787,6 +1988,23 @@ export const canastaRules: GameRuleModule = {
             reason: `Black threes (${formatCard(moving.rank, moving.suit)}) can only be melded (sets of 3 or 4) when you are going out.`,
             engineEvents: [],
           };
+        }
+        if (!canMeetInitialMeldMinimum(state, rulesState, current, moving)) {
+          return {
+            valid: false,
+            reason:
+              "You do not meet the initial meld minimum to start melding.",
+            engineEvents: [],
+          };
+        }
+        const meldGuardrailError = canStartOrExtendMeld(
+          state,
+          current,
+          to,
+          moving
+        );
+        if (meldGuardrailError) {
+          return { valid: false, reason: meldGuardrailError, engineEvents: [] };
         }
 
         // Apply the move

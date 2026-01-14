@@ -40,6 +40,33 @@ import { sfx } from "../utils/audio";
 import { getRotationAngle, rotateLayout } from "../utils/layoutRotation";
 import { useRef } from "react";
 
+const isCanastaMeldPile = (rulesId: string | undefined, pileId: string) =>
+  rulesId === "canasta" && pileId.includes("-meld-");
+
+const isRedSuit = (suit?: string) =>
+  suit === "hearts" || suit === "diamonds" || suit === "red";
+
+const isBlackSuit = (suit?: string) =>
+  suit === "spades" || suit === "clubs" || suit === "black";
+
+const isMixedCanasta = (cards: CardView[]) =>
+  cards.some((card) => card.rank === "2" || card.rank === "JOKER");
+
+const reorderCanastaTopCard = (
+  cards: CardView[],
+  mixed: boolean
+): CardView[] => {
+  const wantsRedTop = !mixed;
+  const matcher = wantsRedTop ? isRedSuit : isBlackSuit;
+  const index = cards.findIndex((card) => matcher(card.suit));
+  if (index <= 0) return cards;
+
+  const next = cards.slice();
+  const [picked] = next.splice(index, 1);
+  next.push(picked);
+  return next;
+};
+
 interface Props {
   view: GameView;
   playerId: string;
@@ -307,8 +334,7 @@ export function GameRoot({
 
     const override = layout?.pileStyles?.[pileId];
     const { sort, ...restOverride } = override ?? {};
-    const normalizedLayout =
-      normalizePileLayout(override?.layout) ?? "complete";
+    let normalizedLayout = normalizePileLayout(override?.layout) ?? "complete";
     const optionIds = sort?.options?.map((o) => o.id) ?? [];
     const fallbackSortId =
       sort && sort.default && optionIds.includes(sort.default)
@@ -323,11 +349,22 @@ export function GameRoot({
         : fallbackSortId;
 
     const { sorter, resolvedId } = choosePileSorter(sort, selectedSortId);
-    const sortedCards = sortCardsForDisplay(
+    let sortedCards = sortCardsForDisplay(
       basePile.cards,
       sorter,
       normalizedLayout
     );
+
+    const isCanastaPile = isCanastaMeldPile(view.rulesId, pileId);
+    const isCompleteCanasta = isCanastaPile && basePile.cards.length >= 7;
+    if (isCompleteCanasta) {
+      const mixed = isMixedCanasta(basePile.cards);
+      sortedCards = reorderCanastaTopCard(
+        sortCardsForDisplay(basePile.cards, sorter, "complete"),
+        mixed
+      );
+      normalizedLayout = "complete";
+    }
 
     const pileToRender = {
       ...basePile,

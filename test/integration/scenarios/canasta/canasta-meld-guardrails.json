@@ -1,0 +1,46 @@
+{
+  "id": "canasta-meld-guardrails",
+  "rulesId": "canasta",
+  "seed": "CANASTA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 71,
+      "expectedError": "You need two natural 4s to start a meld."
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-4",
+      "cardId": 2,
+      "expectedError": "A meld cannot start with a wild card. Place two natural cards first."
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-8",
+      "cardId": 34
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "B-meld-8",
+      "cardId": 95,
+      "expectedError": "Wild cards can only be added after at least two natural cards are in the meld."
+    }
+  ]
+}

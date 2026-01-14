@@ -1036,6 +1036,9 @@ Allow players to be in a "temporarily invalid" state _during_ their turn, as lon
     - _Ask:_ "Is the board in a valid state to pass control to the next player?"
     - _If no:_ Reject the end-turn action with a helpful message.
 
+**Guardrails (Minimal, Obvious Rules):**
+It is OK to block clearly illegal starts even mid-turn when the rules demand it. Example: in Canasta, do not allow a partnership to begin melding until the initial meld minimum (points + meld composition) is satisfied. These guardrails prevent accidental misplays and keep AI from making invalid exploratory moves, without over-automating the game.
+
 **High-Level Pattern:**
 
 ```text

@@ -68,6 +68,7 @@ To conclude the hand, the following conditions are required to be met:
 ### Black Threes
 
 Black Threes (3♣️, 3♠️) are prohibited from being melded during normal play. They are only permitted to be melded as a special set of 3 or 4 cards when the player is going out.
+Discarding a black three blocks the next player from taking the discard pile. This does not freeze the pile permanently; once the black three is covered, the pile may be taken as usual. This can be used to protect the pile for your partner.
 
 ## Scoring
 
@@ -87,7 +88,9 @@ The hand score is calculated as: **(Points in captured cards and bonuses) − (P
 ## Play Notes
 
 - **Arranging Melds**: Cards are permitted to be moved to and from the table during the melding phase. This allows different combinations to be tested before the turn is finalized.
-- **Finalization**: All melding requirements (such as the initial point minimum or meld size) are verified only when the discard is made. If requirements are not satisfied, the discard is rejected and cards are required to be returned to the hand.
+- **Initial Meld Minimum**: If your partnership has not yet met the initial meld requirement, you cannot begin melding until your hand satisfies the minimum points and meld conditions.
+- **Initial Meld Exception**: After drawing from the stock, if you can meld your entire hand including a canasta, you may go out without meeting the minimum.
+- **Finalization**: All remaining melding requirements (such as meld size, wild limits, or going-out constraints) are verified when the discard is made. If requirements are not satisfied, the discard is rejected and cards are required to be returned to the hand.
 - **Mandatory Discard**: If no canasta is held by the partnership, the final card in the hand is prohibited from being melded, as it is required for the concluding discard.
 - **Capturing the Pile**: When the discard pile is taken, the top card must be melded immediately. The point value of this card contributes toward the initial meld requirement.
 

@@ -1,0 +1,30 @@
+{
+  "id": "canasta-take-discard-top-wild",
+  "rulesId": "canasta",
+  "seed": "CANASTA-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "discard",
+      "toPileId": "A-meld-2",
+      "cardId": 2,
+      "expectedError": "You cannot take the discard pile on a wild card or black three."
+    }
+  ]
+}

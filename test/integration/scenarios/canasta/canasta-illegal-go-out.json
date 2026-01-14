@@ -85,15 +85,15 @@
       "type": "move",
       "playerId": "P2",
       "fromPileId": "P2-hand",
-      "toPileId": "B-meld-10",
-      "cardId": 77
+      "toPileId": "B-meld-K",
+      "cardId": 28
     },
     {
       "type": "move",
       "playerId": "P2",
       "fromPileId": "P2-hand",
       "toPileId": "discard",
-      "cardId": 28,
+      "cardId": 77,
       "expectedError": "You must have a canasta to go out."
     }
   ]
