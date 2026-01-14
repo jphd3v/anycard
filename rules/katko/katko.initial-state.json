@@ -101,7 +101,7 @@
     "discard": {
       "id": "discard",
       "ownerId": null,
-      "visibility": "public",
+      "visibility": "hidden",
       "cardIds": []
     }
   },

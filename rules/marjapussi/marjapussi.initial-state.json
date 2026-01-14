@@ -93,13 +93,13 @@
     "TEAM-A-WON": {
       "id": "TEAM-A-WON",
       "ownerId": null,
-      "visibility": "public",
+      "visibility": "hidden",
       "cardIds": []
     },
     "TEAM-B-WON": {
       "id": "TEAM-B-WON",
       "ownerId": null,
-      "visibility": "public",
+      "visibility": "hidden",
       "cardIds": []
     }
   },
