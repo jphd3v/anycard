@@ -84,13 +84,14 @@ export function ActionsGrid({
       style={{ viewTransitionName: "none" }}
     >
       {isEmpty ? (
-        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+        <div className="w-full h-full flex items-center justify-center text-ink-muted/40">
           {highlightedActionLabel ? (
-            <div className="animate-action-pop px-2 py-1.5 rounded-md bg-surface-2/60 border border-surface-3">
+            <div className="animate-action-pop px-2 py-1.5 rounded-md bg-surface-2/60 border border-surface-3 text-[10px] font-bold uppercase tracking-widest text-ink-muted">
               Last action: {highlightedActionLabel}
             </div>
           ) : (
-            <div className="px-2 py-1.5 rounded-md">No actions</div>
+            /* Show a subtle "waiting" state with three dots - neutral and unobtrusive */
+            <div className="text-3xl tracking-[0.3em]">•••</div>
           )}
         </div>
       ) : (

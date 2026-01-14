@@ -10,6 +10,11 @@ export type GameMeta = {
   minPlayers?: number;
   maxPlayers?: number;
   category?: string;
+  /**
+   * When true, action buttons are shown to all players (e.g. Bridge bidding table).
+   * When false (default), actions are only visible to the current player.
+   */
+  showActionsToAll?: boolean;
 };
 
 const RULES_DIR = resolveRulesDir();
@@ -32,6 +37,7 @@ export function loadGameMeta(rulesId: string): GameMeta {
       minPlayers: parsed.minPlayers,
       maxPlayers: parsed.maxPlayers,
       category: parsed.category,
+      showActionsToAll: parsed.showActionsToAll,
     };
   } catch (err) {
     console.warn(`[meta] Falling back to defaults for ${rulesId}: ${err}`);

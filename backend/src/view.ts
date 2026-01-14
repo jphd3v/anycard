@@ -14,6 +14,7 @@ import { toViewCardId } from "./view-ids.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 import { GAME_PLUGINS } from "./rules/registry.js";
 import { getRoomType } from "./socket.js";
+import { loadGameMeta } from "./rules/meta.js";
 
 export function buildViewForPlayer(
   state: GameState,
@@ -192,6 +193,19 @@ export function buildViewForPlayer(
         )
       : undefined;
 
+  // Determine if actions should be visible to this viewer
+  // By default, actions are only visible to the current player.
+  // Games can opt into showing actions to all players (e.g., Bridge bidding table)
+  // by setting showActionsToAll: true in their meta.json.
+  const meta = loadGameMeta(state.rulesId);
+  const isCurrentPlayer = viewerId === state.currentPlayer;
+  const isSpectator = viewerId === "__spectator__" || viewerId === "__god__";
+  const showActions =
+    meta.showActionsToAll === true || isCurrentPlayer || isSpectator;
+  const visibleActions = showActions
+    ? state.actions
+    : { rows: 0, cols: 0, cells: [] };
+
   return {
     gameId: state.gameId,
     rulesId: state.rulesId,
@@ -200,7 +214,7 @@ export function buildViewForPlayer(
     winner: state.winner,
     currentPlayer: state.currentPlayer,
     currentSeatId: state.currentPlayer,
-    actions: state.actions,
+    actions: visibleActions,
     rulesState: mappedRulesState,
     scoreboards,
     seats: players,
