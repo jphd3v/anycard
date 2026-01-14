@@ -1141,14 +1141,19 @@ export const canastaRules: GameRuleModule = {
           toPileId: "discard",
           cardId: c.id,
         });
-        candidates.push({
-          type: "move",
-          gameId,
-          playerId,
-          fromPileId: `${playerId}-hand`,
-          toPileId: `${myTeam}-black3-out`,
-          cardId: c.id,
-        });
+        if (isBlackThree(c)) {
+          const remaining = hand.filter((card) => card.id !== c.id);
+          if (remaining.every(isBlackThree) && teamHasCanasta(state, myTeam)) {
+            candidates.push({
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: `${playerId}-hand`,
+              toPileId: `${myTeam}-black3-out`,
+              cardId: c.id,
+            });
+          }
+        }
         if (isWild(c)) {
           for (const mid of meldPiles) {
             if (!canStartOrExtendMeld(state, playerId, mid, c)) {
@@ -1765,6 +1770,22 @@ export const canastaRules: GameRuleModule = {
             return {
               valid: false,
               reason: "Only black threes can be melded to this pile.",
+              engineEvents: [],
+            };
+          }
+          const remaining = hand.filter((c) => c.id !== cardId);
+          if (remaining.some((c) => !isBlackThree(c))) {
+            return {
+              valid: false,
+              reason:
+                "Black threes can only be laid down once the rest of your hand is melded.",
+              engineEvents: [],
+            };
+          }
+          if (!teamHasCanasta(state, teamFor(current))) {
+            return {
+              valid: false,
+              reason: "You must have a canasta to go out.",
               engineEvents: [],
             };
           }
