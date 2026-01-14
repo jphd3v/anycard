@@ -155,29 +155,27 @@ function applyViewEventToView(
       if (finalCardById.size > 0 || eventCardById.size > 0) {
         movedCards = movedCards.map((card) => {
           const eventCard = eventCardById.get(card.id);
-          if (eventCard && !card.faceDown) {
-            return eventCard;
-          }
           const finalCard = finalCardById.get(card.id);
-          if (!finalCard) {
+          const targetCard = eventCard ?? finalCard;
+          if (!targetCard) {
             return card;
           }
-          if (card.faceDown && !finalCard.faceDown) {
+          if (card.faceDown && !targetCard.faceDown) {
             // Keep the card back while it moves; flip after settling.
-            return { ...finalCard, faceDown: true };
+            return { ...targetCard, faceDown: true };
           }
-          if (!card.faceDown && finalCard.faceDown) {
+          if (!card.faceDown && targetCard.faceDown) {
             // Keep the face-up front during travel; flip after movement settles.
             return {
-              id: finalCard.id,
-              label: card.label ?? finalCard.label,
-              rank: card.rank ?? finalCard.rank,
-              suit: card.suit ?? finalCard.suit,
+              id: targetCard.id,
+              label: card.label ?? targetCard.label,
+              rank: card.rank ?? targetCard.rank,
+              suit: card.suit ?? targetCard.suit,
               faceDown: false,
-              rotationDeg: finalCard.rotationDeg ?? card.rotationDeg,
+              rotationDeg: targetCard.rotationDeg ?? card.rotationDeg,
             };
           }
-          return finalCard;
+          return targetCard;
         });
       }
 
@@ -367,6 +365,43 @@ function getDynamicDuration(queueLength: number, isMyTurn: boolean): number {
   if (isMyTurn) return 0; // Snap immediately if we are behind and it becomes my turn
   if (queueLength > 2) return 200; // Very fast catch-up
   return 500; // Brisk pace
+}
+
+const DEFAULT_CARD_FLIP_MS = 320;
+
+function parseDurationMs(value: string, fallback: number): number {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.endsWith("ms")) {
+    const ms = Number.parseFloat(trimmed.slice(0, -2));
+    return Number.isFinite(ms) ? ms : fallback;
+  }
+  if (trimmed.endsWith("s")) {
+    const sec = Number.parseFloat(trimmed.slice(0, -1));
+    return Number.isFinite(sec) ? sec * 1000 : fallback;
+  }
+  const raw = Number.parseFloat(trimmed);
+  return Number.isFinite(raw) ? raw : fallback;
+}
+
+function getCardFlipDurationMs(): number {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return DEFAULT_CARD_FLIP_MS;
+  }
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    return 0;
+  }
+  const cssValue = getComputedStyle(document.documentElement).getPropertyValue(
+    "--card-flip-duration"
+  );
+  return parseDurationMs(cssValue, DEFAULT_CARD_FLIP_MS);
+}
+
+function waitMs(durationMs: number): Promise<void> {
+  if (durationMs <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
 }
 
 const DEFAULT_LOBBY_SEED = "ESC0Q0";
@@ -1423,6 +1458,15 @@ export default function App() {
       // Each state change runs inside a view transition so CSS View Transitions
       // can animate DOM diffs between steps.
       let workingView = prevView;
+      const flipPauseMs =
+        duration > 0 && remainingInQueue === 0 ? getCardFlipDurationMs() : 0;
+      const lastMoveIndex = animationEvents.reduce((last, event, index) => {
+        if (event.type === "move-cards" && event.cardIds.length > 0) {
+          return index;
+        }
+        return last;
+      }, -1);
+      let pendingFlipPause = false;
 
       // Trigger the action animation (FloatingActionOverlay) immediately before card moves
       if (
@@ -1440,7 +1484,8 @@ export default function App() {
         });
       }
 
-      for (const event of animationEvents) {
+      for (let index = 0; index < animationEvents.length; index += 1) {
+        const event = animationEvents[index];
         if (event.type !== "move-cards" || event.cardIds.length === 0) {
           flushSync(() => {
             workingView = applyViewEventToView(workingView, event, nextView, {
@@ -1515,9 +1560,19 @@ export default function App() {
         }
 
         const revealView = applyMoveRevealToView(workingView, event);
-        if (revealView !== workingView || hasHeaderAnchors) {
+        const didReveal = revealView !== workingView;
+        let hasFlip = false;
+        if (didReveal) {
+          const beforeCards = getCardViewsForIds(workingView, event.cardIds);
+          const afterCards = getCardViewsForIds(revealView, event.cardIds);
+          hasFlip = beforeCards.some((card, idx) => {
+            const nextCard = afterCards[idx];
+            return nextCard ? card.faceDown !== nextCard.faceDown : false;
+          });
+        }
+        if (didReveal || hasHeaderAnchors) {
           flushSync(() => {
-            if (revealView !== workingView) {
+            if (didReveal) {
               workingView = revealView;
               lastAuthoritativeViewRef.current = workingView;
               setView(workingView);
@@ -1527,9 +1582,19 @@ export default function App() {
             }
           });
         }
+        if (hasFlip && flipPauseMs > 0) {
+          if (index < lastMoveIndex) {
+            await waitMs(flipPauseMs);
+          } else {
+            pendingFlipPause = true;
+          }
+        }
       }
 
       // Final sanity step: ensure we end up at the authoritative server view
+      if (pendingFlipPause && flipPauseMs > 0) {
+        await waitMs(flipPauseMs);
+      }
       try {
         const finalTransition = startViewTransition(() => {
           flushSync(() => {

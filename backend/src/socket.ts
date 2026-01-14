@@ -782,28 +782,27 @@ function broadcastState(
               eventState && toPile
                 ? isPileVisibleToPlayer(toPile, viewId)
                 : false;
-            const cardViews =
-              pileVisible && eventState
-                ? event.cardIds
-                    .map((id) => {
-                      const card = eventState.cards[id];
-                      if (!card) {
-                        return null;
-                      }
-                      return {
-                        id: toViewCardId(id, viewSalt, viewerKey),
-                        label: card.label,
-                        rank: card.rank,
-                        suit: card.suit,
-                        faceDown: false,
-                        rotationDeg: eventState.cardVisuals?.[id]?.rotationDeg,
-                      };
-                    })
-                    .filter(
-                      (cardView): cardView is NonNullable<typeof cardView> =>
-                        cardView !== null
-                    )
-                : [];
+            const cardViews = eventState
+              ? event.cardIds
+                  .map((id) => {
+                    const card = eventState.cards[id];
+                    if (!card) {
+                      return null;
+                    }
+                    return {
+                      id: toViewCardId(id, viewSalt, viewerKey),
+                      label: pileVisible ? card.label : undefined,
+                      rank: pileVisible ? card.rank : undefined,
+                      suit: pileVisible ? card.suit : undefined,
+                      faceDown: !pileVisible,
+                      rotationDeg: eventState.cardVisuals?.[id]?.rotationDeg,
+                    };
+                  })
+                  .filter(
+                    (cardView): cardView is NonNullable<typeof cardView> =>
+                      cardView !== null
+                  )
+              : [];
 
             return {
               ...event,
