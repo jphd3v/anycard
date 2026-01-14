@@ -67,6 +67,7 @@ import {
 import { sfx } from "./utils/audio";
 import { shareGameInfo } from "./utils/share";
 import type {
+  CardView,
   GameView,
   ViewEventPayload,
   LayoutZone,
@@ -293,6 +294,33 @@ function applyMoveRevealToView(
   return { ...prev, piles };
 }
 
+function getCardViewsForIds(view: GameView, cardIds: number[]): CardView[] {
+  if (cardIds.length === 0) {
+    return [];
+  }
+
+  const idSet = new Set(cardIds);
+  const cardById = new Map<number, CardView>();
+
+  for (const pile of view.piles) {
+    for (const card of pile.cards) {
+      if (idSet.has(card.id)) {
+        cardById.set(card.id, card);
+      }
+    }
+  }
+
+  const ordered: CardView[] = [];
+  for (const cardId of cardIds) {
+    const card = cardById.get(cardId);
+    if (card) {
+      ordered.push(card);
+    }
+  }
+
+  return ordered;
+}
+
 function hasGameDealt(view: GameView | null): boolean {
   if (
     !view ||
@@ -388,6 +416,9 @@ export default function App() {
   const [highlightedWidget, setHighlightedWidget] = useState<
     "actions" | "scoreboards" | null
   >(null);
+  const [headerTransitionCards, setHeaderTransitionCards] = useState<
+    CardView[]
+  >([]);
 
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
@@ -418,6 +449,14 @@ export default function App() {
     },
     [gameLayout]
   );
+
+  const visiblePileIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    visiblePileIdsRef.current = new Set(
+      gameLayout?.zones.flatMap((zone) => zone.piles) ?? []
+    );
+  }, [gameLayout]);
 
   // Settings UI State
   const [showSettings, setShowSettings] = useState(false);
@@ -1309,6 +1348,7 @@ export default function App() {
         lastAuthoritativeViewRef.current = nextView;
         setView(nextView);
         setActiveTransitionCardIds(null);
+        setHeaderTransitionCards([]);
         return;
       }
 
@@ -1317,6 +1357,7 @@ export default function App() {
         lastAuthoritativeViewRef.current = nextView;
         setView(nextView);
         setActiveTransitionCardIds(null);
+        setHeaderTransitionCards([]);
         return;
       }
 
@@ -1342,12 +1383,7 @@ export default function App() {
       }
 
       for (const event of animationEvents) {
-        const movingIds =
-          event.type === "move-cards"
-            ? new Set<number>(event.cardIds)
-            : new Set<number>();
-
-        if (movingIds.size === 0) {
+        if (event.type !== "move-cards" || event.cardIds.length === 0) {
           flushSync(() => {
             workingView = applyViewEventToView(workingView, event, nextView, {
               animateOnlyCards: true,
@@ -1355,21 +1391,45 @@ export default function App() {
             lastAuthoritativeViewRef.current = workingView;
             setView(workingView);
             setActiveTransitionCardIds(null);
+            setHeaderTransitionCards([]);
           });
           continue;
         }
 
+        const movingIds = new Set<number>(event.cardIds);
+        const nextWorkingView = applyViewEventToView(
+          workingView,
+          event,
+          nextView,
+          {
+            animateOnlyCards: true,
+          }
+        );
+
+        const visiblePileIds = visiblePileIdsRef.current;
+        const fromVisible = visiblePileIds.has(event.fromPileId);
+        const toVisible = visiblePileIds.has(event.toPileId);
+        const entryCards =
+          !fromVisible && toVisible
+            ? getCardViewsForIds(nextWorkingView, event.cardIds)
+            : [];
+        const exitCards =
+          fromVisible && !toVisible
+            ? getCardViewsForIds(nextWorkingView, event.cardIds)
+            : [];
+        const hasHeaderAnchors = entryCards.length > 0 || exitCards.length > 0;
+
         flushSync(() => {
           setActiveTransitionCardIds(movingIds);
+          setHeaderTransitionCards(entryCards);
         });
 
         let transition: { finished?: Promise<unknown> } | void;
         try {
           transition = startViewTransition(() => {
             flushSync(() => {
-              workingView = applyViewEventToView(workingView, event, nextView, {
-                animateOnlyCards: true,
-              });
+              setHeaderTransitionCards(exitCards);
+              workingView = nextWorkingView;
               lastAuthoritativeViewRef.current = workingView;
               setView(workingView);
             });
@@ -1378,9 +1438,8 @@ export default function App() {
           // If a transition cannot start (hidden tab or overlapping transition), apply immediately
           flushSync(() => {
             setActiveTransitionCardIds(null);
-            workingView = applyViewEventToView(workingView, event, nextView, {
-              animateOnlyCards: true,
-            });
+            setHeaderTransitionCards([]);
+            workingView = nextWorkingView;
             lastAuthoritativeViewRef.current = workingView;
             setView(workingView);
           });
@@ -1395,11 +1454,16 @@ export default function App() {
         }
 
         const revealView = applyMoveRevealToView(workingView, event);
-        if (revealView !== workingView) {
+        if (revealView !== workingView || hasHeaderAnchors) {
           flushSync(() => {
-            workingView = revealView;
-            lastAuthoritativeViewRef.current = workingView;
-            setView(workingView);
+            if (revealView !== workingView) {
+              workingView = revealView;
+              lastAuthoritativeViewRef.current = workingView;
+              setView(workingView);
+            }
+            if (hasHeaderAnchors) {
+              setHeaderTransitionCards([]);
+            }
           });
         }
       }
@@ -1409,6 +1473,7 @@ export default function App() {
         const finalTransition = startViewTransition(() => {
           flushSync(() => {
             setActiveTransitionCardIds(null);
+            setHeaderTransitionCards([]);
             lastAuthoritativeViewRef.current = nextView;
             setView(nextView);
             if (pendingScoreboardHighlights) {
@@ -1429,6 +1494,7 @@ export default function App() {
         // If a transition cannot start, just apply the final state immediately
         flushSync(() => {
           setActiveTransitionCardIds(null);
+          setHeaderTransitionCards([]);
           lastAuthoritativeViewRef.current = nextView;
           setView(nextView);
           if (pendingScoreboardHighlights) {
@@ -1596,6 +1662,7 @@ export default function App() {
           setView(lastAuthoritativeViewRef.current);
         }
         setActiveTransitionCardIds(null);
+        setHeaderTransitionCards([]);
       },
       onAiLog: (payload) => {
         setAiLog((prev) => [...prev, ...payload.entries]);
@@ -1606,6 +1673,7 @@ export default function App() {
     initialRoute,
     routeError,
     setActiveTransitionCardIds,
+    setHeaderTransitionCards,
     setGameId,
     setGameType,
     setIsEvaluating,
@@ -2622,6 +2690,7 @@ export default function App() {
             <GameHeader
               className={isAnyEndOverlayVisible ? "z-[1100]" : "z-50"}
               isOverlayActive={isAnyEndOverlayVisible}
+              transitionCards={headerTransitionCards}
               onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
               isMenuOpen={isMenuOpen}
               onRulesClick={() => setRulesVisible(true)}

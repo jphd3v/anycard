@@ -142,6 +142,20 @@ body {
   display: none;
 }
 
+header.game-header .header-card-anchors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+header.game-header .header-card-anchor {
+  position: absolute;
+  left: clamp(3.75rem, 12vw, 9rem);
+  top: 50%;
+  transform: translate(-10%, -50%);
+}
+
 /* Scoreboard text scaling for smaller screens (landscape - short height) */
 @media (max-height: 500px) {
   :root {
@@ -229,6 +243,12 @@ body {
   header.game-header .header-right > div:last-child div.relative {
     padding: 0 !important;
     justify-content: center !important;
+  }
+
+  header.game-header .header-card-anchor {
+    left: 50% !important;
+    top: 1rem !important;
+    transform: translate(-50%, 0) !important;
   }
 
   .header-floating-panel {

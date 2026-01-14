@@ -6,6 +6,8 @@ import {
   playerIdAtom,
   seatStatusAtom,
 } from "../state";
+import type { CardView } from "../../../shared/schemas";
+import { Card } from "./Card";
 import { TurnStatusBadge } from "./TurnStatusBadge";
 import { LightningIcon, ScoreTableIcon } from "./FloatingWidget";
 import { useGameMeta } from "../hooks/useGameMeta";
@@ -21,6 +23,7 @@ interface GameHeaderProps {
   isScoreboardOpen: boolean;
   className?: string;
   isOverlayActive?: boolean;
+  transitionCards?: CardView[];
 }
 
 export function GameHeader({
@@ -34,6 +37,7 @@ export function GameHeader({
   isScoreboardOpen,
   className,
   isOverlayActive = false,
+  transitionCards = [],
 }: GameHeaderProps) {
   const view = useAtomValue(gameViewAtom);
   const availableGames = useAtomValue(availableGamesAtom);
@@ -182,6 +186,16 @@ export function GameHeader({
           className={isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}
         />
       </div>
+
+      {transitionCards.length > 0 && (
+        <div className="header-card-anchors" aria-hidden="true">
+          {transitionCards.map((card) => (
+            <div key={card.id} className="header-card-anchor">
+              <Card card={card} className="pointer-events-none" />
+            </div>
+          ))}
+        </div>
+      )}
     </header>
   );
 }
