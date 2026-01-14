@@ -573,6 +573,15 @@ function buildDeal(
   // Gather all cards back to deck
   const events: EngineEvent[] = gatherAllCards(state);
 
+  // Reset all hand visibilities to owner-only for the next deal
+  for (const player of PLAYERS) {
+    events.push({
+      type: "set-pile-visibility",
+      pileId: `${player}-hand`,
+      visibility: "owner",
+    });
+  }
+
   // SHUFFLE all cards deterministically
   const shuffled = shuffleAllCards(state, nextDealNumber, "MARJAPUSSI");
 

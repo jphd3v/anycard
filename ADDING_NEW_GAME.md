@@ -1276,6 +1276,43 @@ Use the utility provided in `backend/src/util/card-notation.ts` (imported as `..
 
 Many card games (Bridge, Kasino, Scopa, etc.) are played over multiple hands or "deals". The engine provides a standard pattern to handle these transitions robustly and ensure fair randomization.
 
+**⚠️ CRITICAL: Reset Hand Pile Visibilities Between Rounds**
+
+When starting a new round, you **MUST** explicitly reset all hand pile visibilities to `"owner"` before dealing new cards. Without this, visibility state from the previous round persists, causing cards to appear face-up when they should be face-down.
+
+This is a systematic issue that has affected multiple games (Gin Rummy, Canasta, Briscola, Scopa, Kasino, Marjapussi, Pinnacola) and is easy to miss when implementing multi-round games.
+
+**The fix (add this immediately after `gatherAllCards`):**
+
+```typescript
+// After gathering all cards, reset all hand visibilities
+engineEvents.push(...gatherAllCards(state));
+
+// CRITICAL: Reset all hand visibilities to owner-only for the next deal
+for (const player of players) {
+  engineEvents.push({
+    type: "set-pile-visibility",
+    pileId: `${player}-hand`,
+    visibility: "owner",
+  });
+}
+```
+
+**Why this happens:**
+
+- Hand piles start with `visibility: "owner"` in initial state
+- During gameplay, visibility may change (e.g., revealing hands at end of round)
+- `gatherAllCards` moves cards but does NOT reset pile properties
+- Without explicit reset, the old visibility persists into the next round
+
+**Reference implementations:**
+
+- Bridge: `bridge.ts` lines 527-534 (original fix)
+- Gin Rummy: `gin-rummy.ts` lines 1368-1375
+- Canasta: `canasta.ts` lines 1365-1372
+
+Never skip this step for multi-round games!
+
 #### The "Next Round" Overlay Pattern
 
 To provide a natural break between rounds where players can review scores, use the following pattern in `rulesState`:
@@ -1980,6 +2017,7 @@ Before calling the new game "done", verify:
   - [ ] **includes "start-game" in listLegalIntentsForPlayer** when hasDealt is false,
   - [ ] **follows the standard dealing pattern (Option A)** (see section 5.13),
   - [ ] **uses centralized deterministic shuffling** for multi-round games (see section 5.12),
+  - [ ] **resets hand pile visibilities to "owner" after gatherAllCards** for multi-round games (see section 5.12),
   - [ ] **avoids `undefined` in rulesState** (prefers `null`, see section 5.14),
   - [ ] **includes a required `result: string | null` field** in `rulesState`,
   - [ ] updates `rulesState`, `actions`, and `scoreboards` consistently,

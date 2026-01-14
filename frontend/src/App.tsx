@@ -2182,12 +2182,18 @@ export default function App() {
 
       // 2) Tell server we left this game
       leaveGame();
+
+      // 3) Reset UI state atoms (scoreboard, actions, menus, etc.)
+      closeAll();
+
+      // 4) Clear any pending announcements from previous game
+      setAnnouncementItems([]);
     }
 
     // Clear any route errors for clean navigation
     setRouteError(null);
 
-    // 3) Navigate to lobby and refresh active games
+    // 5) Navigate to lobby and refresh active games
     window.history.pushState({}, "", "/");
     fetchActiveGames()
       .then(setActiveGames)
@@ -2196,8 +2202,10 @@ export default function App() {
       );
   }, [
     clearSponsoredFrontendSeats,
+    closeAll,
     gameId,
     setActiveGames,
+    setAnnouncementItems,
     setGameId,
     setGameType,
     setIsCreator,

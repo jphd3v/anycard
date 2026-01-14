@@ -1362,6 +1362,15 @@ export const canastaRules: GameRuleModule = {
         ...gatherAllCards(state, { previousEvents: engineEvents })
       );
 
+      // Reset all hand visibilities to owner-only for the next deal
+      for (const player of PLAYERS) {
+        engineEvents.push({
+          type: "set-pile-visibility",
+          pileId: `${player}-hand`,
+          visibility: "owner",
+        });
+      }
+
       nextRulesState = {
         ...nextRulesState,
         hasDealt: true,

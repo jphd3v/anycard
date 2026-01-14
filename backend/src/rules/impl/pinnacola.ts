@@ -428,6 +428,15 @@ export const pinnacolaRules: GameRuleModule = {
         // Gather all cards back to deck
         engineEvents.push(...gatherAllCards(state));
 
+        // Reset all hand visibilities to owner-only for the next deal
+        for (const player of players) {
+          engineEvents.push({
+            type: "set-pile-visibility",
+            pileId: `${player}-hand`,
+            visibility: "owner",
+          });
+        }
+
         // SHUFFLE all cards deterministically
         const shuffled = shuffleAllCards(state, nextDeal, "PINNA");
 

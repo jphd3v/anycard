@@ -418,6 +418,15 @@ export const briscolaRules: GameRuleModule = {
         ...gatherAllCards(state, { previousEvents: engineEvents })
       );
 
+      // Reset all hand visibilities to owner-only for the next deal
+      for (const player of rulesState.players) {
+        engineEvents.push({
+          type: "set-pile-visibility",
+          pileId: `${player}-hand`,
+          visibility: "owner",
+        });
+      }
+
       // SHUFFLE all cards deterministically
       const shuffledCardIds = shuffleAllCards(
         state,
