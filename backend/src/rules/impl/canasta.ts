@@ -1265,7 +1265,9 @@ export const canastaRules: GameRuleModule = {
         // Generate single-card meld candidates
         if (isWild(c)) {
           for (const mid of meldPiles) {
-            if (canStartOrExtendMeld(state, playerId, mid, c)) {
+            const existingMeldSize = state.piles[mid]?.size ?? 0;
+            if (existingMeldSize < 3) continue;
+            if (!canStartOrExtendMeld(state, playerId, mid, c)) {
               candidates.push({
                 type: "move",
                 gameId,
@@ -1278,7 +1280,11 @@ export const canastaRules: GameRuleModule = {
           }
         } else if (isNaturalMeldRank(c.rank)) {
           const mid = meldPileId(myTeam, c.rank);
-          if (canStartOrExtendMeld(state, playerId, mid, c)) {
+          const existingMeldSize = state.piles[mid]?.size ?? 0;
+          if (
+            existingMeldSize >= 3 &&
+            !canStartOrExtendMeld(state, playerId, mid, c)
+          ) {
             candidates.push({
               type: "move",
               gameId,
@@ -1291,24 +1297,33 @@ export const canastaRules: GameRuleModule = {
         }
       }
 
-      // Allow taking back cards played to melds this turn.
-      const playedThisTurn = new Set<number>(
-        rulesState.cardsPlayedToMeldsThisTurn ?? []
+      // Only expose unmeld when the board is currently invalid (e.g., initial meld minimum).
+      const commitOutlook = computeCommitOutlook(state, rulesState, playerId);
+      const allowUnmeld = commitOutlook.rejectReasons.some((reason) =>
+        [
+          "INITIAL_MELD_TOO_LOW",
+          "MELD_TOO_SMALL",
+          "INVALID_BOARD_STATE",
+          "HAND_EMPTY_BUT_NO_CANASTA",
+        ].includes(reason)
       );
-      if (playedThisTurn.size > 0) {
-        for (const mid of meldPiles) {
-          const cards = pileCards(state.piles[mid] ?? null);
-          for (const c of cards) {
-            if (!playedThisTurn.has(c.id)) continue;
-            candidates.push({
-              type: "move",
-              gameId,
-              playerId,
-              fromPileId: mid,
-              toPileId: `${playerId}-hand`,
-              cardId: c.id,
-            });
-          }
+      if (allowUnmeld) {
+        const playedThisTurn = Array.from(
+          new Set(rulesState.cardsPlayedToMeldsThisTurn ?? [])
+        );
+        for (const cardId of playedThisTurn) {
+          const sourcePileId = meldPiles.find((mid) =>
+            (state.piles[mid]?.cards ?? []).some((c) => c.id === cardId)
+          );
+          if (!sourcePileId) continue;
+          candidates.push({
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: sourcePileId,
+            toPileId: `${playerId}-hand`,
+            cardId,
+          });
         }
       }
     }
@@ -2251,6 +2266,20 @@ export const canastaRules: GameRuleModule = {
         if (err) {
           return { valid: false, reason: err, engineEvents: [] };
         }
+        const projectedState = buildStateFromProjected(state, projected);
+        const remainingHandSize =
+          projectedState.piles[`${current}-hand`]?.size ?? 0;
+        if (
+          remainingHandSize === 0 &&
+          !teamHasCanasta(projectedState, myTeam)
+        ) {
+          return {
+            valid: false,
+            reason:
+              "You must keep a card to discard unless your partnership has a canasta.",
+            engineEvents: [],
+          };
+        }
 
         // Track meld history (for future concealed support and debugging)
         const before = pileCards(state.piles[to] ?? null);
@@ -2388,7 +2417,7 @@ const canastaAiSupport: AiSupport = {
         p.id.startsWith(`${team}-`) &&
         p.id.includes("-meld") &&
         p.cards &&
-        p.cards.length > 0
+        p.cards.length >= 3
     );
 
     for (const meldPile of teamMeldPiles) {
