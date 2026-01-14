@@ -1015,9 +1015,6 @@ export const bridgePlugin: GamePlugin = {
     },
   },
   aiSupport: {
-    listCandidates: () => {
-      throw new Error("Bridge AI support not yet implemented");
-    },
     buildContext: (view: AiView): AiContext => {
       // Extract recap from rulesState
       const rulesState = (view.public as { rulesState?: unknown })
@@ -1062,9 +1059,6 @@ export const bridgePlugin: GamePlugin = {
         recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
         facts,
       };
-    },
-    applyCandidateId: () => {
-      throw new Error("Bridge AI support not yet implemented");
     },
   },
 };

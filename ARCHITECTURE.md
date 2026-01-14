@@ -638,16 +638,15 @@ Requirements:
 `listLegalIntentsForPlayer` enumerates **atomic legal moves**. This is enough
 for many games.
 
-For complex games, implement **AiSupport** to give the AI better choices:
+For complex games, implement **AiSupport** to provide richer AI context:
 
-- `listCandidates(view, "ai")`: returns **AI-friendly candidates** (can be
-  multi-step macros) derived only from a seat-safe `AiView`.
-- `applyCandidateId(...)`: converts a chosen candidate into a
-  `ClientIntent` **or an array of intents** (multi-step sequence).
+- `buildContext(view)`: returns game-specific recap and facts derived from
+  a seat-safe `AiView`. The recap provides game history summaries, while
+  facts provide structured state information.
 
-The engine remaps these candidates to opaque `c0`, `c1`, ... ids for the LLM.
-Candidate ids returned by `listCandidates` are internal only (still must be
-deterministic and unique).
+The engine builds candidates from `listLegalIntentsForPlayer` and remaps them
+to opaque `c0`, `c1`, ... ids for the LLM. The `buildContext` method enriches
+the AI's decision-making with game-specific context.
 
 ### 8.4 Fireproof Legal Intents (Candidate + Filter Pattern)
 
@@ -661,16 +660,16 @@ This architecture treats `validate` as the **single source of truth** for game r
 
 ### 8.5 Policy flow
 
-When it’s an AI seat’s turn:
+When it's an AI seat's turn:
 
-1. If `AiSupport` is implemented, the engine builds `AiView` and gets
-   `listCandidates(view, "ai")`. Otherwise it uses `listLegalIntentsForPlayer`.
-2. The engine assigns opaque `cX` ids and builds a minimal prompt
+1. The engine calls `listLegalIntentsForPlayer` to get legal moves.
+2. If `AiSupport.buildContext` is implemented, it enriches context with
+   game-specific recap and facts.
+3. The engine assigns opaque `cX` ids and builds a minimal prompt
    (current state, context, available moves, and rules markdown).
-3. The LLM returns a single `cX`.
-4. If `AiSupport` was used, the engine calls `applyCandidateId` to get a
-   `ClientIntent` or `ClientIntent[]`. Otherwise it uses the chosen intent.
-5. Each intent goes through normal validation. Any rejection is a fatal AI error.
+4. The LLM returns a single `cX`.
+5. The engine maps the chosen `cX` back to the original intent.
+6. The intent goes through normal validation. Any rejection is a fatal AI error.
 
 The policy prompt structure is minimal and factual:
 
@@ -709,42 +708,70 @@ standard validation errors instead.
 
 ### 8.7 AI Context and Recap System
 
-The AI subsystem provides game history and context to help AI players make informed decisions.
+The AI receives two types of information:
 
-**Game-Specific Recap System**:
+1. **Candidates** from `listLegalIntentsForPlayer` → what moves are legal (required)
+2. **Context** from `aiSupport.buildContext` → game history and state (strongly encouraged)
 
-Each game implements its own recap via `aiSupport.buildContext()`, stored in `rulesState`:
+Without context, the AI only sees the current board and legal moves—no memory of
+what happened. For good AI play, games SHOULD implement both.
 
-- **Per-game implementation**: Each game defines what history is meaningful for AI context
-- **Stored in rulesState**: Recap array persists across turns as part of game state
-- **Collapsing**: At natural boundaries (hand end, round end), collapse details to summary
-- **Bounded**: Keep recap concise (e.g., last 30-80 entries) to prevent unbounded growth
-- **Seat-safe**: Recap must not leak hidden information from other seats
+**Why Recap Matters**:
 
-Example patterns by game type:
+Card games involve tracking information over time: what cards were played, who
+won which tricks, what was discarded. Without this history, the AI plays "blind"
+and makes poor decisions.
 
-- **Trick-taking (Bridge, Katko)**: Per-trick summaries, collapse to hand summary at hand end
-- **Rummy-style (Canasta, Gin)**: Per-turn summaries (draws, melds, discards), collapse at hand end
+**The Pattern**:
 
-**Reference implementation**: See `bridge.ts` for a complete example.
+1. Store `recap: string[]` in `rulesState` (persists across turns)
+2. Update it during `validate()` as meaningful events occur
+3. Expose it via `aiSupport.buildContext()`
 
-**AiSupport Interface (Optional)**:
+**Recap Best Practices**:
 
-Games can optionally implement the `AiSupport` interface (`backend/src/rules/ai-support.ts`) to provide:
+- Keep entries concise (1 line each)
+- Track meaningful events, not every atomic action
+- Collapse details to summaries at natural boundaries (hand end, round end)
+- Bound the array (e.g., last 50-80 entries) to prevent unbounded growth
+- Never leak hidden information from other seats
 
-- `buildContext(view)`: Return game-specific context including recap and facts
-  - `recap`: Array of strings summarizing game history
-  - `facts`: Structured data like `{ phase: "bidding", trumpSuit: "♠️", mustFollowSuit: true }`
-  - Include only public information visible to the AI seat
-  - Return structured data, not strategy hints
+**Example patterns by game type**:
+
+- **Trick-taking (Bridge, Katko)**: Per-trick summaries → collapse to hand summary
+- **Rummy-style (Canasta, Gin)**: Per-turn summaries → collapse at hand end
+
+**Reference**: See `bridge.ts` for a complete implementation.
+
+**AiSupport Interface**:
+
+```ts
+interface AiSupport {
+  buildContext?(view: AiView): AiContext;
+}
+
+interface AiContext {
+  recap?: string[]; // Game history
+  facts?: Record<string, unknown>; // Structured state
+}
+```
+
+- **recap**: Array of strings summarizing game history
+- **facts**: Structured data like `{ trumpSuit: "♠️", mustFollowSuit: true }`
 
 **Key Principles**:
 
-- Context facts should be **objective game state**, not strategy advice
-- Good examples: `mustFollowSuit: true`, `openingMeldPointsNeeded: 50`
-- Bad examples: `preferLowCards: true` ❌, `avoidRiskyMoves: true` ❌
-- All AI context is automatically filtered to prevent hidden information leakage
-- Default recap is empty array if game doesn't implement buildContext
+- Facts should be **objective state**, not strategy hints
+- Good: `mustFollowSuit: true`, `leadSuit: "hearts"`
+- Bad: `preferLowCards: true` ❌, `avoidRiskyMoves: true` ❌
+- **Fairness**: Facts must only expose information that human players can see
+  on screen. If the UI shows only the top card of a discard pile, facts should
+  include `topDiscardCard` rather than exposing the full pile contents. This
+  ensures AI doesn't have an unfair information advantage over human players.
+
+**Note**: While `aiSupport` is technically optional, games without it have
+significantly weaker AI. All games in this repository should implement
+`buildContext` with at least a basic recap.
 
 ### 8.8 Candidate IDs and output format
 
@@ -808,36 +835,27 @@ interface AiTurnOutput {
 
 #### 8.9.2 Plugin Interface (AiSupport)
 
-Game plugins implement `AiSupport` interface:
+Game plugins can optionally implement `AiSupport` interface for richer AI context:
 
 ```ts
 interface AiSupport {
-  // List candidates for the given seat
-  // audience="ai" may include multi-move macros to reduce count
-  listCandidates(view: AiView, audience: "human" | "ai"): AiCandidate[];
-
   // Build context (recap + facts) from seat-hardened view
   buildContext?(view: AiView): AiContext;
-
-  // Apply chosen candidate ID (may be multi-move macro)
-  applyCandidateId(
-    state: GameState,
-    seat: string,
-    id: string
-  ): ClientIntent | ClientIntent[];
 }
 ```
+
+The engine always uses `listLegalIntentsForPlayer` for candidate generation.
+`AiSupport.buildContext` only enriches the AI's decision context.
 
 #### 8.9.3 Canonical AI Turn Flow
 
 1. **Build seat-hardened view**: `view = buildAiView(state, seatId)`
-2. **Build context**: `context = plugin.buildContext?.(view)` or use stored recap
-3. **List candidates**: `candidates = plugin.listCandidates(view, "ai")`
+2. **List candidates**: `candidates = listLegalIntentsForPlayer(state, seatId)`
+3. **Build context**: `context = plugin.aiSupport?.buildContext?.(view)` (if implemented)
 4. **Sort & validate**: Ensure unique IDs, deterministic order
 5. **Call LLM**: `output = llm(AiTurnInput{view, context, candidates})`
 6. **Strict parse**: Validate `output.id` exists in `candidates[].id`
-7. **Apply**: `intents = plugin.applyCandidateId(state, seatId, output.id)`
-8. **Execute**: Process intent(s) through normal rule validation
+7. **Execute**: Process chosen intent through normal rule validation
 
 #### 8.9.4 Recap Management
 
@@ -859,29 +877,34 @@ Example recap (Gin Rummy):
 ];
 ```
 
-#### 8.9.5 Multi-Move AI Candidates
+#### 8.9.5 Multi-Card Move Intents
 
-To reduce candidate count for AI, plugins may return macro candidates:
+For rummy-style games where players meld multiple cards at once, use multi-card
+move intents in `listLegalIntentsForPlayer`:
 
 ```ts
+// Multi-card meld (e.g., 3 Kings at once)
 {
-  id: "ai:macro:follow-suit-lowest",
-  summary: "Follow suit with lowest card"
+  type: "move",
+  gameId,
+  playerId,
+  fromPileId: "P1-hand",
+  toPileId: "P1-meld-K",
+  cardIds: [42, 43, 44],  // Array of card IDs
 }
 ```
 
-Engine treats these as opaque IDs. Plugin's `applyCandidateId` expands them:
+This reduces AI decision space by presenting complete melds as single choices
+rather than requiring the AI to plan sequences of individual moves.
 
-```ts
-applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
-  const lowestCard = findLowestCardInSuit(state, seat, ledSuit);
-  return { type: "move", playerId: seat, cardId: lowestCard, ... };
-}
-```
+**Important:** When generating multi-card candidates, filter out redundant
+single-card moves for the same cards to the same destination. Otherwise the AI
+sees both `Move 3 cards (10♠, J♠, Q♠)` AND individual `Move 10♠`, `Move J♠`,
+`Move Q♠` options, which confuses the LLM. Track which cards are covered by
+multi-card intents and skip them when generating single-card moves to the same
+destination type.
 
-**Key constraint**: Multi-move candidates are **AI-only** (`audience="ai"`). Human UI shows atomic moves only (`audience="human"`).
-
-#### 8.5.6 Example Contract Snapshot
+#### 8.9.6 Example Contract Snapshot
 
 **Engine → LLM:**
 
@@ -900,8 +923,8 @@ applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
     "facts": { "mustFollowSuit": true, "ledSuit": "♣" }
   },
   "candidates": [
-    { "id": "play:c17", "summary": "Play A♣" },
-    { "id": "ai:macro:follow-suit-lowest", "summary": "Follow suit with lowest club" }
+    { "id": "c0", "summary": "Play A♣" },
+    { "id": "c1", "summary": "Play 7♣" }
   ]
 }
 ```
@@ -910,36 +933,8 @@ applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
 
 ```json
 {
-  "id": "ai:macro:follow-suit-lowest"
+  "id": "c0"
 }
-```
-
-#### 8.5.7 Migration Checklist
-
-- [x] New types in `shared/src/ai/types.ts` (✓ done)
-- [x] AiSupport plugin interface (✓ done)
-- [x] Game-specific recap via `rulesState.recap` and `buildContext()` (✓ done)
-- [x] New prompt builder (`buildAiMessages`) (✓ done)
-- [x] New parser (`parseAiOutput`) with strict validation (✓ done)
-- [x] Update AI turn pipeline to use new flow (✓ done)
-- [x] Remove legacy types and dead code (✓ done)
-- [x] Update simplified AiCandidate schema (✓ done)
-- [x] Add AiSupport optional field to GamePlugin interface (✓ done)
-- [x] Implement example AiSupport for Briscola demonstrating:
-  - listCandidates with regular + macro candidates
-  - buildContext with recap + facts
-  - applyCandidateId for single and multi-move macros
-- [ ] Migrate remaining games to AiSupport interface (optional)
-  - Games can use default candidate generation via listLegalIntentsForPlayer
-  - AiSupport is optional for games that want advanced AI features
-- [x] Tests pass with new contract
-- [x] Documentation updated in ARCHITECTURE.md
-
-**Status:** Core AI contract is active. Games can use `listLegalIntentsForPlayer`
-alone or add `AiSupport` for multi-move macros and richer context.
-
-```
-
 ```
 
 ---

@@ -1076,6 +1076,7 @@ export const ginRules: GameRuleModule = {
       // Generate multi-card meld candidates for defender's own melds
       // This allows the AI to form new melds efficiently to reduce deadwood
       const meldCandidates = generateGinMeldCandidates(handCards);
+      const cardsCoveredByMultiMeld = new Set<number>();
       for (const cardIds of meldCandidates) {
         for (const meldPileId of defenderMelds) {
           const pileSize = state.piles[meldPileId]?.size ?? 0;
@@ -1090,13 +1091,17 @@ export const ginRules: GameRuleModule = {
             };
             if (this.validate(state, candidate).valid) {
               intents.push(candidate);
+              // Track cards covered by this multi-card meld
+              for (const id of cardIds) {
+                cardsCoveredByMultiMeld.add(id);
+              }
             }
             break; // Only add to first empty meld pile
           }
         }
       }
 
-      // Single card layoffs to knocker's melds and defender's own melds
+      // Single card layoffs to knocker's melds (always needed - these are layoffs)
       for (const card of handCards) {
         for (const meldPileId of meldPileIdsForPlayer(knocker)) {
           const candidate: ClientIntent = {
@@ -1111,6 +1116,12 @@ export const ginRules: GameRuleModule = {
             intents.push(candidate);
           }
         }
+      }
+
+      // Single card moves to defender's own melds
+      // Skip cards already covered by multi-card meld candidates (reduces AI noise)
+      for (const card of handCards) {
+        if (cardsCoveredByMultiMeld.has(card.id)) continue;
         for (const meldPileId of defenderMelds) {
           const candidate: ClientIntent = {
             type: "move",
@@ -1219,6 +1230,7 @@ export const ginRules: GameRuleModule = {
 
       // Generate multi-card meld candidates for AI efficiency
       const meldCandidates = generateGinMeldCandidates(handCards);
+      const cardsCoveredByMultiMeld = new Set<number>();
       for (const cardIds of meldCandidates) {
         // Determine which meld pile to use - use first empty meld pile
         const meldPiles = meldPileIdsForPlayer(playerId);
@@ -1235,13 +1247,17 @@ export const ginRules: GameRuleModule = {
             };
             if (this.validate(state, candidate).valid) {
               intents.push(candidate);
+              // Track cards covered by this multi-card meld
+              for (const id of cardIds) {
+                cardsCoveredByMultiMeld.add(id);
+              }
             }
             break; // Only add to first empty meld pile
           }
         }
       }
 
-      // Keep single-card discards
+      // Keep single-card discards (always needed)
       for (const card of handCards) {
         const candidate: ClientIntent = {
           type: "move",
@@ -1257,7 +1273,9 @@ export const ginRules: GameRuleModule = {
       }
 
       // Single-card melds for building/extending
+      // Skip cards already covered by multi-card meld candidates (reduces AI noise)
       for (const card of handCards) {
+        if (cardsCoveredByMultiMeld.has(card.id)) continue;
         for (const meldPileId of meldPileIdsForPlayer(playerId)) {
           const candidate: ClientIntent = {
             type: "move",
@@ -2041,15 +2059,23 @@ export const ginPlugin: GamePlugin = {
       pileId.endsWith("-hand") || pileId.includes("-meld-"),
   },
   aiSupport: {
-    listCandidates: () => {
-      // Gin Rummy uses default candidate generation from listLegalIntentsForPlayer
-      throw new Error("Gin Rummy uses default candidate generation");
-    },
     buildContext: (view: AiView): AiContext => {
       const rulesState = getGinRulesState(
         (view.public as { rulesState?: unknown }).rulesState,
         ["P1", "P2"]
       );
+
+      // Get top card of discard pile (this is what human players see)
+      const publicView = view.public as {
+        piles?: Array<{
+          id: string;
+          cards?: Array<{ rank?: string; suit?: string }>;
+        }>;
+      };
+      const discardPile = publicView.piles?.find((p) => p.id === "discard");
+      const discardCards = discardPile?.cards ?? [];
+      const topDiscardCard =
+        discardCards.length > 0 ? discardCards[discardCards.length - 1] : null;
 
       // Basic facts from game state (no strategy, just state reflection)
       const facts: Record<string, unknown> = {
@@ -2057,6 +2083,10 @@ export const ginPlugin: GamePlugin = {
         turnPhase: rulesState.turnPhase,
         dealNumber: rulesState.dealNumber,
         matchScores: rulesState.matchScores,
+        // Show only the top discard card (what humans see on screen)
+        topDiscardCard: topDiscardCard
+          ? `${topDiscardCard.rank ?? "?"}${topDiscardCard.suit === "spades" ? "♠" : topDiscardCard.suit === "hearts" ? "♥" : topDiscardCard.suit === "diamonds" ? "♦" : topDiscardCard.suit === "clubs" ? "♣" : "?"}`
+          : null,
       };
 
       // Add knock-related info if relevant
@@ -2069,10 +2099,6 @@ export const ginPlugin: GamePlugin = {
         recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
         facts,
       };
-    },
-    applyCandidateId: () => {
-      // Gin Rummy uses default candidate handling
-      throw new Error("Gin Rummy uses default candidate handling");
     },
   },
 };

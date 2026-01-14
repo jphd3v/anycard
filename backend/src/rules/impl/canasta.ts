@@ -2,7 +2,6 @@ import type {
   GameRuleModule,
   GamePlugin,
   ValidationHints,
-  AiSupport,
 } from "../interface.js";
 import type {
   ValidationState,
@@ -12,14 +11,8 @@ import type {
   ActionGrid,
   ClientIntent,
   Scoreboard,
-  GameState,
 } from "../../../../shared/schemas.js";
-import type {
-  AiView,
-  AiCandidate,
-  AiContext,
-} from "../../../../shared/src/ai/types.js";
-import type { CandidateAudience } from "../ai-support.js";
+import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
 import type {
   EngineEvent,
   ValidationResult,
@@ -2316,167 +2309,30 @@ export const canastaRules: GameRuleModule = {
 
 /**
  * AI Support for Canasta.
- * Generates multi-card meld candidates to collapse the decision space.
+ * Provides context (recap + facts) for AI decision making.
  */
-const canastaAiSupport: AiSupport = {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  listCandidates(view: AiView, _audience: CandidateAudience): AiCandidate[] {
-    const publicData = view.public as {
-      piles: Array<{
-        id: string;
-        ownerId?: string;
-        cards?: Array<{ id: number; rank: string; suit: string }>;
-      }>;
-      rulesState?: unknown;
-      actions?: Array<{ id: string; label: string }>;
-    };
-
-    const rulesState = getRulesState(publicData.rulesState);
-    if (rulesState.phase !== "playing") {
-      return [];
-    }
-
-    const seat = view.seat;
-    const team = teamFor(seat);
-    const candidates: AiCandidate[] = [];
-
-    // Find player's hand
-    const handPile = publicData.piles.find(
-      (p) => p.id === `${seat}-hand` && p.ownerId === seat
-    );
-    const hand = handPile?.cards ?? [];
-
-    if (hand.length === 0) {
-      return [];
-    }
-
-    // Phase-specific candidates
-    if (rulesState.turnPhase === "must-draw") {
-      // Only draw actions available
-      if (publicData.actions) {
-        for (const action of publicData.actions) {
-          candidates.push({
-            id: `action:${action.id}`,
-            summary: action.label,
-          });
-        }
-      }
-      return candidates;
-    }
-
-    // In "meld-or-discard" phase: generate meld and discard candidates
-
-    // 1. Group hand by rank (for meld candidates)
-    const byRank = new Map<string, number[]>();
-    const wilds: number[] = [];
-
-    for (const card of hand) {
-      if (card.rank === "2" || card.rank === "Joker") {
-        wilds.push(card.id);
-      } else if (
-        MELD_RANKS.includes(card.rank as (typeof MELD_RANKS)[number])
-      ) {
-        const existing = byRank.get(card.rank) ?? [];
-        existing.push(card.id);
-        byRank.set(card.rank, existing);
-      }
-    }
-
-    // 2. Generate new meld candidates (3+ cards of same rank)
-    for (const [rank, cardIds] of byRank.entries()) {
-      const naturalCount = cardIds.length;
-
-      // Pure natural meld (3+ naturals, no wilds)
-      if (naturalCount >= 3) {
-        candidates.push({
-          id: `meld:new:${rank}:${cardIds.slice(0, 3).join(",")}`,
-          summary: `Meld 3 ${rank}s`,
-        });
-      }
-
-      // Meld with 1 wild (2 naturals + 1 wild)
-      if (naturalCount >= 2 && wilds.length >= 1) {
-        candidates.push({
-          id: `meld:new:${rank}:${cardIds.slice(0, 2).join(",")},${wilds[0]}`,
-          summary: `Meld 2 ${rank}s + wild`,
-        });
-      }
-
-      // Meld with 2 wilds (2 naturals + 2 wilds)
-      if (naturalCount >= 2 && wilds.length >= 2) {
-        candidates.push({
-          id: `meld:new:${rank}:${cardIds.slice(0, 2).join(",")},${wilds[0]},${wilds[1]}`,
-          summary: `Meld 2 ${rank}s + 2 wilds`,
-        });
-      }
-    }
-
-    // 3. Generate add-to-existing-meld candidates
-    const teamMeldPiles = publicData.piles.filter(
-      (p) =>
-        p.id.startsWith(`${team}-`) &&
-        p.id.includes("-meld") &&
-        p.cards &&
-        p.cards.length >= 3
-    );
-
-    for (const meldPile of teamMeldPiles) {
-      const meldCards = meldPile.cards ?? [];
-      if (meldCards.length === 0) continue;
-
-      // Determine meld rank (first natural card)
-      const firstNatural = meldCards.find(
-        (c) => c.rank !== "2" && c.rank !== "Joker"
-      );
-      if (!firstNatural) continue;
-      const meldRank = firstNatural.rank;
-
-      // Add matching naturals
-      const matchingNaturals = byRank.get(meldRank) ?? [];
-      if (matchingNaturals.length > 0) {
-        candidates.push({
-          id: `meld:add:${meldPile.id}:${matchingNaturals.join(",")}`,
-          summary: `Add ${matchingNaturals.length} ${meldRank}${matchingNaturals.length > 1 ? "s" : ""} to meld`,
-        });
-      }
-
-      // Add wilds
-      if (wilds.length > 0) {
-        candidates.push({
-          id: `meld:add:${meldPile.id}:${wilds.join(",")}`,
-          summary: `Add ${wilds.length} wild${wilds.length > 1 ? "s" : ""} to ${meldRank} meld`,
-        });
-      }
-    }
-
-    // 4. Discard candidates (one per card in hand)
-    for (const card of hand) {
-      const label = `${card.rank}${card.suit.charAt(0)}`;
-      candidates.push({
-        id: `discard:${card.id}`,
-        summary: `Discard ${label}`,
-      });
-    }
-
-    // 5. Action candidates (e.g., commit turn)
-    if (publicData.actions) {
-      for (const action of publicData.actions) {
-        candidates.push({
-          id: `action:${action.id}`,
-          summary: action.label,
-        });
-      }
-    }
-
-    return candidates;
-  },
-
+const canastaAiSupport = {
   buildContext(view: AiView): AiContext {
     const publicData = view.public as {
-      piles?: Array<{ id: string; totalCards?: number }>;
+      piles?: Array<{
+        id: string;
+        totalCards?: number;
+        cards?: Array<{ rank?: string; suit?: string; rotationDeg?: number }>;
+      }>;
       rulesState?: unknown;
     };
     const rulesState = getRulesState(publicData.rulesState);
+
+    // Get top card of discard pile (this is what human players see)
+    const discardPile = publicData.piles?.find((p) => p.id === "discard");
+    const discardCards = discardPile?.cards ?? [];
+    const topDiscardCard =
+      discardCards.length > 0 ? discardCards[discardCards.length - 1] : null;
+
+    // Check if pile is frozen (indicated by a rotated card - wild or red three)
+    const pileIsFrozen = discardCards.some(
+      (c) => c.rotationDeg && c.rotationDeg !== 0
+    );
 
     // Build facts
     const team = teamFor(view.seat);
@@ -2490,86 +2346,17 @@ const canastaAiSupport: AiSupport = {
       team,
       teamHadMeldAtTurnStart: rulesState.turnStartTeamHadMeld?.[team] ?? false,
       teamHasMeldNow,
+      // Show only the top discard card (what humans see on screen)
+      topDiscardCard: topDiscardCard
+        ? `${topDiscardCard.rank ?? "?"}${topDiscardCard.suit === "spades" ? "♠" : topDiscardCard.suit === "hearts" ? "♥" : topDiscardCard.suit === "diamonds" ? "♦" : topDiscardCard.suit === "clubs" ? "♣" : "?"}`
+        : null,
+      pileIsFrozen,
     };
 
     return {
       recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
       facts,
     };
-  },
-
-  applyCandidateId(
-    state: GameState,
-    seat: string,
-    candidateId: string
-  ): ClientIntent | ClientIntent[] {
-    const team = teamFor(seat);
-
-    // Parse candidate ID format
-    if (candidateId.startsWith("meld:new:")) {
-      // Format: meld:new:<rank>:<cardId1>,<cardId2>,...
-      const parts = candidateId.split(":");
-      const rank = parts[2];
-      const cardIds = parts[3].split(",").map((id) => parseInt(id, 10));
-
-      // Find next available meld pile for this rank
-      const existingMelds = Object.values(state.piles).filter((p) =>
-        p.id.startsWith(`${team}-${rank}-meld`)
-      );
-      const nextIndex = existingMelds.length;
-      const toPileId = `${team}-${rank}-meld-${nextIndex}`;
-
-      return {
-        type: "move",
-        gameId: state.gameId,
-        playerId: seat,
-        fromPileId: `${seat}-hand`,
-        toPileId,
-        cardIds,
-      };
-    }
-
-    if (candidateId.startsWith("meld:add:")) {
-      // Format: meld:add:<pileId>:<cardId1>,<cardId2>,...
-      const parts = candidateId.split(":");
-      const toPileId = parts[2];
-      const cardIds = parts[3].split(",").map((id) => parseInt(id, 10));
-
-      return {
-        type: "move",
-        gameId: state.gameId,
-        playerId: seat,
-        fromPileId: `${seat}-hand`,
-        toPileId,
-        cardIds,
-      };
-    }
-
-    if (candidateId.startsWith("discard:")) {
-      // Format: discard:<cardId>
-      const cardId = parseInt(candidateId.substring(8), 10);
-      return {
-        type: "move",
-        gameId: state.gameId,
-        playerId: seat,
-        fromPileId: `${seat}-hand`,
-        toPileId: "discard",
-        cardId,
-      };
-    }
-
-    if (candidateId.startsWith("action:")) {
-      // Format: action:<actionId>
-      const action = candidateId.substring(7);
-      return {
-        type: "action",
-        gameId: state.gameId,
-        playerId: seat,
-        action,
-      };
-    }
-
-    throw new Error(`Unknown candidate ID: ${candidateId}`);
   },
 };
 

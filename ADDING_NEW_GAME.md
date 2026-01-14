@@ -1422,24 +1422,33 @@ for (const cardIdStr of Object.keys(state.allCards)) {
 3.  **Hiding is not Emptiness.** A pile with `size: 5` and `cards: undefined` is not empty; it's just hidden.
 4.  **Publicity on End.** Many games (like Gin Rummy) reveal all hands at the end. Your local projection should handle the transition from hidden to public if the phase changes to `ended`.
 
-### 5.15 AI Context (Optional Advanced Support)
+### 5.15 AI Context: Recap and Facts
 
-For complex games, you can optionally provide additional AI context beyond basic legal move enumeration.
+The AI system has two sources of information for making decisions:
 
-**Game-Specific Recap System:**
+1. **Candidates** from `listLegalIntentsForPlayer` → what moves are legal (required)
+2. **Context** from `aiSupport.buildContext` → game history and state facts (strongly encouraged)
 
-Each game SHOULD implement its own recap that summarizes game history in a way
-that's useful for AI decision making. The recap is an array of strings stored
-in `rulesState`, returned via `buildContext()`.
+Without context, the AI only sees the current board state and legal moves. It has no memory of what happened earlier in the game. For good AI play, you SHOULD implement both.
 
-Best practices:
+#### Recap: Game History for AI
+
+**Why recap matters:** Card games involve tracking information over time—what cards were played, who won which tricks, what was discarded. Without this history, the AI plays "blind" and makes poor decisions.
+
+**The pattern:**
+
+1. Store `recap: string[]` in your `rulesState` (persists across turns)
+2. Update it during `validate()` as meaningful events occur
+3. Expose it via `aiSupport.buildContext()`
+
+**Best practices:**
 
 - Keep entries concise (1 line each)
-- Store recap in `rulesState` so it persists across turns
-- Collapse detailed entries to summaries at natural boundaries (e.g., end of hand)
 - Track meaningful events, not every atomic action
+- Collapse detailed entries to summaries at natural boundaries (e.g., end of hand)
+- Bound the array size (e.g., last 50-80 entries) to prevent unbounded growth
 
-Examples by game type:
+**Examples by game type:**
 
 - **Trick-taking games (Bridge, Katko):**
   - Per trick: `"Trick 3: P1 K♠️, P2 7♠️ → P1 wins"`
@@ -1449,47 +1458,58 @@ Examples by game type:
   - Per turn: `"P2: drew from stock, melded 3 cards, discarded K♠️"`
   - At hand end, collapse to: `"Hand 1: P3 went out. Scores: A=150, B=-50"`
 
-**Reference:** See `bridge.ts` for a complete implementation example.
+#### Facts: Structured State for AI
 
-**AiSupport Interface (Optional):**
+Facts are optional structured data about the current game state. Use them for information that's important for decision-making but not obvious from the board:
 
-For games that need richer AI context (recap + facts), implement the
-`AiSupport` interface in your rule module. If you don't need it, omit
-`aiSupport` entirely—the AI will still work using `listLegalIntentsForPlayer`.
+- `phase: "bidding"` or `"playing"`
+- `trumpSuit: "spades"`
+- `mustFollowSuit: true`
+- `leadSuit: "hearts"`
+
+Facts should be **objective state**, not strategy hints.
+
+#### Implementation
 
 ```typescript
-import type { AiSupport } from "../ai-support.js";
-import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
-
-// In your rulesState interface:
+// 1. Add recap to your rulesState interface:
 interface MyGameRulesState {
   // ... other fields ...
-  recap: string[]; // AI context: game history summaries
+  recap: string[]; // Game history for AI
 }
 
-// In your plugin:
+// 2. Update recap during validate():
+nextRulesState.recap = [
+  ...rulesState.recap,
+  `${playerId}: played ${formatCard(card)}`,
+];
+
+// 3. Implement buildContext in your plugin:
 aiSupport: {
   buildContext: (view: AiView): AiContext => {
     const rulesState = getRulesState(
       (view.public as { rulesState?: unknown }).rulesState
     );
 
-    const facts: Record<string, unknown> = {
-      phase: rulesState.phase,
-      // Add game-specific facts here
-    };
-
     return {
       recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
-      facts,
+      facts: {
+        phase: rulesState.phase,
+        // Add game-specific facts here
+      },
     };
   },
 },
 ```
 
-The `buildContext` method provides the AI with game history (recap) and
-structured facts about the current state. This helps the AI make better
-decisions without duplicating logic from `listLegalIntentsForPlayer`.
+**Reference:** See `bridge.ts` for a complete implementation with recap collapsing at hand boundaries.
+
+**Fairness Principle:** Facts must only expose information that human players can
+see on screen. For example, if the UI renders a discard pile showing only the
+top card, include `topDiscardCard: "K♠"` in facts rather than exposing all pile
+contents. This ensures AI has no unfair information advantage over humans.
+
+**Note:** While `aiSupport` is technically optional, games without it will have significantly weaker AI play. All games in this repository should implement `buildContext` with at least a basic recap.
 
 **Pile Projection Utility:**
 
@@ -1855,6 +1875,40 @@ if (intent.type === "move") {
 - **Reduces AI decision space**: Instead of 30-50 micro-moves, AI sees ~10 meaningful meld choices.
 - **Atomic validation**: The complete meld is validated as one unit, preventing invalid partial states.
 - **Clearer intent**: Multi-card moves make the player's intention explicit.
+
+**Filtering redundant single-card moves:**
+
+When you generate multi-card candidates, filter out redundant single-card moves for the same cards to the same destination. Otherwise the AI sees both options and may choose the inefficient single-card path.
+
+```typescript
+// Track cards already covered by multi-card intents
+const cardsCoveredByMultiCard = new Set<number>();
+
+// Generate multi-card candidates first
+for (const cardIds of multiCardCandidates) {
+  if (this.validate(state, candidate).valid) {
+    intents.push(candidate);
+    // Mark these cards as covered
+    for (const id of cardIds) {
+      cardsCoveredByMultiCard.add(id);
+    }
+  }
+}
+
+// Single-card moves: skip cards already covered
+for (const card of handCards) {
+  if (cardsCoveredByMultiCard.has(card.id)) continue;
+  // ... generate single-card move candidates to same destination
+}
+```
+
+This optimization:
+
+- Reduces candidate count significantly (e.g., 32 → 20)
+- Prevents LLM confusion from redundant choices
+- Ensures AI picks the efficient multi-card option
+
+**Note:** Only filter single-card moves to the **same destination** as the multi-card intent. Single-card moves to different destinations (e.g., layoffs to opponent's piles in rummy games) should still be offered since they serve a different purpose.
 
 ---
 

@@ -443,10 +443,6 @@ export const katkoPlugin: GamePlugin = {
     sharedPileIds: ["deck", "trick", "discard", "P1-hand", "P2-hand"],
   },
   aiSupport: {
-    listCandidates: () => {
-      // Katko uses default candidate generation from listLegalIntentsForPlayer
-      throw new Error("Katko uses default candidate generation");
-    },
     buildContext: (view: AiView): AiContext => {
       const rulesState = getRulesState(
         (view.public as { rulesState?: unknown }).rulesState
@@ -468,10 +464,6 @@ export const katkoPlugin: GamePlugin = {
         recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
         facts,
       };
-    },
-    applyCandidateId: () => {
-      // Katko uses default candidate handling
-      throw new Error("Katko uses default candidate handling");
     },
   },
 };

@@ -144,7 +144,10 @@
     "lastDrawSource": null,
     "knockPlayer": null,
     "knockType": "none",
-    "layoffCardIds": []
+    "layoffCardIds": [],
+    "matchScores": { "P1": 0, "P2": 0 },
+    "handWins": { "P1": 0, "P2": 0 },
+    "matchWinner": null
   },
   "scoreboards": [
     {
