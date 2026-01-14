@@ -89,6 +89,7 @@
     },
     "S-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "rank-asc",
         "options": [
@@ -127,6 +128,7 @@
     },
     "W-hand": {
       "layout": "vertical",
+      "isHand": true,
       "sort": {
         "default": "rank-asc",
         "options": [
@@ -165,6 +167,7 @@
     },
     "N-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "rank-asc",
         "options": [
@@ -203,6 +206,7 @@
     },
     "E-hand": {
       "layout": "vertical",
+      "isHand": true,
       "sort": {
         "default": "rank-asc",
         "options": [

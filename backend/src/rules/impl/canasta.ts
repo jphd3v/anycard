@@ -990,6 +990,7 @@ function recomputeDerived(
     {
       layout?: "complete" | "horizontal" | "vertical" | "spread";
       label?: string;
+      isHand?: boolean;
     }
   > = {};
   for (const team of ["A", "B"] as const) {

@@ -121,12 +121,21 @@ export function GameRoot({
 
     if (lastAction.action === "start-game") return;
 
-    // Find the zone for this player
+    // Find the zone for this player, preferring the one containing their hand
+    const handPileId = Object.entries(layout?.pileStyles ?? {}).find(
+      ([pId, style]) =>
+        style.isHand &&
+        view.piles.find((p) => p.id === pId)?.ownerId === lastAction.playerId
+    )?.[0];
+
     const zoneId = layout?.zones.find((z) =>
-      z.piles.some(
-        (pId) =>
-          view.piles.find((p) => p.id === pId)?.ownerId === lastAction.playerId
-      )
+      handPileId
+        ? z.piles.includes(handPileId)
+        : z.piles.some(
+            (pId) =>
+              view.piles.find((p) => p.id === pId)?.ownerId ===
+              lastAction.playerId
+          )
     )?.id;
 
     if (zoneId && zoneRefs.current[zoneId]) {

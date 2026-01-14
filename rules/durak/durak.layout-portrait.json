@@ -37,6 +37,7 @@
   "pileStyles": {
     "P1-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "suit-rank",
         "options": [
@@ -63,6 +64,7 @@
     },
     "P2-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "suit-rank",
         "options": [

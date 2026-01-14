@@ -23,8 +23,8 @@
     }
   ],
   "pileStyles": {
-    "P1-hand": { "layout": "horizontal" },
-    "P2-hand": { "layout": "horizontal" },
+    "P1-hand": { "layout": "horizontal", "isHand": true },
+    "P2-hand": { "layout": "horizontal", "isHand": true },
     "P1-won": { "layout": "complete", "showDetails": true },
     "P2-won": { "layout": "complete", "showDetails": true },
     "table": { "layout": "spread" }

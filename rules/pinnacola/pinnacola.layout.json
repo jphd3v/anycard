@@ -70,6 +70,7 @@
   "pileStyles": {
     "P1-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "allowViewerToggle": true,
       "sort": {
         "default": "rank-asc",
@@ -122,7 +123,7 @@
     },
     "P2-hand": {
       "layout": "horizontal",
-      "allowViewerToggle": true,
+      "isHand": true,
       "sort": {
         "default": "rank-asc",
         "options": [

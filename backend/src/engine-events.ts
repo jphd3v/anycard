@@ -42,7 +42,10 @@ export function emitFatalErrorEvent(
 
 export function emitSetPilePropertiesEvent(
   gameId: string,
-  properties: Record<string, { layout?: PileLayout; label?: string }>,
+  properties: Record<
+    string,
+    { layout?: PileLayout; label?: string; isHand?: boolean }
+  >,
   appendEventCallback: (gameId: string, event: GameEvent) => void
 ): void {
   const event: GameEvent = {

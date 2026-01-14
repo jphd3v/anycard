@@ -51,6 +51,7 @@
   "pileStyles": {
     "N-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "ascending",
         "allowViewerToggle": true,
@@ -86,6 +87,7 @@
     },
     "S-hand": {
       "layout": "horizontal",
+      "isHand": true,
       "sort": {
         "default": "ascending",
         "allowViewerToggle": true,
@@ -121,6 +123,7 @@
     },
     "W-hand": {
       "layout": "vertical",
+      "isHand": true,
       "sort": {
         "default": "ascending",
         "allowViewerToggle": true,
@@ -156,6 +159,7 @@
     },
     "E-hand": {
       "layout": "vertical",
+      "isHand": true,
       "sort": {
         "default": "ascending",
         "allowViewerToggle": true,

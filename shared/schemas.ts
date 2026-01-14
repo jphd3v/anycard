@@ -115,6 +115,7 @@ export type Scoreboard = z.infer<typeof ScoreboardSchema>;
 export const PilePropertyOverridesSchema = z.object({
   layout: PileLayoutSchema.optional(),
   label: z.string().optional(),
+  isHand: z.boolean().optional(),
 });
 
 export const GameStateSchema = z.object({
@@ -570,6 +571,7 @@ export type LayoutZone = z.infer<typeof LayoutZoneSchema>;
 
 export const LayoutPileStyleSchema = z.object({
   layout: z.string().optional(),
+  isHand: z.boolean().optional(),
   className: z.string().optional(),
   label: z.string().optional(),
   hideTitle: z.boolean().optional(),

@@ -541,6 +541,7 @@ The layout describes where piles and UI widgets appear in the table view.
   stocks) or games that truly demand a single top card. If in doubt, fan hands.
 - Layout JSON **must** validate against `GameLayoutSchema` (`shared/schemas.ts`).
   - Always include `"rulesId": "<rulesId>"` at the top-level.
+  - Mark player hand piles with `"isHand": true` inside the `pileStyles` object. This is used for targeting animations (e.g. `lastAction`) and ensuring they originate or terminate at the correct player's hand.
   - Ensure the file is valid JSON (no trailing commas, no comments).
 
 ### 4.1 Grid basics
