@@ -137,6 +137,7 @@ export function Pile({
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
+    isolation: "isolate",
   };
 
   // Adjust container size for fanned piles so they take up space in the grid

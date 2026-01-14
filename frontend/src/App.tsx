@@ -416,6 +416,8 @@ function getDynamicDuration(queueLength: number, isMyTurn: boolean): number {
 
 const DEFAULT_CARD_FLIP_MS = 320;
 const MAX_TRANSITION_CARDS_PER_PILE = 24;
+const MAX_TRANSITION_CARDS = 80;
+const MAX_HEADER_TRANSITION_CARDS = 8;
 
 type PileTransitionConfig = {
   layoutsByPileId: Record<string, string | undefined>;
@@ -455,6 +457,27 @@ function shouldAnimatePileReflow(
   }
   if (layout === "horizontal" || layout === "vertical") {
     return config.isHandByPileId[pileId] || config.hasSortByPileId[pileId];
+  }
+  return false;
+}
+
+function didPileOrderChange(
+  pileId: string,
+  prevView: GameView,
+  nextView: GameView
+): boolean {
+  const prevPile = prevView.piles.find((pile) => pile.id === pileId);
+  const nextPile = nextView.piles.find((pile) => pile.id === pileId);
+  if (!prevPile || !nextPile) {
+    return false;
+  }
+  if (prevPile.cards.length !== nextPile.cards.length) {
+    return true;
+  }
+  for (let i = 0; i < prevPile.cards.length; i += 1) {
+    if (prevPile.cards[i]?.id !== nextPile.cards[i]?.id) {
+      return true;
+    }
   }
   return false;
 }
@@ -1644,14 +1667,20 @@ export default function App() {
         const pileTransitionConfig = pileTransitionConfigRef.current;
         const fromVisible = visiblePileIds.has(event.fromPileId);
         const toVisible = visiblePileIds.has(event.toPileId);
-        const entryCards =
+        const entryCardsRaw =
           !fromVisible && toVisible
             ? getCardViewsForIds(nextWorkingView, event.cardIds)
             : [];
-        const exitCards =
+        const exitCardsRaw =
           fromVisible && !toVisible
             ? getCardViewsForIds(nextWorkingView, event.cardIds)
             : [];
+        const entryCards =
+          entryCardsRaw.length > MAX_HEADER_TRANSITION_CARDS
+            ? []
+            : entryCardsRaw;
+        const exitCards =
+          exitCardsRaw.length > MAX_HEADER_TRANSITION_CARDS ? [] : exitCardsRaw;
         const hasHeaderAnchors = entryCards.length > 0 || exitCards.length > 0;
 
         flushSync(() => {
@@ -1673,6 +1702,9 @@ export default function App() {
             ) {
               return;
             }
+            if (!didPileOrderChange(pileId, workingView, nextWorkingView)) {
+              return;
+            }
             for (const card of pile.cards) {
               transitionIds.add(card.id);
             }
@@ -1680,6 +1712,16 @@ export default function App() {
 
           addPileCards(event.fromPileId);
           addPileCards(event.toPileId);
+
+          if (transitionIds.size > MAX_TRANSITION_CARDS) {
+            transitionIds.clear();
+            for (const id of movingIds) {
+              transitionIds.add(id);
+              if (transitionIds.size >= MAX_TRANSITION_CARDS) {
+                break;
+              }
+            }
+          }
 
           setActiveTransitionCardIds(transitionIds);
           setHeaderTransitionCards(entryCards);
