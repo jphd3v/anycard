@@ -743,6 +743,7 @@ body,
   ); /* Slow card view transitions ~2x for moves */
   animation-timing-function: var(--card-move-ease, ease-in-out);
   pointer-events: none;
+  z-index: 9999; /* Ensure animated cards appear on top of everything */
 }
 
 .card-scene {
