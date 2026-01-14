@@ -23,6 +23,7 @@ import {
   rulesIdAtom,
   activeTransitionCardIdsAtom,
   cardSetAtom,
+  pendingDragMoveAtom,
   fatalErrorAtom,
   aiLogAtom,
   isMenuOpenAtom,
@@ -41,6 +42,7 @@ import {
   type StatusMessage,
   type AvailableGame,
   type RecentGameEntry,
+  type PendingDragMove,
 } from "./state";
 import {
   CARD_SETS,
@@ -256,6 +258,40 @@ function applyViewEventToView(
   }
 }
 
+function applyOptimisticDragMove(
+  prev: GameView,
+  move: PendingDragMove
+): GameView {
+  const fromPile = prev.piles.find((pile) => pile.id === move.fromPileId);
+  const toPile = prev.piles.find((pile) => pile.id === move.toPileId);
+  if (!fromPile || !toPile) {
+    return prev;
+  }
+  const cardIndex = fromPile.cards.findIndex((card) => card.id === move.cardId);
+  if (cardIndex === -1) {
+    return prev;
+  }
+  const movingCard = fromPile.cards[cardIndex];
+
+  const piles = prev.piles.map((pile) => {
+    if (pile.id === move.fromPileId) {
+      return {
+        ...pile,
+        cards: pile.cards.filter((card) => card.id !== move.cardId),
+      };
+    }
+    if (pile.id === move.toPileId) {
+      return {
+        ...pile,
+        cards: [...pile.cards, movingCard],
+      };
+    }
+    return pile;
+  });
+
+  return { ...prev, piles };
+}
+
 function applyMoveRevealToView(
   prev: GameView,
   event: ViewEventPayload
@@ -445,6 +481,7 @@ export default function App() {
   const setRuleEngineMode = useSetAtom(ruleEngineModeAtom);
   const setIsConnected = useSetAtom(isConnectedAtom);
   const setActiveTransitionCardIds = useSetAtom(activeTransitionCardIdsAtom);
+  const setPendingDragMove = useSetAtom(pendingDragMoveAtom);
   const setFatalError = useSetAtom(fatalErrorAtom);
   const setAiLog = useSetAtom(aiLogAtom);
   const [startingGameType, setStartingGameType] = useState<string | null>(null);
@@ -466,6 +503,12 @@ export default function App() {
   const [announcementItems, setAnnouncementItems] = useState<
     FloatingActionItem[]
   >([]);
+  const pendingDragMove = useAtomValue(pendingDragMoveAtom);
+  const pendingDragMoveRef = useRef<PendingDragMove | null>(null);
+
+  useEffect(() => {
+    pendingDragMoveRef.current = pendingDragMove;
+  }, [pendingDragMove]);
 
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
@@ -1321,8 +1364,32 @@ export default function App() {
         }
       ).startViewTransition?.bind(document);
 
-      const prevView = lastAuthoritativeViewRef.current;
+      let prevView = lastAuthoritativeViewRef.current;
       const events = payload.lastViewEvents ?? [];
+      const pendingMove = pendingDragMoveRef.current;
+      const pendingMoveForGame =
+        pendingMove && pendingMove.gameId === payload.gameId
+          ? pendingMove
+          : null;
+      const hasMatchingDragMoveEvent = !!(
+        pendingMoveForGame &&
+        events.some(
+          (event) =>
+            event.type === "move-cards" &&
+            event.fromPileId === pendingMoveForGame.fromPileId &&
+            event.toPileId === pendingMoveForGame.toPileId &&
+            event.cardIds.includes(pendingMoveForGame.cardId)
+        )
+      );
+      if (pendingMoveForGame) {
+        setPendingDragMove(null);
+        pendingDragMoveRef.current = null;
+      }
+      if (prevView && pendingMoveForGame && hasMatchingDragMoveEvent) {
+        // Keep optimistic drag moves in the base view so non-move events don't
+        // snap the card back before the server move arrives.
+        prevView = applyOptimisticDragMove(prevView, pendingMoveForGame);
+      }
       const lastAction = payload.lastAction;
 
       const fatalErrors = payload.lastFatalErrors ?? [];
@@ -1789,6 +1856,8 @@ export default function App() {
         }
         setActiveTransitionCardIds(null);
         setHeaderTransitionCards([]);
+        setPendingDragMove(null);
+        pendingDragMoveRef.current = null;
       },
       onAiLog: (payload) => {
         setAiLog((prev) => [...prev, ...payload.entries]);
@@ -1809,6 +1878,7 @@ export default function App() {
     setFatalError,
     setStartingGameType,
     setView,
+    setPendingDragMove,
     playerId,
     showStatus,
     setAiLog,

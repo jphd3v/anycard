@@ -214,13 +214,18 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       setSelectedCard({ fromPileId: pileId, cardId: card.id });
     };
 
+    const cursorClass = isClickable
+      ? "cursor-pointer"
+      : isMovable
+        ? "cursor-grab"
+        : "cursor-not-allowed";
     const finalClassName = `
                   relative select-none card-scene
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
                   ${className}
                   ${isSelected ? "shadow-2xl" : ""}
-                  ${isClickable ? "cursor-pointer" : isMovable ? "cursor-grab" : "cursor-default"}
-                  ${!isClickMoveActive && isMovable ? "hover:ring-2 hover:ring-blue-300" : ""}
+                  ${cursorClass}
+                  ${!isClickMoveActive && isMovable ? "transition-transform duration-150 hover:scale-[1.02]" : ""}
                 `;
 
     const rotationStyle: CSSProperties | undefined =

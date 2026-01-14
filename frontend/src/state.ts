@@ -89,6 +89,16 @@ export const highlightedScoreboardCellsAtom = atom<Record<string, string[]>>(
 export const gameViewAtom = atomWithImmer<GameView | null>(null);
 export const isEvaluatingMoveAtom = atom(false);
 
+export interface PendingDragMove {
+  gameId: string;
+  playerId: string;
+  fromPileId: string;
+  toPileId: string;
+  cardId: number;
+}
+
+export const pendingDragMoveAtom = atom<PendingDragMove | null>(null);
+
 export const availableGamesAtom = atomWithImmer<AvailableGame[]>([]);
 
 export const activeGamesAtom = atomWithImmer<ActiveGameSummary[]>([]);

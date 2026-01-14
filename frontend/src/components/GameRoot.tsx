@@ -18,6 +18,7 @@ import {
   statusMessageAtom,
   freeDragEnabledAtom,
   autoRotateSeatAtom,
+  pendingDragMoveAtom,
 } from "../state";
 import { sendMoveIntent, sendActionIntent } from "../socket";
 import { Card } from "./Card";
@@ -62,6 +63,7 @@ export function GameRoot({
   const setView = useSetAtom(gameViewAtom);
   const isEvaluatingMove = useAtomValue(isEvaluatingMoveAtom);
   const setIsEvaluating = useSetAtom(isEvaluatingMoveAtom);
+  const setPendingDragMove = useSetAtom(pendingDragMoveAtom);
   const [activeCard, setActiveCard] = useState<CardView | null>(null);
   const [pileSortSelections, setPileSortSelections] = useState<
     Record<string, string>
@@ -74,6 +76,7 @@ export function GameRoot({
   );
   const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const lastActionKeyRef = useRef<string | null>(null);
+  const dragCursorRef = useRef<string | null>(null);
 
   const layout = useMemo(() => {
     if (!rawLayout || !view || !playerId || !autoRotateSeat) return rawLayout;
@@ -171,6 +174,15 @@ export function GameRoot({
     }
   }, [activeHighlight]);
 
+  useEffect(() => {
+    return () => {
+      if (dragCursorRef.current !== null) {
+        document.body.style.cursor = dragCursorRef.current;
+        dragCursorRef.current = null;
+      }
+    };
+  }, []);
+
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       if (isAutomatedSeat) return;
@@ -178,6 +190,10 @@ export function GameRoot({
       if (card) {
         setActiveCard(card);
       }
+      if (dragCursorRef.current === null) {
+        dragCursorRef.current = document.body.style.cursor;
+      }
+      document.body.style.cursor = "grabbing";
     },
     [isAutomatedSeat]
   );
@@ -194,6 +210,10 @@ export function GameRoot({
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       if (isAutomatedSeat) return;
+      if (dragCursorRef.current !== null) {
+        document.body.style.cursor = dragCursorRef.current;
+        dragCursorRef.current = null;
+      }
       setActiveCard(null);
       const { active, over } = event;
 
@@ -247,6 +267,13 @@ export function GameRoot({
         return;
       }
 
+      setPendingDragMove({
+        gameId,
+        playerId,
+        fromPileId,
+        toPileId,
+        cardId,
+      });
       setView((draft) => {
         if (!draft) return;
         const sourcePile = draft.piles.find((p) => p.id === fromPileId);
@@ -273,10 +300,15 @@ export function GameRoot({
       freeDragEnabled,
       isAutomatedSeat,
       zoneProxyPileIds,
+      setPendingDragMove,
     ]
   );
 
   const handleDragCancel = useCallback(() => {
+    if (dragCursorRef.current !== null) {
+      document.body.style.cursor = dragCursorRef.current;
+      dragCursorRef.current = null;
+    }
     setActiveCard(null);
   }, []);
 
