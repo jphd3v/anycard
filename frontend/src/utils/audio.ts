@@ -133,6 +133,53 @@ class AudioEngine {
       // Ignore
     }
   }
+
+  // Soft "snap/flip" for card turning
+  playCardFlip() {
+    if (!this._enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      // Quick pitch slide down for the "snap"
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, t);
+      osc.frequency.exponentialRampToValueAtTime(400, t + 0.08);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.2, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.08);
+
+      // Add a tiny bit of noise for the "paper" texture
+      const bufferSize = this.ctx.sampleRate * 0.05;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.05, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+
+      noise.connect(noiseGain);
+      noiseGain.connect(this.masterGain);
+      noise.start(t);
+      noise.stop(t + 0.05);
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export const sfx = new AudioEngine();

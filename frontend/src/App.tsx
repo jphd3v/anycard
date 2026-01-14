@@ -1638,6 +1638,7 @@ export default function App() {
       for (let index = 0; index < animationEvents.length; index += 1) {
         const event = animationEvents[index];
         if (event.type !== "move-cards" || event.cardIds.length === 0) {
+          const beforeView = workingView;
           flushSync(() => {
             workingView = applyViewEventToView(workingView, event, nextView, {
               animateOnlyCards: true,
@@ -1647,6 +1648,25 @@ export default function App() {
             setActiveTransitionCardIds(null);
             setHeaderTransitionCards([]);
           });
+
+          if (event.type === "set-pile-visibility") {
+            const beforePile = beforeView.piles.find(
+              (p) => p.id === event.pileId
+            );
+            const afterPile = workingView.piles.find(
+              (p) => p.id === event.pileId
+            );
+            if (beforePile && afterPile) {
+              const hasFlip = beforePile.cards.some((card, idx) => {
+                const afterCard = afterPile.cards[idx];
+                return afterCard ? card.faceDown !== afterCard.faceDown : false;
+              });
+              if (hasFlip) {
+                sfx.playCardFlip();
+              }
+            }
+          }
+
           if (event.type === "announce") {
             queueAnnouncement(event);
           }
@@ -1766,6 +1786,9 @@ export default function App() {
             const nextCard = afterCards[idx];
             return nextCard ? card.faceDown !== nextCard.faceDown : false;
           });
+        }
+        if (hasFlip) {
+          sfx.playCardFlip();
         }
         if (didReveal || hasHeaderAnchors) {
           flushSync(() => {
