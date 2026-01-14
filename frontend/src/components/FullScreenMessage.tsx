@@ -14,6 +14,7 @@ interface Props {
   canMinimize?: boolean;
   blockInteractionsWhenMinimized?: boolean;
   onClose?: () => void;
+  position?: "center" | "bottom";
 }
 
 export function FullScreenMessage({
@@ -29,6 +30,7 @@ export function FullScreenMessage({
   canMinimize = false,
   blockInteractionsWhenMinimized = false,
   onClose,
+  position = "center",
 }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -49,18 +51,20 @@ export function FullScreenMessage({
     ${descriptionMarginClass} ${descriptionClassName}
   `;
 
+  const overlayLayout = isMinimized
+    ? `items-end justify-center pb-8 ${
+        blockInteractionsWhenMinimized ? "" : "pointer-events-none"
+      }`
+    : position === "bottom"
+      ? "items-end justify-center pb-4 px-4 sm:px-6"
+      : "items-center justify-center p-4";
+
   return (
     <Overlay
       translucent={translucent}
       blurred={blurredOverlay}
       data-testid="fullscreen-message"
-      className={
-        isMinimized
-          ? `items-end justify-center pb-8 ${
-              blockInteractionsWhenMinimized ? "" : "pointer-events-none"
-            }`
-          : "items-center justify-center p-4"
-      }
+      className={overlayLayout}
       lockScroll={!isMinimized || blockInteractionsWhenMinimized}
     >
       {isMinimized ? (

@@ -254,8 +254,17 @@ function logPolicyRequest(input: AiPolicyInput, messages: unknown) {
 function logPolicyError(input: AiPolicyInput, err: unknown) {
   const { llmShowExceptionsInFrontend } = getEnvironmentConfig();
   const cfg = getPolicyLlmConfig();
-  const { status, statusText, responseBody, error } =
-    extractLlmErrorDetails(err);
+  const {
+    status,
+    statusText,
+    responseBody,
+    error,
+    name,
+    stack,
+    cause,
+    causeDetails,
+    causeChain,
+  } = extractLlmErrorDetails(err);
   appendAiLogEntry({
     gameId: input.view.gameId ?? "unknown",
     turnNumber: input.turnNumber,
@@ -276,6 +285,11 @@ function logPolicyError(input: AiPolicyInput, err: unknown) {
             status,
             statusText,
             error,
+            name,
+            stack,
+            cause,
+            causeDetails,
+            causeChain,
             responseBody,
           }
         : {}),

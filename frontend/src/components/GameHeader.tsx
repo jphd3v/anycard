@@ -19,6 +19,7 @@ interface GameHeaderProps {
   onScoreboardClick: () => void;
   isActionsOpen: boolean;
   isScoreboardOpen: boolean;
+  className?: string;
 }
 
 export function GameHeader({
@@ -30,6 +31,7 @@ export function GameHeader({
   onScoreboardClick,
   isActionsOpen,
   isScoreboardOpen,
+  className,
 }: GameHeaderProps) {
   const view = useAtomValue(gameViewAtom);
   const availableGames = useAtomValue(availableGamesAtom);
@@ -58,7 +60,9 @@ export function GameHeader({
     ((view.actions?.rows ?? 0) > 0 || (view.actions?.cells?.length ?? 0) > 0);
 
   return (
-    <header className="game-header h-14 shrink-0 glass-panel bg-surface-1/80 backdrop-blur-md border-b border-surface-3 flex items-center px-2 sm:px-4 justify-between z-50 relative">
+    <header
+      className={`game-header h-14 shrink-0 glass-panel bg-surface-1/80 backdrop-blur-md border-b border-surface-3 flex items-center px-2 sm:px-4 justify-between relative ${className ?? "z-50"}`}
+    >
       <div className="header-left flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 mr-2">
         <button
           id="tutorial-menu-btn"

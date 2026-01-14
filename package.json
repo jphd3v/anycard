@@ -21,7 +21,7 @@
     "semgrep": "if command -v semgrep > /dev/null 2>&1; then semgrep scan --config auto --error; else echo \"⚠️  Semgrep not found, skipping security scan.\"; fi",
     "render": "set -a; [ -f .env ] && . ./.env; set +a; if [ -z \"$RENDER_DEPLOY_HOOK_URL\" ]; then echo \"Missing RENDER_DEPLOY_HOOK_URL.\"; exit 1; fi; curl -fsS -X POST \"$RENDER_DEPLOY_HOOK_URL\"",
     "vercel": "COMMIT_SHA=$(git rev-parse HEAD) && COMMIT_TS=$(git log -1 --format=%ct) && npx vercel --prod --build-env VERCEL_GIT_COMMIT_SHA=$COMMIT_SHA --build-env VERCEL_GIT_COMMIT_TIMESTAMP=$COMMIT_TS",
-    "deploy": "concurrently -k -n render,vercel \"npm:render\" \"npm:vercel\"",
+    "deploy": "npm run render && npm run vercel",
     "verify": "npm run format && npm run lint && npm run build && npm run test:integration && npm run test:ui-smoke && npm run semgrep && echo \"\\n✅ VERIFICATION SUCCESSFUL\" || (echo \"\\n❌ VERIFICATION FAILED\" && exit 1)",
     "prepare": "if [ -d .git ]; then husky; fi"
   },

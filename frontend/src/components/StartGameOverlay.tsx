@@ -161,7 +161,8 @@ export function StartGameOverlay({
 
   const showTutorial = !isNextRound;
 
-  const shouldShow = !!view.gameId && !!playerId && allSeatsJoined && !hasDealt;
+  const shouldShow =
+    !!view.gameId && !!playerId && allSeatsJoined && !hasDealt && !view.winner;
 
   if (!shouldShow) return null;
 
@@ -282,6 +283,7 @@ export function StartGameOverlay({
         title={
           isNextRound ? "Continue to the next round" : "All players have joined"
         }
+        position="bottom"
         titleClassName={`${isShortScreen ? "text-xl mb-0.5" : "text-2xl mb-2"}`}
         blockInteractionsWhenMinimized={true}
         description={

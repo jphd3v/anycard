@@ -747,6 +747,11 @@ type AiLogDetails =
   | {
       kind: "llm-error";
       error?: string;
+      name?: string;
+      stack?: string;
+      cause?: string;
+      causeDetails?: Record<string, unknown>;
+      causeChain?: string[];
       status?: number;
       statusText?: string;
       responseBody?: string;
@@ -805,6 +810,11 @@ function parseAiLogDetails(details: unknown): AiLogDetails | null {
   if (record.kind === "llm-error") {
     const payload = details as {
       error?: string;
+      name?: string;
+      stack?: string;
+      cause?: string;
+      causeDetails?: Record<string, unknown>;
+      causeChain?: string[];
       status?: number;
       statusText?: string;
       responseBody?: string;
@@ -814,6 +824,11 @@ function parseAiLogDetails(details: unknown): AiLogDetails | null {
     return {
       kind: "llm-error",
       error: payload.error,
+      name: payload.name,
+      stack: payload.stack,
+      cause: payload.cause,
+      causeDetails: payload.causeDetails,
+      causeChain: payload.causeChain,
       status: payload.status,
       statusText: payload.statusText,
       responseBody: payload.responseBody,
@@ -934,6 +949,12 @@ function renderAiLogDetails(details: AiLogDetails, fallbackMessage: string) {
           <pre className="mt-2 whitespace-pre-wrap break-words text-ink-muted">
             <code>
               {safeStringify({
+                error: details.error,
+                name: details.name,
+                stack: details.stack,
+                cause: details.cause,
+                causeDetails: details.causeDetails,
+                causeChain: details.causeChain,
                 url: details.url,
                 params: details.params,
                 responseBody: details.responseBody,
@@ -1001,6 +1022,12 @@ function formatAiLogDetailsForCopy(
         : "unknown";
     return `Error (${status}) ${details.error ?? fallbackMessage}\n${safeStringify(
       {
+        error: details.error,
+        name: details.name,
+        stack: details.stack,
+        cause: details.cause,
+        causeDetails: details.causeDetails,
+        causeChain: details.causeChain,
         url: details.url,
         params: details.params,
         responseBody: details.responseBody,
@@ -1049,6 +1076,12 @@ function getAiLogCopyPayload(
   }
   if (details.kind === "llm-error") {
     return safeStringify({
+      error: details.error,
+      name: details.name,
+      stack: details.stack,
+      cause: details.cause,
+      causeDetails: details.causeDetails,
+      causeChain: details.causeChain,
       url: details.url,
       params: details.params,
       responseBody: details.responseBody,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { GameRoot } from "./components/GameRoot";
@@ -383,6 +383,53 @@ export default function App() {
   const { closeAll } = useMenuControls();
 
   const gameTitle = useGameTitle(activeRulesId);
+
+  // Detect if we are in a "next round" or "game winner" state to pop out the scoreboard
+  const isWinnerOverlayVisible = !!view?.winner;
+  const isNextRound = useMemo(() => {
+    const rulesState =
+      view?.rulesState && typeof view.rulesState === "object"
+        ? (view.rulesState as Record<string, unknown>)
+        : null;
+    if (!rulesState) return false;
+
+    const isNumber = (value: unknown): value is number =>
+      typeof value === "number" && Number.isFinite(value);
+
+    const hasNonZeroNumbers = (value: unknown): boolean => {
+      if (!value || typeof value !== "object") return false;
+      return Object.values(value as Record<string, unknown>).some(
+        (entry) => isNumber(entry) && entry !== 0
+      );
+    };
+
+    return (
+      (isNumber(rulesState.dealNumber) && rulesState.dealNumber > 0) ||
+      (isNumber(rulesState.roundNumber) && rulesState.roundNumber > 1) ||
+      (isNumber(rulesState.handNumber) && rulesState.handNumber > 1) ||
+      hasNonZeroNumbers(rulesState.scores) ||
+      hasNonZeroNumbers(rulesState.gameScore) ||
+      hasNonZeroNumbers(rulesState.lastHandScore)
+    );
+  }, [view?.rulesState]);
+
+  const isNextRoundOverlayVisible =
+    !!view?.gameId &&
+    !!playerId &&
+    allSeatsJoined &&
+    !hasGameDealt(view) &&
+    isNextRound &&
+    !view?.winner;
+
+  const isAnyEndOverlayVisible =
+    isWinnerOverlayVisible || isNextRoundOverlayVisible;
+
+  // Auto-open scoreboard when game/round ends if it's a widget
+  useEffect(() => {
+    if (isAnyEndOverlayVisible && !hasWidgetInLayout("scoreboards")) {
+      setIsScoreboardOpen(true);
+    }
+  }, [isAnyEndOverlayVisible, hasWidgetInLayout, setIsScoreboardOpen]);
 
   // Update document title based on current game state
   useEffect(() => {
@@ -2476,6 +2523,7 @@ export default function App() {
         {isGameActive && view && playerId && (
           <div className="game-layout flex flex-col h-full w-full overflow-hidden">
             <GameHeader
+              className={isAnyEndOverlayVisible ? "z-[1100]" : "z-50"}
               onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
               isMenuOpen={isMenuOpen}
               onRulesClick={() => setRulesVisible(true)}
@@ -2534,7 +2582,9 @@ export default function App() {
                   setIsMenuOpen(false);
                 }}
               />
-              <div className="header-floating-panel fixed top-16 right-2 sm:right-4 z-[70] pointer-events-none flex flex-col items-end">
+              <div
+                className={`header-floating-panel fixed top-16 right-2 sm:right-4 pointer-events-none flex flex-col items-end ${isAnyEndOverlayVisible ? "z-[1110]" : "z-[70]"}`}
+              >
                 {/* Header-triggered Scoreboard Panel */}
                 <div className="header-panel-slot" data-open={isScoreboardOpen}>
                   <FloatingWidget

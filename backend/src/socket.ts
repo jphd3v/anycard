@@ -34,6 +34,7 @@ import {
   appendAiLogEntry,
   getAiLog,
   initAiLogIo,
+  sendGameStatus,
   type AiLogEntry,
 } from "./ai/ai-log.js";
 import { GAME_PLUGINS } from "./rules/registry.js";
@@ -2323,6 +2324,19 @@ export function initSocket(io: Server) {
           gameId,
           currentPlayerId,
         });
+
+        const requester = state.players.find(
+          (player) => player.id === registryEntry.playerId
+        );
+        const requesterLabel = requester?.name
+          ? `${requester.name} (${registryEntry.playerId})`
+          : registryEntry.playerId;
+        sendGameStatus(
+          gameId,
+          `AI retry requested by ${requesterLabel} for ${currentPlayerId}.`,
+          "warning",
+          "ai"
+        );
 
         // Broadcast current state (without fatal errors) to clear the overlay for all players
         broadcastStateToGame(gameId);

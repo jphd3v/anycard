@@ -10,6 +10,11 @@ export interface LlmErrorDetails {
   statusText?: string;
   responseBody?: string;
   error?: string;
+  name?: string;
+  stack?: string;
+  cause?: string;
+  causeDetails?: Record<string, unknown>;
+  causeChain?: string[];
 }
 
 export function extractLlmErrorDetails(err: unknown): LlmErrorDetails {
@@ -39,7 +44,11 @@ export function extractLlmErrorDetails(err: unknown): LlmErrorDetails {
 
   // Try to extract error message
   let errorStr = "";
+  let stack: string | undefined;
+  let name: string | undefined;
   if (err instanceof Error) {
+    name = err.name;
+    stack = err.stack;
     errorStr = err.message;
   } else if (typeof anyErr?.error === "string") {
     errorStr = anyErr.error;
@@ -48,8 +57,83 @@ export function extractLlmErrorDetails(err: unknown): LlmErrorDetails {
   } else {
     errorStr = String(err);
   }
+  if (!name && typeof anyErr?.name === "string") {
+    name = anyErr.name;
+  }
+  if (name && name !== "Error" && !errorStr.startsWith(name)) {
+    errorStr = `${name}: ${errorStr}`;
+  }
 
-  return { status, statusText, responseBody, error: errorStr };
+  const formatCause = (val: unknown): string => {
+    if (val instanceof Error) {
+      return val.stack ?? `${val.name}: ${val.message}`;
+    }
+    if (typeof val === "string") return val;
+    if (val && typeof val === "object" && "message" in (val as object)) {
+      try {
+        return String((val as { message?: unknown }).message ?? val);
+      } catch {
+        return String(val);
+      }
+    }
+    return String(val);
+  };
+
+  let cause: string | undefined;
+  let causeDetails: Record<string, unknown> | undefined;
+  const causeChain: string[] = [];
+  let cursor: unknown = anyErr?.cause;
+  let depth = 0;
+  while (cursor && depth < 6) {
+    causeChain.push(formatCause(cursor));
+    if (cursor instanceof Error) {
+      const { errno, code, syscall, address, port } = cursor as unknown as {
+        errno?: number;
+        code?: string;
+        syscall?: string;
+        address?: string;
+        port?: number;
+      };
+      if (
+        errno !== undefined ||
+        code !== undefined ||
+        syscall !== undefined ||
+        address !== undefined ||
+        port !== undefined
+      ) {
+        causeDetails = {
+          errno,
+          code,
+          syscall,
+          address,
+          port,
+        };
+      }
+    }
+    if (cursor && typeof cursor === "object" && "cause" in (cursor as object)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cursor = (cursor as any).cause;
+    } else {
+      break;
+    }
+    depth += 1;
+  }
+
+  if (causeChain.length > 0) {
+    cause = causeChain[0];
+  }
+
+  return {
+    status,
+    statusText,
+    responseBody,
+    error: errorStr,
+    name,
+    stack,
+    cause,
+    causeDetails,
+    causeChain: causeChain.length > 0 ? causeChain : undefined,
+  };
 }
 
 export function collectErrorStrings(err: unknown): string[] {

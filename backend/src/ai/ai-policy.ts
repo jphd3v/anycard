@@ -441,7 +441,6 @@ export async function chooseAiIntent(
   // LLM policy selection.
   let chosenCandidate = null;
   let llmFailureDetails: string | undefined;
-  const showExceptionsInFrontend = config.llmShowExceptionsInFrontend;
   try {
     chosenCandidate = await chooseAiIntentWithLlm({
       rulesId: game.rulesId,
@@ -458,31 +457,11 @@ export async function chooseAiIntent(
   } catch (err) {
     llmFailureDetails = describeError(err);
     console.error("Error while calling AI policy LLM:", err);
-    appendAiLogEntry({
-      gameId,
-      turnNumber,
-      playerId,
-      phase: "llm",
-      level: "error",
-      message: `Error while calling AI policy LLM: ${llmFailureDetails}`,
-      details: showExceptionsInFrontend
-        ? { error: llmFailureDetails }
-        : undefined,
-    });
   }
 
   if (!chosenCandidate) {
     const details =
       llmFailureDetails ?? "LLM response did not return a usable candidate id.";
-    appendAiLogEntry({
-      gameId,
-      turnNumber,
-      playerId,
-      phase: "error",
-      level: "error",
-      message: "LLM policy failed to select a valid move; aborting AI turn.",
-      details: showExceptionsInFrontend ? { error: details } : undefined,
-    });
     throw new AiPolicyError("LLM policy failed to select a move.", details);
   }
 
