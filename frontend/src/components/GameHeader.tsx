@@ -161,13 +161,13 @@ export function GameHeader({
             onClick={onActionsClick}
             disabled={isOverlayActive}
             className={`button-base button-icon transition-all relative h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${
-              isActionsOpen
-                ? "bg-indigo-600 text-white shadow-inner"
-                : "bg-surface-2 text-indigo-600 hover:bg-indigo-50 border border-indigo-200"
+              isActionsOpen ? "button-primary shadow-inner" : "button-secondary"
             } ${isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}`}
             title="Actions"
           >
-            <LightningIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            <LightningIcon
+              className={`w-5 h-5 sm:w-6 sm:h-6 ${!isActionsOpen ? "text-indigo-600" : ""}`}
+            />
             {view.actions.cells.some((c) => c.enabled) && !isActionsOpen && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-surface-1" />
             )}
