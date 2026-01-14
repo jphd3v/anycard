@@ -352,6 +352,7 @@ export function GameRoot({
         className={override?.className}
         disabled={uiDisabled}
         displayName={displayName}
+        hideTitle={override?.hideTitle}
         showDetails={override?.showDetails ?? showDetails}
         sortOptions={sort?.options}
         selectedSortId={resolvedId}
@@ -382,7 +383,10 @@ export function GameRoot({
     }
     if (zone.widget === "scoreboards" && view.scoreboards) {
       return (
-        <div className="flex flex-col gap-4 w-full h-full justify-center">
+        <div
+          className="flex flex-col w-full h-full justify-center"
+          style={{ gap: "var(--pile-gap, 0.5rem)" }}
+        >
           {view.scoreboards.map((sb) => (
             <ScoreboardGrid key={sb.id} scoreboard={sb} />
           ))}
@@ -391,7 +395,10 @@ export function GameRoot({
     }
 
     return (
-      <div className="w-full h-full flex flex-wrap items-center justify-center gap-4 overflow-hidden">
+      <div
+        className="w-full h-full flex flex-wrap items-start justify-start overflow-hidden"
+        style={{ gap: "var(--pile-gap, 0.5rem)" }}
+      >
         {zone.piles.map((pileId) => renderPileFromLayout(pileId, zone))}
       </div>
     );

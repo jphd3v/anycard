@@ -21,6 +21,7 @@ interface Props {
   className?: string;
   disabled?: boolean;
   displayName?: string;
+  hideTitle?: boolean;
   showDetails?: boolean;
   sortOptions?: LayoutPileSortOption[];
   selectedSortId?: string;
@@ -64,6 +65,7 @@ export function Pile({
   className,
   disabled,
   displayName,
+  hideTitle,
   showDetails,
   sortOptions,
   selectedSortId,
@@ -126,7 +128,7 @@ export function Pile({
     minHeight: "var(--card-height)",
     position: "relative",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
   };
 
@@ -180,56 +182,58 @@ export function Pile({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center group">
+    <div className="flex flex-col items-center justify-start group relative pb-5">
       {/* Label with owner hint and optional sort selector */}
-      <div
-        className={`w-full flex items-center gap-2 h-5 mb-1 ${
-          showSortControl ? "justify-between" : "justify-center"
-        }`}
-      >
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink font-bold leading-none transition-opacity duration-200 opacity-100">
-          {!isHandPile && <span>{labelText}</span>}
-          {isHandPile && ownerName && (
-            <span
-              className={`inline-flex items-center px-2 py-[2px] rounded-full border text-[9px] font-semibold tracking-tight leading-none ${
-                isMine
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : isAi
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-300"
-                    : "bg-amber-50 text-amber-800 border-amber-300"
-              }`}
+      {!hideTitle && (
+        <div
+          className={`w-full flex items-center gap-2 h-5 mb-1 ${
+            showSortControl ? "justify-between" : "justify-center"
+          }`}
+        >
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink font-bold leading-none transition-opacity duration-200 opacity-100">
+            {!isHandPile && <span>{labelText}</span>}
+            {isHandPile && ownerName && (
+              <span
+                className={`inline-flex items-center px-2 py-[2px] rounded-full border text-[9px] font-semibold tracking-tight leading-none ${
+                  isMine
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : isAi
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-300"
+                      : "bg-amber-50 text-amber-800 border-amber-300"
+                }`}
+              >
+                {isMine
+                  ? "Your hand"
+                  : ownerSeat?.aiRuntime === "backend"
+                    ? `${ownerName} (AI: server)`
+                    : ownerSeat?.aiRuntime === "frontend" &&
+                        ownerSeat?.isAiControlledByYou
+                      ? `${ownerName} (AI: this browser)`
+                      : ownerSeat?.aiRuntime === "frontend"
+                        ? `${ownerName} (AI: other browser)`
+                        : isAi
+                          ? `${ownerName} (AI)`
+                          : ownerName}
+              </span>
+            )}
+          </div>
+
+          {showSortControl && (
+            <select
+              className="text-[10px] px-2 py-1 rounded-md border border-ink-muted/30 bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+              value={currentSortId}
+              disabled={disabled}
+              onChange={(e) => onChangeSort?.(e.target.value)}
             >
-              {isMine
-                ? "Your hand"
-                : ownerSeat?.aiRuntime === "backend"
-                  ? `${ownerName} (AI: server)`
-                  : ownerSeat?.aiRuntime === "frontend" &&
-                      ownerSeat?.isAiControlledByYou
-                    ? `${ownerName} (AI: this browser)`
-                    : ownerSeat?.aiRuntime === "frontend"
-                      ? `${ownerName} (AI: other browser)`
-                      : isAi
-                        ? `${ownerName} (AI)`
-                        : ownerName}
-            </span>
+              {availableSortOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label ?? opt.id}
+                </option>
+              ))}
+            </select>
           )}
         </div>
-
-        {showSortControl && (
-          <select
-            className="text-[10px] px-2 py-1 rounded-md border border-ink-muted/30 bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-            value={currentSortId}
-            disabled={disabled}
-            onChange={(e) => onChangeSort?.(e.target.value)}
-          >
-            {availableSortOptions.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label ?? opt.id}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      )}
 
       <div
         ref={setNodeRef}
@@ -249,10 +253,14 @@ export function Pile({
         {count === 0 && (
           <div
             className="border-2 border-dashed border-ink-muted/20 rounded-lg flex items-center justify-center"
-            style={{ width: "var(--card-width)", height: "var(--card-height)" }}
+            style={{
+              width: "var(--card-width)",
+              height: "var(--card-height)",
+              boxSizing: "border-box",
+            }}
           >
-            <span className="text-[10px] text-ink-muted/50 font-medium">
-              EMPTY
+            <span className="text-[10px] text-ink-muted/30 font-black uppercase tracking-tighter">
+              {hideTitle ? labelText : "EMPTY"}
             </span>
           </div>
         )}
@@ -269,17 +277,11 @@ export function Pile({
           const dragDisabled = !!disabled || !movable || testMode;
           const isTopCard = index === pile.cards.length - 1;
 
-          const cardStyle: CSSProperties = {};
-
-          if (
-            layout === "horizontal" ||
-            layout === "vertical" ||
-            layout === "complete"
-          ) {
-            cardStyle.position = "absolute";
-            cardStyle.top = 0;
-            cardStyle.left = 0;
-          }
+          const cardStyle: CSSProperties = {
+            position: "absolute",
+            top: 0,
+            left: 0,
+          };
 
           if (layout === "horizontal") {
             cardStyle.left = `calc(${index} * var(--fan-x))`;
@@ -291,6 +293,8 @@ export function Pile({
             cardStyle.top = `calc(${index} * -0.05px)`; // slightly offset downwards for perspective
           } else if (layout === "spread") {
             cardStyle.position = "relative";
+            cardStyle.top = "auto";
+            cardStyle.left = "auto";
           }
 
           const animationStyle: CSSProperties = {};
@@ -320,7 +324,7 @@ export function Pile({
 
       <div
         data-testid={`pile-count:${pile.id}`}
-        className={`text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 mt-1 ${
+        className={`absolute bottom-0 text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 ${
           showDetails ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
       >

@@ -16,9 +16,8 @@ const DEFAULT_CARD_VARS: CardVars = {
 const MIN_TOUCH_HEIGHT = 64; // keep a comfortable hit target on touch
 const MIN_FAN_RATIO_TOUCH = 0.3; // do not collapse fanning too far on touch
 
-const INNER_ZONE_GAP = 8; // matches gap-2 in zone content container
-const PILE_CHROME_Y = { coarse: 48, fine: 36 }; // label + counters + breathing room
-const HARD_MIN_HEIGHT = 42; // absolute floor to avoid complete collapse
+const PILE_CHROME_Y = { coarse: 48, fine: 40 }; // label + counters + breathing room
+const HARD_MIN_HEIGHT = 32; // absolute floor to avoid complete collapse
 
 // Determine if a pile layout is horizontal or vertical; others don't fan.
 const layoutOrientation = (
@@ -102,10 +101,11 @@ export function useCardSizing(
       const maxCap = isCoarsePointer
         ? Math.min(185, rect.height * 0.22)
         : Math.min(200, rect.height * 0.24);
-      const minHeight = isCoarsePointer ? MIN_TOUCH_HEIGHT : 64;
-      const pileChrome = isCoarsePointer
+      const minHeight = isCoarsePointer ? MIN_TOUCH_HEIGHT : 48;
+      const normalChrome = isCoarsePointer
         ? PILE_CHROME_Y.coarse
         : PILE_CHROME_Y.fine;
+      const compactChrome = isCoarsePointer ? 24 : 20;
 
       let limitingHeight = Number.POSITIVE_INFINITY;
       let fanRatio = baseFanRatio;
@@ -135,8 +135,14 @@ export function useCardSizing(
         // This ensures we pick a grid (cols vs rows) that favors the actual fanning direction.
         let maxHorizFanFactor = 1;
         let maxVertFanFactor = 1;
+        let zoneMaxChrome = compactChrome;
+
         for (const pileId of zone.piles) {
           const count = pileCountById.get(pileId) ?? 0;
+          const style = layout.pileStyles?.[pileId];
+          const chrome = style?.hideTitle ? compactChrome : normalChrome;
+          zoneMaxChrome = Math.max(zoneMaxChrome, chrome);
+
           if (count <= 1) continue;
           const orientation = layoutOrientation(zone, pileId, layout);
           if (orientation === "horizontal") {
@@ -156,13 +162,10 @@ export function useCardSizing(
         for (let cols = 1; cols <= pileSlots; cols++) {
           const rows = Math.ceil(pileSlots / cols);
 
-          const widthMinusGap =
-            zoneWidth - INNER_ZONE_GAP * Math.max(cols - 1, 0);
+          const widthMinusGap = zoneWidth - gapX * Math.max(cols - 1, 0);
           // Account for label+counter chrome PER ROW in the zone.
           const heightMinusGap =
-            zoneHeight -
-            INNER_ZONE_GAP * Math.max(rows - 1, 0) -
-            pileChrome * rows;
+            zoneHeight - gapY * Math.max(rows - 1, 0) - zoneMaxChrome * rows;
 
           const availableWidth = Math.max(widthMinusGap / cols, 0);
           const availableHeight = Math.max(heightMinusGap / rows, 0);

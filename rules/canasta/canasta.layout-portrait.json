@@ -1,6 +1,6 @@
 {
   "rulesId": "canasta",
-  "rows": 5,
+  "rows": 10,
   "cols": 5,
   "zones": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "team-b-melds",
       "label": "W/E Melds",
-      "cell": { "row": 1, "col": 1, "colspan": 3 },
+      "cell": { "row": 1, "col": 1, "rowspan": 3, "colspan": 3 },
       "piles": [
         "B-red3",
         "B-meld-4",
@@ -32,25 +32,25 @@
     {
       "id": "west",
       "label": "W",
-      "cell": { "row": 1, "col": 0, "rowspan": 3 },
+      "cell": { "row": 1, "col": 0, "rowspan": 8 },
       "piles": ["P2-hand"]
     },
     {
       "id": "center",
       "label": "Stock/Discard",
-      "cell": { "row": 2, "col": 1, "colspan": 3 },
+      "cell": { "row": 4, "col": 1, "rowspan": 2, "colspan": 3 },
       "piles": ["deck", "discard"]
     },
     {
       "id": "east",
       "label": "E",
-      "cell": { "row": 1, "col": 4, "rowspan": 3 },
+      "cell": { "row": 1, "col": 4, "rowspan": 8 },
       "piles": ["P4-hand"]
     },
     {
       "id": "team-a-melds",
       "label": "S/N Melds",
-      "cell": { "row": 3, "col": 1, "colspan": 3 },
+      "cell": { "row": 6, "col": 1, "rowspan": 3, "colspan": 3 },
       "piles": [
         "A-red3",
         "A-meld-4",
@@ -70,7 +70,7 @@
     {
       "id": "south",
       "label": "S",
-      "cell": { "row": 4, "col": 0, "colspan": 5 },
+      "cell": { "row": 9, "col": 0, "colspan": 5 },
       "piles": ["P1-hand"]
     }
   ],
@@ -233,31 +233,135 @@
         ]
       }
     },
-    "A-red3": { "layout": "horizontal", "label": "S/N Red 3s" },
-    "B-red3": { "layout": "horizontal", "label": "W/E Red 3s" },
-    "A-black3-out": { "layout": "horizontal", "label": "S/N Black 3s" },
-    "B-black3-out": { "layout": "horizontal", "label": "W/E Black 3s" },
-    "A-meld-4": { "layout": "horizontal", "label": "4s" },
-    "A-meld-5": { "layout": "horizontal", "label": "5s" },
-    "A-meld-6": { "layout": "horizontal", "label": "6s" },
-    "A-meld-7": { "layout": "horizontal", "label": "7s" },
-    "A-meld-8": { "layout": "horizontal", "label": "8s" },
-    "A-meld-9": { "layout": "horizontal", "label": "9s" },
-    "A-meld-10": { "layout": "horizontal", "label": "10s" },
-    "A-meld-J": { "layout": "horizontal", "label": "Js" },
-    "A-meld-Q": { "layout": "horizontal", "label": "Qs" },
-    "A-meld-K": { "layout": "horizontal", "label": "Ks" },
-    "A-meld-A": { "layout": "horizontal", "label": "As" },
-    "B-meld-4": { "layout": "horizontal", "label": "4s" },
-    "B-meld-5": { "layout": "horizontal", "label": "5s" },
-    "B-meld-6": { "layout": "horizontal", "label": "6s" },
-    "B-meld-7": { "layout": "horizontal", "label": "7s" },
-    "B-meld-8": { "layout": "horizontal", "label": "8s" },
-    "B-meld-9": { "layout": "horizontal", "label": "9s" },
-    "B-meld-10": { "layout": "horizontal", "label": "10s" },
-    "B-meld-J": { "layout": "horizontal", "label": "Js" },
-    "B-meld-Q": { "layout": "horizontal", "label": "Qs" },
-    "B-meld-K": { "layout": "horizontal", "label": "Ks" },
-    "B-meld-A": { "layout": "horizontal", "label": "As" }
+    "A-red3": {
+      "layout": "horizontal",
+      "label": "R3",
+      "hideTitle": true
+    },
+    "B-red3": {
+      "layout": "horizontal",
+      "label": "R3",
+      "hideTitle": true
+    },
+    "A-black3-out": {
+      "layout": "horizontal",
+      "label": "B3",
+      "hideTitle": true
+    },
+    "B-black3-out": {
+      "layout": "horizontal",
+      "label": "B3",
+      "hideTitle": true
+    },
+    "A-meld-4": {
+      "layout": "horizontal",
+      "label": "4",
+      "hideTitle": true
+    },
+    "A-meld-5": {
+      "layout": "horizontal",
+      "label": "5",
+      "hideTitle": true
+    },
+    "A-meld-6": {
+      "layout": "horizontal",
+      "label": "6",
+      "hideTitle": true
+    },
+    "A-meld-7": {
+      "layout": "horizontal",
+      "label": "7",
+      "hideTitle": true
+    },
+    "A-meld-8": {
+      "layout": "horizontal",
+      "label": "8",
+      "hideTitle": true
+    },
+    "A-meld-9": {
+      "layout": "horizontal",
+      "label": "9",
+      "hideTitle": true
+    },
+    "A-meld-10": {
+      "layout": "horizontal",
+      "label": "10",
+      "hideTitle": true
+    },
+    "A-meld-J": {
+      "layout": "horizontal",
+      "label": "J",
+      "hideTitle": true
+    },
+    "A-meld-Q": {
+      "layout": "horizontal",
+      "label": "Q",
+      "hideTitle": true
+    },
+    "A-meld-K": {
+      "layout": "horizontal",
+      "label": "K",
+      "hideTitle": true
+    },
+    "A-meld-A": {
+      "layout": "horizontal",
+      "label": "A",
+      "hideTitle": true
+    },
+    "B-meld-4": {
+      "layout": "horizontal",
+      "label": "4",
+      "hideTitle": true
+    },
+    "B-meld-5": {
+      "layout": "horizontal",
+      "label": "5",
+      "hideTitle": true
+    },
+    "B-meld-6": {
+      "layout": "horizontal",
+      "label": "6",
+      "hideTitle": true
+    },
+    "B-meld-7": {
+      "layout": "horizontal",
+      "label": "7",
+      "hideTitle": true
+    },
+    "B-meld-8": {
+      "layout": "horizontal",
+      "label": "8",
+      "hideTitle": true
+    },
+    "B-meld-9": {
+      "layout": "horizontal",
+      "label": "9",
+      "hideTitle": true
+    },
+    "B-meld-10": {
+      "layout": "horizontal",
+      "label": "10",
+      "hideTitle": true
+    },
+    "B-meld-J": {
+      "layout": "horizontal",
+      "label": "J",
+      "hideTitle": true
+    },
+    "B-meld-Q": {
+      "layout": "horizontal",
+      "label": "Q",
+      "hideTitle": true
+    },
+    "B-meld-K": {
+      "layout": "horizontal",
+      "label": "K",
+      "hideTitle": true
+    },
+    "B-meld-A": {
+      "layout": "horizontal",
+      "label": "A",
+      "hideTitle": true
+    }
   }
 }

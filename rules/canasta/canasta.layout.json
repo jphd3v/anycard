@@ -239,97 +239,135 @@
         ]
       }
     },
-    "A-red3": { "layout": "horizontal", "label": "S/N Red 3s" },
-    "B-red3": { "layout": "horizontal", "label": "W/E Red 3s" },
-    "A-black3-out": { "layout": "horizontal", "label": "S/N Black 3s" },
-    "B-black3-out": { "layout": "horizontal", "label": "W/E Black 3s" },
+    "A-red3": {
+      "layout": "horizontal",
+      "label": "R3",
+      "hideTitle": true
+    },
+    "B-red3": {
+      "layout": "horizontal",
+      "label": "R3",
+      "hideTitle": true
+    },
+    "A-black3-out": {
+      "layout": "horizontal",
+      "label": "B3",
+      "hideTitle": true
+    },
+    "B-black3-out": {
+      "layout": "horizontal",
+      "label": "B3",
+      "hideTitle": true
+    },
     "A-meld-4": {
       "layout": "horizontal",
-      "label": "4s"
+      "label": "4",
+      "hideTitle": true
     },
     "A-meld-5": {
       "layout": "horizontal",
-      "label": "5s"
+      "label": "5",
+      "hideTitle": true
     },
     "A-meld-6": {
       "layout": "horizontal",
-      "label": "6s"
+      "label": "6",
+      "hideTitle": true
     },
     "A-meld-7": {
       "layout": "horizontal",
-      "label": "7s"
+      "label": "7",
+      "hideTitle": true
     },
     "A-meld-8": {
       "layout": "horizontal",
-      "label": "8s"
+      "label": "8",
+      "hideTitle": true
     },
     "A-meld-9": {
       "layout": "horizontal",
-      "label": "9s"
+      "label": "9",
+      "hideTitle": true
     },
     "A-meld-10": {
       "layout": "horizontal",
-      "label": "10s"
+      "label": "10",
+      "hideTitle": true
     },
     "A-meld-J": {
       "layout": "horizontal",
-      "label": "Js"
+      "label": "J",
+      "hideTitle": true
     },
     "A-meld-Q": {
       "layout": "horizontal",
-      "label": "Qs"
+      "label": "Q",
+      "hideTitle": true
     },
     "A-meld-K": {
       "layout": "horizontal",
-      "label": "Ks"
+      "label": "K",
+      "hideTitle": true
     },
     "A-meld-A": {
       "layout": "horizontal",
-      "label": "As"
+      "label": "A",
+      "hideTitle": true
     },
     "B-meld-4": {
       "layout": "horizontal",
-      "label": "4s"
+      "label": "4",
+      "hideTitle": true
     },
     "B-meld-5": {
       "layout": "horizontal",
-      "label": "5s"
+      "label": "5",
+      "hideTitle": true
     },
     "B-meld-6": {
       "layout": "horizontal",
-      "label": "6s"
+      "label": "6",
+      "hideTitle": true
     },
     "B-meld-7": {
       "layout": "horizontal",
-      "label": "7s"
+      "label": "7",
+      "hideTitle": true
     },
     "B-meld-8": {
       "layout": "horizontal",
-      "label": "8s"
+      "label": "8",
+      "hideTitle": true
     },
     "B-meld-9": {
       "layout": "horizontal",
-      "label": "9s"
+      "label": "9",
+      "hideTitle": true
     },
     "B-meld-10": {
       "layout": "horizontal",
-      "label": "10s"
+      "label": "10",
+      "hideTitle": true
     },
     "B-meld-J": {
       "layout": "horizontal",
-      "label": "Js"
+      "label": "J",
+      "hideTitle": true
     },
     "B-meld-Q": {
       "layout": "horizontal",
-      "label": "Qs"
+      "label": "Q",
+      "hideTitle": true
     },
     "B-meld-K": {
       "layout": "horizontal",
-      "label": "Ks"
+      "label": "K",
+      "hideTitle": true
     },
     "B-meld-A": {
       "layout": "horizontal",
-      "label": "As"
+      "label": "A",
+      "hideTitle": true
     }
   }
 }

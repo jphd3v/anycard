@@ -572,6 +572,7 @@ export const LayoutPileStyleSchema = z.object({
   layout: z.string().optional(),
   className: z.string().optional(),
   label: z.string().optional(),
+  hideTitle: z.boolean().optional(),
   showDetails: z.boolean().optional(),
   sort: LayoutPileSortConfigSchema.optional(),
 });
