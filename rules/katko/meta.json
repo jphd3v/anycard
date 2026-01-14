@@ -2,8 +2,7 @@
   "rulesId": "katko",
   "gameName": "Katko",
   "description": "The Finnish 'Last Trick' game for two. Strategic trick-taking where only the final trick of each hand matters for scoring.",
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Trick-Taking",
   "supportsActions": false
 }

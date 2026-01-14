@@ -7,14 +7,9 @@ interface Props {
   onClick: () => void;
 }
 
-function formatPlayers(minPlayers?: number, maxPlayers?: number): string {
-  if (typeof minPlayers === "number" && typeof maxPlayers === "number") {
-    return minPlayers === maxPlayers
-      ? `${minPlayers} Players`
-      : `${minPlayers}-${maxPlayers} Players`;
-  }
-  if (typeof minPlayers === "number") {
-    return `${minPlayers}+ Players`;
+function formatPlayers(players?: number): string {
+  if (typeof players === "number") {
+    return `${players} Players`;
   }
   return "Players";
 }
@@ -25,7 +20,7 @@ export function GameListItem({
   seatedCount = 0,
   onClick,
 }: Props) {
-  const playersLabel = formatPlayers(game.minPlayers, game.maxPlayers);
+  const playersLabel = formatPlayers(game.players);
   const categoryLabel = game.category || "Card Game";
 
   return (

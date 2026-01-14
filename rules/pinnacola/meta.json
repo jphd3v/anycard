@@ -3,8 +3,7 @@
   "gameName": "Pinnacola",
   "description": "An Italian Rummy variant for two players. Form sets and runs with two decks and jokers to reach 1000 points first.",
   "requiresJokers": true,
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Rummy",
   "supportsActions": false
 }

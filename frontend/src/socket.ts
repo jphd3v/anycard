@@ -318,8 +318,7 @@ export async function fetchAvailableGames(): Promise<AvailableGame[]> {
         name?: unknown;
         description?: unknown;
         category?: unknown;
-        minPlayers?: unknown;
-        maxPlayers?: unknown;
+        players?: unknown;
       };
       if (typeof maybeGame.id === "string") {
         normalized.push({
@@ -334,13 +333,9 @@ export async function fetchAvailableGames(): Promise<AvailableGame[]> {
             typeof maybeGame.category === "string"
               ? maybeGame.category
               : undefined,
-          minPlayers:
-            typeof maybeGame.minPlayers === "number"
-              ? maybeGame.minPlayers
-              : undefined,
-          maxPlayers:
-            typeof maybeGame.maxPlayers === "number"
-              ? maybeGame.maxPlayers
+          players:
+            typeof maybeGame.players === "number"
+              ? maybeGame.players
               : undefined,
         });
       }

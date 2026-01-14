@@ -11,8 +11,7 @@ export type AvailableGame = {
   name: string;
   description?: string;
   category?: string;
-  minPlayers?: number;
-  maxPlayers?: number;
+  players?: number;
 };
 
 export type ActiveGameSummary = {

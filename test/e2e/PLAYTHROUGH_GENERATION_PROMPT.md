@@ -5,7 +5,7 @@ This document provides guidelines for generating playthrough specifications for 
 ## Rules for Human-Only Playthrough Generation
 
 1. **Human-only only**: Do not mention AI seats, AI runtime, or AI behavior.
-2. **Match seat count**: Set `contexts` based on `rules/<rulesId>/meta.json` (`maxPlayers`).
+2. **Match seat count**: Set `contexts` based on `rules/<rulesId>/meta.json` (`players`).
 3. **Use the contract**: Follow `test/e2e/playthroughs/README.md` (YAML frontmatter + step style).
 4. **Test mode required**: All `entry` URLs must include `test=1`.
 5. **Use only supported UI**: Only reference actions/selectors documented in `test/e2e/MCP_MAPPING.md`.

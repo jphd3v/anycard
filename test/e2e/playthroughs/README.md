@@ -28,7 +28,7 @@ Rules:
 - All `entry` URLs MUST include `test=1`.
 - If `contexts: N`, `entry` must contain keys `A..` up to that count.
 - For dedicated lobby routes (e.g. `/bridge`), prefer `entry.A` to include `reset=1` for a fresh start.
-- `contexts` should match the game’s seat count from `rules/<rulesId>/meta.json` (`maxPlayers`).
+- `contexts` should match the game’s seat count from `rules/<rulesId>/meta.json` (`players`).
 - Recommended: include `ctx=A|B|C|D` in each `entry` URL so pages are labeled in the TestHUD + page title.
 
 ## Step style

@@ -1651,8 +1651,7 @@ UI-only fields like `supportsActions` are read directly by the frontend.
   "rulesId": "<rulesId>",
   "gameName": "Canasta",
   "description": "Classic melding card game.",
-  "minPlayers": 2,
-  "maxPlayers": 4,
+  "players": 4,
   "category": "Rummy",
   "supportsActions": true
 }
@@ -1663,8 +1662,7 @@ UI-only fields like `supportsActions` are read directly by the frontend.
 - `rulesId` (string, required): Must match the game folder name and plugin ID
 - `gameName` (string, required): Display name for the game (e.g., "Canasta")
 - `description` (string, recommended): Short description for the lobby/game selection
-- `minPlayers` (number, recommended): Minimum number of players supported
-- `maxPlayers` (number, recommended): Maximum number of players supported
+- `players` (number, required): Number of players supported
 - `category` (string, recommended): Game category (e.g., "Rummy", "Trick-Taking", "Battle", "Solitaire")
 - `supportsActions` (boolean, recommended): Set to `true` if the game uses action buttons (e.g., "Pass", "Declare", "Knock"). This helps the UI expose the Actions button and tutorial highlights even before actions are emitted.
 

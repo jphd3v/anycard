@@ -2,8 +2,7 @@
   "rulesId": "kasino",
   "gameName": "Kasino",
   "description": "The beloved Finnish fishing game for two. Capture table cards by matching values or summing them up. Race to 16 points.",
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Capture",
   "supportsActions": false
 }

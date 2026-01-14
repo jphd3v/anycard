@@ -2,8 +2,7 @@
   "rulesId": "template",
   "gameName": "Template Game",
   "description": "A template for creating new games",
-  "minPlayers": 2,
-  "maxPlayers": 4,
+  "players": 4,
   "category": "Template",
   "supportsActions": false
 }

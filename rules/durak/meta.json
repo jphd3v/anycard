@@ -2,8 +2,7 @@
   "rulesId": "durak",
   "gameName": "Durak",
   "description": "Iconic Russian attack and defense game for two. Outsmart your opponent in tactical bouts to empty your hand and avoid being the 'Durak'.",
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Battle",
   "supportsActions": true
 }

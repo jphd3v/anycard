@@ -2,8 +2,7 @@
   "rulesId": "briscola",
   "gameName": "Briscola",
   "description": "Fast-paced Italian trick-taking for two. Use trump cards and strategic timing to capture the most valuable cards.",
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Trick-taking",
   "supportsActions": false
 }

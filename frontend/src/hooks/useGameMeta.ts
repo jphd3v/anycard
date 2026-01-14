@@ -6,8 +6,7 @@ type GameMeta = {
   gameName?: string;
   displayName?: string;
   description?: string;
-  minPlayers?: number;
-  maxPlayers?: number;
+  players?: number;
   category?: string;
   requiresJokers?: boolean;
   supportsActions?: boolean;

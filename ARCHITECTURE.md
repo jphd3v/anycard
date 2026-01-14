@@ -534,8 +534,7 @@ read by the frontend from `meta.json`):
 - `rulesId` (required)
 - `gameName` (required)
 - `description` (optional)
-- `minPlayers` (optional)
-- `maxPlayers` (optional)
+- `players` (required)
 - `category` (optional)
 - `supportsActions` (optional; helps the UI show the Actions header button even
   before actions are emitted)

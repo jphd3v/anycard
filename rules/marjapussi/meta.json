@@ -2,8 +2,7 @@
   "rulesId": "marjapussi",
   "gameName": "Marjapussi",
   "description": "Traditional Finnish partnership game for four. Win tricks and declare royal marriages to be the first team to reach 12 points.",
-  "minPlayers": 4,
-  "maxPlayers": 4,
+  "players": 4,
   "category": "Marriage",
   "supportsActions": true
 }

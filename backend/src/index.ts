@@ -49,8 +49,7 @@ app.get("/games", (_req, res) => {
       id: plugin.id,
       name: meta.gameName ?? plugin.gameName,
       description: meta.description ?? plugin.description ?? "",
-      minPlayers: meta.minPlayers,
-      maxPlayers: meta.maxPlayers,
+      players: meta.players,
       category: meta.category,
     };
   });

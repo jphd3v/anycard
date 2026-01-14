@@ -2,8 +2,7 @@
   "rulesId": "scopa",
   "gameName": "Scopa",
   "description": "Traditional Italian fishing game for two. Capture cards by matching or summing values to score for coins, prime, and clearing the table.",
-  "minPlayers": 2,
-  "maxPlayers": 2,
+  "players": 2,
   "category": "Fishing",
   "supportsActions": false
 }

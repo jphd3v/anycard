@@ -37,10 +37,7 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
       .finally(() => setLoading(false));
   }, [rulesId]);
 
-  const playerLabel =
-    meta?.minPlayers === meta?.maxPlayers
-      ? `${meta?.minPlayers} Players`
-      : `${meta?.minPlayers}-${meta?.maxPlayers} Players`;
+  const playerLabel = `${meta?.players ?? "?"} Players`;
 
   return (
     <Overlay

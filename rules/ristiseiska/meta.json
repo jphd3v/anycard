@@ -2,8 +2,7 @@
   "rulesId": "ristiseiska",
   "gameName": "Ristiseiska",
   "description": "The classic Finnish Sevens for two players. Build suit sequences starting from the seven of clubs to empty your hand first.",
-  "minPlayers": 3,
-  "maxPlayers": 3,
+  "players": 3,
   "category": "Layout",
   "supportsActions": true
 }

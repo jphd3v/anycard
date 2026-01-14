@@ -7,8 +7,7 @@ export type GameMeta = {
   gameName: string;
   displayName?: string;
   description?: string;
-  minPlayers?: number;
-  maxPlayers?: number;
+  players?: number;
   category?: string;
   /**
    * When true, action buttons are shown to all players (e.g. Bridge bidding table).
@@ -34,8 +33,7 @@ export function loadGameMeta(rulesId: string): GameMeta {
       gameName:
         parsed.gameName ?? parsed.displayName ?? parsed.rulesId ?? rulesId,
       description: parsed.description,
-      minPlayers: parsed.minPlayers,
-      maxPlayers: parsed.maxPlayers,
+      players: parsed.players,
       category: parsed.category,
       showActionsToAll: parsed.showActionsToAll,
     };
