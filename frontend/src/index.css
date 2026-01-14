@@ -600,6 +600,10 @@ body,
   view-transition-name: none;
 }
 
+::view-transition {
+  pointer-events: none;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -615,6 +619,7 @@ body,
     1.05s
   ); /* Slow card view transitions ~2x for moves */
   animation-timing-function: ease-in-out;
+  pointer-events: none;
 }
 
 /* Reduced motion support */
@@ -625,6 +630,7 @@ body,
   ::view-transition-image-pair(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+    pointer-events: none !important;
   }
 }
 
