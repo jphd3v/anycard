@@ -36,7 +36,7 @@ export function AboutOverlay({ onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="about-modal relative w-full max-w-lg bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-label="About AnyCard"
@@ -44,7 +44,7 @@ export function AboutOverlay({ onClose }: Props) {
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-surface-2 flex items-center justify-between gap-4">
-          <div className="uppercase font-serif-display font-bold text-ink whitespace-nowrap">
+          <div className="about-modal-title uppercase font-serif-display font-bold text-ink whitespace-nowrap">
             About AnyCard
           </div>
 
@@ -72,7 +72,7 @@ export function AboutOverlay({ onClose }: Props) {
         {/* Content */}
         <ScrollShadowWrapper
           className="flex-1 min-h-0"
-          innerClassName="p-6 scrollbar-hide space-y-6 text-sm text-ink"
+          innerClassName="about-modal-body p-6 scrollbar-hide space-y-6 text-sm text-ink"
         >
           <section>
             <p className="leading-relaxed">
@@ -262,14 +262,14 @@ export function AboutOverlay({ onClose }: Props) {
         <div className="p-4 border-t border-surface-2 bg-surface-1/50 flex items-center justify-between">
           <button
             onClick={handleCopyVersion}
-            className="font-mono text-[10px] text-ink-muted opacity-60 truncate px-2 hover:text-ink hover:opacity-100 transition-all cursor-pointer focus:outline-none active:scale-95"
+            className="about-modal-version font-mono text-[10px] text-ink-muted opacity-60 truncate px-2 hover:text-ink hover:opacity-100 transition-all cursor-pointer focus:outline-none active:scale-95"
             title="Click to copy version info"
           >
             version #{commitHash} {commitDate}
           </button>
           <button
             onClick={onClose}
-            className="button-base button-secondary px-4 py-2 text-sm"
+            className="about-modal-footer button-base button-secondary px-4 py-2 text-sm"
           >
             Close
           </button>

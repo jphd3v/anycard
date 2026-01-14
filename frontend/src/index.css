@@ -108,6 +108,24 @@ body {
   --scoreboard-font-condensed: clamp(0.65rem, 1.6vw, 0.85rem);
 }
 
+.pile-empty-placeholder {
+  container-type: size;
+}
+
+.pile-empty-label {
+  display: none;
+}
+
+@container (min-width: 40px) and (min-height: 24px) {
+  .pile-empty-label {
+    display: inline-flex;
+  }
+}
+
+.pile-empty-placeholder[data-keep-label="true"] .pile-empty-label {
+  display: inline-flex;
+}
+
 /* Scoreboard text scaling for smaller screens (portrait - narrow width) */
 @media (max-width: 768px) {
   :root {
@@ -181,8 +199,15 @@ body {
 
   /* Make TurnStatusBadge compact in vertical mode */
   header.game-header .header-right > div:last-child {
-    width: 2.75rem !important; /* matching button-icon size */
-    height: 2.75rem !important;
+    width: 2.25rem !important; /* matching button-icon size h-9 */
+    height: 2.25rem !important;
+  }
+
+  @media (min-width: 640px) {
+    header.game-header .header-right > div:last-child {
+      width: 2.75rem !important; /* matching button-icon size h-11 */
+      height: 2.75rem !important;
+    }
   }
 
   header.game-header .header-right > div:last-child span {
@@ -237,8 +262,8 @@ body {
 @media (orientation: portrait) and (max-width: 430px) {
   /* Use the compact turn badge when horizontal space is tight. */
   header.game-header .header-right > div:last-child {
-    width: 2.75rem !important; /* matching button-icon size */
-    height: 2.75rem !important;
+    width: 2.25rem !important; /* matching button-icon size h-9 */
+    height: 2.25rem !important;
   }
 
   header.game-header .header-right > div:last-child span {
@@ -259,26 +284,40 @@ body {
   }
 }
 
-@media (max-width: 520px) {
-  .ai-log-modal .ai-log-title {
-    font-size: 0.525rem;
-  }
+.ai-log-modal .ai-log-title {
+  font-size: clamp(0.525rem, 2.4vw, 0.875rem);
+}
 
-  .ai-log-modal .ai-log-meta-label {
-    font-size: 5.4px;
-  }
+.ai-log-modal .ai-log-meta-label {
+  font-size: clamp(0.45rem, 1.6vw, 0.625rem);
+}
 
-  .ai-log-modal .ai-log-meta-value {
-    font-size: 0.45rem;
-  }
+.ai-log-modal .ai-log-meta-value,
+.ai-log-modal .ai-log-body,
+.ai-log-modal .ai-log-turn-title {
+  font-size: clamp(0.45rem, 1.9vw, 0.75rem);
+}
 
-  .ai-log-modal .ai-log-body {
-    font-size: 0.45rem;
-  }
+.rules-modal .rules-modal-title,
+.about-modal .about-modal-title {
+  font-size: clamp(0.525rem, 2.6vw, 1rem);
+}
 
-  .ai-log-modal .ai-log-turn-title {
-    font-size: 0.45rem;
-  }
+.rules-modal .rules-modal-meta {
+  font-size: clamp(0.45rem, 1.9vw, 0.75rem);
+}
+
+.rules-modal .rules-modal-body,
+.rules-modal .rules-modal-body *,
+.rules-modal .rules-modal-footer,
+.about-modal .about-modal-body,
+.about-modal .about-modal-body *,
+.about-modal .about-modal-footer {
+  font-size: clamp(0.45rem, 2.2vw, 0.875rem);
+}
+
+.about-modal .about-modal-version {
+  font-size: clamp(0.45rem, 1.6vw, 0.625rem);
 }
 
 /* CALCULATION: Width is derived from height */

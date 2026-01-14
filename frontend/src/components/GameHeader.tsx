@@ -140,7 +140,7 @@ export function GameHeader({
           <button
             id="tutorial-scores-btn"
             onClick={onScoreboardClick}
-            className={`button-base button-icon transition-all ${
+            className={`button-base button-icon transition-all h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${
               isScoreboardOpen
                 ? "button-primary shadow-inner"
                 : "button-secondary"
@@ -156,7 +156,7 @@ export function GameHeader({
             id="tutorial-actions-btn"
             onClick={onActionsClick}
             disabled={isOverlayActive}
-            className={`button-base button-icon transition-all relative ${
+            className={`button-base button-icon transition-all relative h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${
               isActionsOpen
                 ? "bg-indigo-600 text-white shadow-inner"
                 : "bg-surface-2 text-indigo-600 hover:bg-indigo-50 border border-indigo-200"

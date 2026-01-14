@@ -50,7 +50,7 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="rules-modal relative w-full max-w-lg bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-label="Game Rules"
@@ -59,12 +59,12 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
         {/* Sticky Header: Name + Meta on one line */}
         <div className="px-6 py-4 border-b border-surface-2 flex items-center justify-between bg-surface-1/95 backdrop-blur-md sticky top-0 z-20 gap-4">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 overflow-hidden">
-            <div className="uppercase font-serif-display font-bold text-ink whitespace-nowrap">
+            <div className="rules-modal-title uppercase font-serif-display font-bold text-ink whitespace-nowrap">
               {meta?.gameName ?? "Game Rules"}
             </div>
 
             {meta && (
-              <div className="flex items-center gap-2 text-xs font-bold text-ink-muted uppercase tracking-wider opacity-80">
+              <div className="rules-modal-meta flex items-center gap-2 text-xs font-bold text-ink-muted uppercase tracking-wider opacity-80">
                 {meta.category && (
                   <span className="bg-surface-3/50 px-2 py-0.5 rounded whitespace-nowrap">
                     {meta.category}
@@ -106,7 +106,12 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
                 <div className="spinner h-6 w-6 border-2" />
               </div>
             ) : (
-              rulesText && <MarkdownRenderer content={rulesText} />
+              rulesText && (
+                <MarkdownRenderer
+                  content={rulesText}
+                  className="rules-modal-body"
+                />
+              )
             )}
           </div>
         </ScrollShadowWrapper>
@@ -115,7 +120,7 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
         <div className="p-4 border-t border-surface-2 bg-surface-1/50 flex justify-end">
           <button
             onClick={onClose}
-            className="button-base button-secondary px-4 py-2 text-sm"
+            className="rules-modal-footer button-base button-secondary px-4 py-2 text-sm"
           >
             Close
           </button>

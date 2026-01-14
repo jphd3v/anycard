@@ -243,14 +243,15 @@ export function Pile({
         {/* Placeholder for empty pile */}
         {count === 0 && (
           <div
-            className="border-2 border-dashed border-ink-muted/20 rounded-lg flex items-center justify-center"
+            className="pile-empty-placeholder border-2 border-dashed border-ink-muted/20 rounded-lg flex items-center justify-center"
+            data-keep-label={hideTitle ? "true" : undefined}
             style={{
               width: "var(--card-width)",
               height: "var(--card-height)",
               boxSizing: "border-box",
             }}
           >
-            <span className="text-[10px] text-ink-muted/30 font-black uppercase tracking-tighter">
+            <span className="pile-empty-label text-[10px] text-ink-muted/30 font-black uppercase tracking-tighter">
               {hideTitle ? labelText : "EMPTY"}
             </span>
           </div>

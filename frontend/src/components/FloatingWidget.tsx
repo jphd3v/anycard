@@ -199,6 +199,7 @@ export function FloatingWidget({
           className={`
             pointer-events-auto
             button-base button-icon button-secondary
+            h-9 w-9 sm:h-11 sm:w-11
             rounded-full shadow-floating
             hover:scale-105 active:scale-95 z-50
             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
