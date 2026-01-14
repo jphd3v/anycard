@@ -81,13 +81,13 @@
     "P1-won": {
       "id": "P1-won",
       "ownerId": "P1",
-      "visibility": "public",
+      "visibility": "hidden",
       "cardIds": []
     },
     "P2-won": {
       "id": "P2-won",
       "ownerId": "P2",
-      "visibility": "public",
+      "visibility": "hidden",
       "cardIds": []
     }
   },

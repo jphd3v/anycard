@@ -89,7 +89,7 @@
     },
     "briscola": { "layout": "complete", "label": "Trump" },
     "trick": { "layout": "horizontal" },
-    "P1-won": { "layout": "complete", "showDetails": false, "label": "P1 Won" },
-    "P2-won": { "layout": "complete", "showDetails": false, "label": "P2 Won" }
+    "P1-won": { "layout": "complete", "showDetails": true, "label": "P1 Won" },
+    "P2-won": { "layout": "complete", "showDetails": true, "label": "P2 Won" }
   }
 }

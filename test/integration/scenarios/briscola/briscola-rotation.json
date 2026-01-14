@@ -1,0 +1,13 @@
+{
+  "id": "briscola-rotation",
+  "rulesId": "briscola",
+  "seed": "BRISCOLA-ROTATION-TEST",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 100
+  },
+  "expect": {
+    "cardVisuals": {}
+  }
+}

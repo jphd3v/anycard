@@ -354,15 +354,14 @@ function computeCardVisuals(
   state: ValidationState,
   nextRulesState: BriscolaRulesState,
   engineEvents: EngineEvent[]
-): EngineEvent | null {
+): EngineEvent {
   const projected = projectPilesAfterEvents(state, engineEvents);
   const briscolaPile = projected["briscola"];
+  const visuals: Record<number, { rotationDeg?: number }> = {};
   if (briscolaPile && (briscolaPile.cardIds?.length ?? 0) > 0) {
-    const visuals: Record<number, { rotationDeg?: number }> = {};
     visuals[briscolaPile.cardIds![0]] = { rotationDeg: 90 };
-    return { type: "set-card-visuals", visuals };
   }
-  return null;
+  return { type: "set-card-visuals", visuals };
 }
 
 export const briscolaRules: GameRuleModule = {
@@ -509,12 +508,9 @@ export const briscolaRules: GameRuleModule = {
         player: firstPlayer,
       });
 
-      const visualEvent = computeCardVisuals(
-        state,
-        nextRulesState,
-        engineEvents
+      engineEvents.push(
+        computeCardVisuals(state, nextRulesState, engineEvents)
       );
-      if (visualEvent) engineEvents.push(visualEvent);
 
       const projected = projectPilesAfterEvents(state, engineEvents);
       const scoreboard = buildScoreboard(projected, nextRulesState);
@@ -711,8 +707,7 @@ export const briscolaRules: GameRuleModule = {
     }
 
     // Card visuals for briscola rotation
-    const visualEvent = computeCardVisuals(state, nextRulesState, engineEvents);
-    if (visualEvent) engineEvents.push(visualEvent);
+    engineEvents.push(computeCardVisuals(state, nextRulesState, engineEvents));
 
     // Update scoreboard
     const finalProjected = projectPilesAfterEvents(state, engineEvents);

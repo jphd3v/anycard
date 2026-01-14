@@ -29,11 +29,61 @@
     }
   ],
   "pileStyles": {
-    "P1-hand": { "layout": "horizontal" },
-    "P2-hand": { "layout": "horizontal" },
+    "P1-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "rank-asc",
+            "label": "Rank (Point Order)",
+            "type": "byRank",
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "byRank"
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "sort": {
+        "default": "suit-rank",
+        "options": [
+          {
+            "id": "suit-rank",
+            "label": "Suit & Rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "rank-asc",
+            "label": "Rank (Point Order)",
+            "type": "byRank",
+            "rankOrder": ["2", "4", "5", "6", "7", "J", "Q", "K", "3", "A"]
+          },
+          {
+            "id": "native",
+            "label": "Native order",
+            "type": "byRank"
+          }
+        ]
+      }
+    },
     "briscola": { "layout": "complete", "label": "Trump" },
     "trick": { "layout": "horizontal" },
-    "P1-won": { "layout": "horizontal", "showDetails": true },
-    "P2-won": { "layout": "horizontal", "showDetails": true }
+    "P1-won": { "layout": "complete", "showDetails": true },
+    "P2-won": { "layout": "complete", "showDetails": true }
   }
 }

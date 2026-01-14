@@ -21,6 +21,7 @@ type ScenarioExpect = {
   currentPlayer?: string | null;
   scoreboards?: unknown;
   rulesState?: unknown;
+  cardVisuals?: Record<number, { rotationDeg?: number }>;
 };
 
 type ScenarioPlayer = {
@@ -177,6 +178,14 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
       actualRulesState,
       expect.rulesState,
       "rulesState mismatch"
+    );
+  }
+
+  if (expect.cardVisuals !== undefined) {
+    assert.deepStrictEqual(
+      state.cardVisuals,
+      expect.cardVisuals,
+      "cardVisuals mismatch"
     );
   }
 }
