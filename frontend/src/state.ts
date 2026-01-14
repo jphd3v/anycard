@@ -85,6 +85,8 @@ export const highlightedScoreboardCellsAtom = atom<Record<string, string[]>>(
   {}
 );
 
+export const pileSortSelectionsAtom = atom<Record<string, string>>({});
+
 export const gameViewAtom = atomWithImmer<GameView | null>(null);
 export const isEvaluatingMoveAtom = atom(false);
 

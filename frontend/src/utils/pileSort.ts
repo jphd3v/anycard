@@ -54,7 +54,7 @@ const shouldSkipSort = (
   ) {
     return true;
   }
-  const includeFaceDown = sorter.includeFaceDown ?? false;
+  const includeFaceDown = sorter.includeFaceDown ?? true;
   if (!includeFaceDown && cards.some((c) => c.faceDown)) {
     return true;
   }

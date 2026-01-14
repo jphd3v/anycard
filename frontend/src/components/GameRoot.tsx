@@ -9,7 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import type {
   CardView,
   GameView,
@@ -26,6 +26,7 @@ import {
   freeDragEnabledAtom,
   autoRotateSeatAtom,
   pendingDragMoveAtom,
+  pileSortSelectionsAtom,
 } from "../state";
 import { sendMoveIntent, sendActionIntent, sendClientIntent } from "../socket";
 import { Card } from "./Card";
@@ -74,9 +75,9 @@ export function GameRoot({
   const activeTransitionCardIds = useAtomValue(activeTransitionCardIdsAtom);
   const setActiveTransitionCardIds = useSetAtom(activeTransitionCardIdsAtom);
   const [activeCard, setActiveCard] = useState<CardView | null>(null);
-  const [pileSortSelections, setPileSortSelections] = useState<
-    Record<string, string>
-  >({});
+  const [pileSortSelections, setPileSortSelections] = useAtom(
+    pileSortSelectionsAtom
+  );
   const rawLayout = useGameLayout(view.rulesId);
   const autoRotateSeat = useAtomValue(autoRotateSeatAtom);
 
@@ -367,7 +368,7 @@ export function GameRoot({
       }
       return next;
     });
-  }, [layout, view.rulesId]);
+  }, [layout, view.rulesId, setPileSortSelections]);
 
   const normalizePileLayout = (val?: string) =>
     ["horizontal", "vertical", "complete", "spread"].includes(val || "")

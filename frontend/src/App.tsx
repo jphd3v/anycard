@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { GameRoot } from "./components/GameRoot";
 import { FullScreenMessage } from "./components/FullScreenMessage";
 import { FatalErrorOverlay } from "./components/FatalErrorOverlay";
@@ -22,6 +22,7 @@ import {
   isConnectedAtom,
   rulesIdAtom,
   activeTransitionCardIdsAtom,
+  pileSortSelectionsAtom,
   cardSetAtom,
   pendingDragMoveAtom,
   fatalErrorAtom,
@@ -90,6 +91,7 @@ import {
 } from "./components/FloatingActionOverlay";
 import { useAiLog } from "./hooks/useAiLog";
 import { useGameLayout } from "./hooks/useGameLayout";
+import { choosePileSorter, sortCardsForDisplay } from "./utils/pileSort";
 import {
   SuitDivider,
   TopCornerOrnaments,
@@ -482,6 +484,44 @@ function didPileOrderChange(
   return false;
 }
 
+function sortViewPiles(
+  view: GameView,
+  layout: GameLayout | null,
+  selections: Record<string, string>
+): GameView {
+  if (!layout || !layout.pileStyles) return view;
+
+  const nextPiles = view.piles.map((pile) => {
+    const style = layout.pileStyles?.[pile.id];
+    if (!style || !style.sort) return pile;
+
+    const sortConfig = style.sort;
+    const optionIds = sortConfig.options?.map((o) => o.id) ?? [];
+    const fallbackSortId =
+      sortConfig.default && optionIds.includes(sortConfig.default)
+        ? sortConfig.default
+        : optionIds[0];
+
+    const selectedSortId =
+      selections[pile.id] && optionIds.includes(selections[pile.id])
+        ? selections[pile.id]
+        : fallbackSortId;
+
+    const { sorter } = choosePileSorter(sortConfig, selectedSortId);
+    const sortedCards = sortCardsForDisplay(
+      pile.cards,
+      sorter,
+      normalizePileLayout(pile.layout) ??
+        normalizePileLayout(style.layout) ??
+        "complete"
+    );
+
+    return { ...pile, cards: sortedCards };
+  });
+
+  return { ...view, piles: nextPiles };
+}
+
 function parseDurationMs(value: string, fallback: number): number {
   const trimmed = value.trim();
   if (!trimmed) return fallback;
@@ -522,6 +562,7 @@ const CARD_SET_STORAGE_KEY = "card-set-preference";
 const MAX_RECENT_GAMES = 10;
 
 export default function App() {
+  const store = useStore();
   const view = useAtomValue(gameViewAtom);
   const playerId = useAtomValue(playerIdAtom);
   const gameId = useAtomValue(gameIdAtom);
@@ -589,6 +630,10 @@ export default function App() {
 
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
+  const gameLayoutRef = useRef(gameLayout);
+  useEffect(() => {
+    gameLayoutRef.current = gameLayout;
+  }, [gameLayout]);
   const lastAction = view?.lastAction;
   const pileTransitionConfigRef = useRef<PileTransitionConfig>(
     buildPileTransitionConfig(gameLayout)
@@ -1434,6 +1479,8 @@ export default function App() {
       duration: number = 1000,
       remainingInQueue: number = 0
     ) => {
+      const pileSortSelections = store.get(pileSortSelectionsAtom);
+
       // Set the CSS variable for transition duration
       document.documentElement.style.setProperty(
         "--transition-duration",
@@ -1472,7 +1519,15 @@ export default function App() {
       if (prevView && pendingMoveForGame && hasMatchingDragMoveEvent) {
         // Keep optimistic drag moves in the base view so non-move events don't
         // snap the card back before the server move arrives.
-        prevView = applyOptimisticDragMove(prevView, pendingMoveForGame);
+        const prevViewRaw = applyOptimisticDragMove(
+          prevView,
+          pendingMoveForGame
+        );
+        prevView = sortViewPiles(
+          prevViewRaw,
+          gameLayoutRef.current,
+          pileSortSelections
+        );
       }
       const lastAction = payload.lastAction;
 
@@ -1498,12 +1553,17 @@ export default function App() {
         }
       };
 
-      const nextView: GameView = {
+      const nextViewRaw: GameView = {
         ...payload,
         lastEngineEvents: undefined,
         lastViewEvents: undefined,
         lastFatalErrors: undefined,
       };
+      const nextView = sortViewPiles(
+        nextViewRaw,
+        gameLayoutRef.current,
+        pileSortSelections
+      );
 
       const scheduleClearHighlights = () => {
         if (clearHighlightsTimerRef.current) {
@@ -1640,9 +1700,19 @@ export default function App() {
         if (event.type !== "move-cards" || event.cardIds.length === 0) {
           const beforeView = workingView;
           flushSync(() => {
-            workingView = applyViewEventToView(workingView, event, nextView, {
-              animateOnlyCards: true,
-            });
+            const nextWorkingViewRaw = applyViewEventToView(
+              workingView,
+              event,
+              nextView,
+              {
+                animateOnlyCards: true,
+              }
+            );
+            workingView = sortViewPiles(
+              nextWorkingViewRaw,
+              gameLayoutRef.current,
+              pileSortSelections
+            );
             lastAuthoritativeViewRef.current = workingView;
             setView(workingView);
             setActiveTransitionCardIds(null);
@@ -1674,13 +1744,18 @@ export default function App() {
         }
 
         const movingIds = new Set<number>(event.cardIds);
-        const nextWorkingView = applyViewEventToView(
+        const nextWorkingViewRaw = applyViewEventToView(
           workingView,
           event,
           nextView,
           {
             animateOnlyCards: true,
           }
+        );
+        const nextWorkingView = sortViewPiles(
+          nextWorkingViewRaw,
+          gameLayoutRef.current,
+          pileSortSelections
         );
 
         const visiblePileIds = visiblePileIdsRef.current;
@@ -1776,7 +1851,12 @@ export default function App() {
           // Ignore transition errors; continue to next step
         }
 
-        const revealView = applyMoveRevealToView(workingView, event);
+        const revealViewRaw = applyMoveRevealToView(workingView, event);
+        const revealView = sortViewPiles(
+          revealViewRaw,
+          gameLayoutRef.current,
+          pileSortSelections
+        );
         const didReveal = revealView !== workingView;
         let hasFlip = false;
         if (didReveal) {
@@ -2042,6 +2122,7 @@ export default function App() {
     setHighlightedActionLabel,
     setHighlightedScoreboardCells,
     queueAnnouncement,
+    store,
   ]); // Removed gameId from dependencies to prevent listener teardown race
 
   const handleJoin = (selectedPlayerId: string) => {
