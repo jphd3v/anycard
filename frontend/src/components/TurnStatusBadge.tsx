@@ -25,6 +25,11 @@ export function TurnStatusBadge({
     "playerId" in s ? s.playerId === turnPlayer : s.seatId === turnPlayer
   );
   const turnName = currentSeat?.name ?? turnPlayer ?? "";
+  const turnId = currentSeat
+    ? "seatId" in currentSeat
+      ? currentSeat.seatId
+      : currentSeat.playerId
+    : (turnPlayer ?? "...");
   const aiRuntime =
     currentSeat && "aiRuntime" in currentSeat
       ? currentSeat.aiRuntime
@@ -179,6 +184,11 @@ export function TurnStatusBadge({
       <div
         className={`relative h-full w-full ${compact ? "px-2 py-1 text-[0.6rem]" : "px-3 py-1.5 text-[0.625rem]"} rounded-full font-bold uppercase tracking-wide flex items-center gap-1.5 flex-shrink-0 ${innerBgClass}`}
       >
+        {turnId && (
+          <span className="turn-badge-id text-[0.7rem] leading-none">
+            {turnId}
+          </span>
+        )}
         {statusIcon}
         <span className="truncate max-w-[60px] sm:max-w-[100px]">
           {statusText}

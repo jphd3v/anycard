@@ -116,6 +116,10 @@ body {
   }
 }
 
+.turn-badge-id {
+  display: none;
+}
+
 /* Scoreboard text scaling for smaller screens (landscape - short height) */
 @media (max-height: 500px) {
   :root {
@@ -185,6 +189,14 @@ body {
     display: none !important; /* Hide text and labels in tight vertical bar */
   }
 
+  header.game-header .header-right > div:last-child span.turn-badge-id {
+    display: inline-flex !important;
+  }
+
+  header.game-header .header-right > div:last-child svg {
+    display: none !important;
+  }
+
   header.game-header .header-right > div:last-child div.relative {
     padding: 0 !important;
     justify-content: center !important;
@@ -219,6 +231,31 @@ body {
     /* In portrait, width is the constraint. */
     --card-height: 11vh;
     --table-padding: 4px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 430px) {
+  /* Use the compact turn badge when horizontal space is tight. */
+  header.game-header .header-right > div:last-child {
+    width: 2.75rem !important; /* matching button-icon size */
+    height: 2.75rem !important;
+  }
+
+  header.game-header .header-right > div:last-child span {
+    display: none !important; /* Hide text and labels in tight header */
+  }
+
+  header.game-header .header-right > div:last-child span.turn-badge-id {
+    display: inline-flex !important;
+  }
+
+  header.game-header .header-right > div:last-child svg {
+    display: none !important;
+  }
+
+  header.game-header .header-right > div:last-child div.relative {
+    padding: 0 !important;
+    justify-content: center !important;
   }
 }
 

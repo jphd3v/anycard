@@ -268,7 +268,6 @@ export function StartGameOverlay({
             isVisible={true}
             targetId="tutorial-log-btn"
             label="Turn"
-            yOffset={6}
           />
           <TutorialHighlight
             isVisible={true}
