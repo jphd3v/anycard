@@ -1,10 +1,10 @@
 {
   "rulesId": "marjapussi",
   "players": [
-    { "id": "P1", "name": "Player 1" },
-    { "id": "P2", "name": "Player 2" },
-    { "id": "P3", "name": "Player 3" },
-    { "id": "P4", "name": "Player 4" }
+    { "id": "N", "name": "North" },
+    { "id": "E", "name": "East" },
+    { "id": "S", "name": "South" },
+    { "id": "W", "name": "West" }
   ],
   "currentPlayer": null,
   "winner": null,
@@ -50,27 +50,27 @@
     "36": { "id": 36, "rank": "A", "suit": "spades", "label": "A♠" }
   },
   "piles": {
-    "P1-hand": {
-      "id": "P1-hand",
-      "ownerId": "P1",
+    "N-hand": {
+      "id": "N-hand",
+      "ownerId": "N",
       "visibility": "owner",
       "cardIds": []
     },
-    "P2-hand": {
-      "id": "P2-hand",
-      "ownerId": "P2",
+    "E-hand": {
+      "id": "E-hand",
+      "ownerId": "E",
       "visibility": "owner",
       "cardIds": []
     },
-    "P3-hand": {
-      "id": "P3-hand",
-      "ownerId": "P3",
+    "S-hand": {
+      "id": "S-hand",
+      "ownerId": "S",
       "visibility": "owner",
       "cardIds": []
     },
-    "P4-hand": {
-      "id": "P4-hand",
-      "ownerId": "P4",
+    "W-hand": {
+      "id": "W-hand",
+      "ownerId": "W",
       "visibility": "owner",
       "cardIds": []
     },
@@ -90,14 +90,14 @@
       "visibility": "public",
       "cardIds": []
     },
-    "TEAM-A-WON": {
-      "id": "TEAM-A-WON",
+    "TEAM-NS-WON": {
+      "id": "TEAM-NS-WON",
       "ownerId": null,
       "visibility": "hidden",
       "cardIds": []
     },
-    "TEAM-B-WON": {
-      "id": "TEAM-B-WON",
+    "TEAM-EW-WON": {
+      "id": "TEAM-EW-WON",
       "ownerId": null,
       "visibility": "hidden",
       "cardIds": []
@@ -112,9 +112,9 @@
     "currentTrick": { "cards": [], "leadSuit": null },
     "trumpSuit": null,
     "marriages": [],
-    "gamePoints": { "A": 0, "B": 0 },
-    "marriagePoints": { "A": 0, "B": 0 },
-    "inTheBag": { "A": false, "B": false },
+    "gamePoints": { "NS": 0, "EW": 0 },
+    "marriagePoints": { "NS": 0, "EW": 0 },
+    "inTheBag": { "NS": false, "EW": false },
     "lastTrickWinner": null,
     "canDeclare": true
   },
@@ -169,7 +169,7 @@
         {
           "row": 1,
           "col": 0,
-          "text": "Team A (P1, P3)",
+          "text": "Team NS (N, S)",
           "role": "header",
           "align": "left"
         },
@@ -179,7 +179,7 @@
         {
           "row": 2,
           "col": 0,
-          "text": "Team B (P2, P4)",
+          "text": "Team EW (E, W)",
           "role": "header",
           "align": "left"
         },
@@ -189,7 +189,7 @@
         { "row": 3, "col": 0, "text": "Deal: -", "align": "left" },
         { "row": 3, "col": 1, "text": "Trick: -", "align": "left" },
         { "row": 3, "col": 2, "text": "Trumps: None", "align": "left" },
-        { "row": 3, "col": 3, "text": "Tricks A/B: 0/0", "align": "right" }
+        { "row": 3, "col": 3, "text": "Tricks NS/EW: 0/0", "align": "right" }
       ]
     }
   ]

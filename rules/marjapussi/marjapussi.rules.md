@@ -1,12 +1,12 @@
 ## Overview
 
-Four-player Marjapussi using a 36-card deck, based on [rules on Pagat.com](https://www.pagat.com/marriage/marjapussi.html). Players form partnerships (P1+P3 vs P2+P4). The goal is to be the first team to reach **12 game points**. Points are earned by winning tricks and declaring marriages (King and Queen of the same suit).
+Four-player Marjapussi using a 36-card deck, based on [rules on Pagat.com](https://www.pagat.com/marriage/marjapussi.html). Players form partnerships (N & S vs E & W). The goal is to be the first team to reach **12 game points**. Points are earned by winning tricks and declaring marriages (King and Queen of the same suit).
 
 ## Setup
 
 - **Deck**: 36-card deck (6, 7, 8, 9, J, Q, K, 10, A).
 - **Ranking**: A 10 K Q J 9 8 7 6 (Aces and 10s are high).
-- **Players**: 4 players in fixed partnerships: **P1 & P3 vs P2 & P4**.
+- **Players**: 4 players in fixed partnerships: **N & S vs E & W**.
 - **Dealing**: 9 cards are dealt to each player.
 - **Starting Player**: The player to the left of the dealer leads the first trick.
 

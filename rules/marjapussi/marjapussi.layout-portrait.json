@@ -5,15 +5,15 @@
   "zones": [
     {
       "id": "north",
-      "label": "Player 1",
+      "label": "North",
       "cell": { "row": 0, "col": 0, "colspan": 4 },
-      "piles": ["P1-hand"]
+      "piles": ["N-hand"]
     },
     {
       "id": "west",
-      "label": "Player 4",
+      "label": "West",
       "cell": { "row": 1, "col": 0, "rowspan": 3 },
-      "piles": ["P4-hand"]
+      "piles": ["W-hand"]
     },
     {
       "id": "trick",
@@ -23,7 +23,7 @@
     {
       "id": "won",
       "cell": { "row": 2, "col": 1, "colspan": 2, "rowspan": 1 },
-      "piles": ["TEAM-A-WON", "TEAM-B-WON"]
+      "piles": ["TEAM-NS-WON", "TEAM-EW-WON"]
     },
     {
       "id": "actions",
@@ -33,19 +33,19 @@
     },
     {
       "id": "east",
-      "label": "Player 2",
+      "label": "East",
       "cell": { "row": 1, "col": 3, "rowspan": 3 },
-      "piles": ["P2-hand"]
+      "piles": ["E-hand"]
     },
     {
       "id": "south",
-      "label": "Player 3",
+      "label": "South",
       "cell": { "row": 4, "col": 0, "colspan": 4 },
-      "piles": ["P3-hand"]
+      "piles": ["S-hand"]
     }
   ],
   "pileStyles": {
-    "P1-hand": {
+    "N-hand": {
       "layout": "horizontal",
       "isHand": true,
       "sort": {
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "P2-hand": {
+    "E-hand": {
       "layout": "vertical",
       "isHand": true,
       "sort": {
@@ -88,7 +88,7 @@
         ]
       }
     },
-    "P3-hand": {
+    "S-hand": {
       "layout": "horizontal",
       "isHand": true,
       "sort": {
@@ -109,7 +109,7 @@
         ]
       }
     },
-    "P4-hand": {
+    "W-hand": {
       "layout": "vertical",
       "isHand": true,
       "sort": {
@@ -130,8 +130,8 @@
         ]
       }
     },
-    "TEAM-A-WON": { "layout": "complete", "showDetails": false },
-    "TEAM-B-WON": { "layout": "complete", "showDetails": false },
+    "TEAM-NS-WON": { "layout": "complete", "showDetails": false },
+    "TEAM-EW-WON": { "layout": "complete", "showDetails": false },
     "trick": { "layout": "horizontal" }
   }
 }

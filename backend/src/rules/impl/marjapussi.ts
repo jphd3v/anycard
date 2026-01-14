@@ -34,13 +34,13 @@ import {
 
 const META = loadGameMeta("marjapussi");
 
-const PLAYERS = ["P1", "P2", "P3", "P4"] as const;
-const TEAM_A_WON = "TEAM-A-WON";
-const TEAM_B_WON = "TEAM-B-WON";
+const PLAYERS = ["N", "E", "S", "W"] as const;
+const TEAM_NS_WON = "TEAM-NS-WON";
+const TEAM_EW_WON = "TEAM-EW-WON";
 const SUITS = ["clubs", "diamonds", "hearts", "spades"] as const;
 
 type Suit = (typeof SUITS)[number];
-type Partnership = "A" | "B";
+type Partnership = "NS" | "EW";
 type Phase = "setup" | "play" | "game-over";
 type Rank = "6" | "7" | "8" | "9" | "J" | "Q" | "K" | "10" | "A";
 
@@ -100,21 +100,21 @@ const CARD_POINT_VALUE: Record<string, number> = {
 };
 
 function partnershipFor(playerId: string | null): Partnership {
-  if (playerId === "P1" || playerId === "P3") return "A";
-  return "B";
+  if (playerId === "N" || playerId === "S") return "NS";
+  return "EW";
 }
 
 function partnerOf(playerId: string): string {
   switch (playerId) {
-    case "P1":
-      return "P3";
-    case "P3":
-      return "P1";
-    case "P2":
-      return "P4";
-    case "P4":
+    case "N":
+      return "S";
+    case "S":
+      return "N";
+    case "E":
+      return "W";
+    case "W":
     default:
-      return "P2";
+      return "E";
   }
 }
 
@@ -143,9 +143,9 @@ function getRulesState(raw: unknown): MarjapussiRulesState {
     currentTrick: { cards: [], leadSuit: null },
     trumpSuit: null,
     marriages: [],
-    gamePoints: { A: 0, B: 0 },
-    marriagePoints: { A: 0, B: 0 },
-    inTheBag: { A: false, B: false },
+    gamePoints: { NS: 0, EW: 0 },
+    marriagePoints: { NS: 0, EW: 0 },
+    inTheBag: { NS: false, EW: false },
     lastTrickWinner: null,
     canDeclare: false,
     result: null,
@@ -285,13 +285,13 @@ function calculateCardPoints(
   projected: ProjectedPiles,
   rankLookup: Record<number, { rank: string; suit: string }>
 ): Record<Partnership, number> {
-  const totals: Record<Partnership, number> = { A: 0, B: 0 };
+  const totals: Record<Partnership, number> = { NS: 0, EW: 0 };
   const teamToPile: Record<Partnership, string> = {
-    A: TEAM_A_WON,
-    B: TEAM_B_WON,
+    NS: TEAM_NS_WON,
+    EW: TEAM_EW_WON,
   };
 
-  for (const team of ["A", "B"] as Partnership[]) {
+  for (const team of ["NS", "EW"] as Partnership[]) {
     const pile = projected[teamToPile[team]];
     if (!pile) continue;
     const ids = pile.cardIds ?? [];
@@ -306,15 +306,15 @@ function calculateCardPoints(
 }
 
 function winnerText(gamePoints: Record<Partnership, number>): string | null {
-  const a = gamePoints.A ?? 0;
-  const b = gamePoints.B ?? 0;
-  if (a >= 12 && b >= 12) {
-    if (a > b) return "Team A (P1 & P3)";
-    if (b > a) return "Team B (P2 & P4)";
-    return "Tie at " + a;
+  const ns = gamePoints.NS ?? 0;
+  const ew = gamePoints.EW ?? 0;
+  if (ns >= 12 && ew >= 12) {
+    if (ns > ew) return "Team NS (North & South)";
+    if (ew > ns) return "Team EW (East & West)";
+    return "Tie at " + ns;
   }
-  if (a >= 12) return "Team A (P1 & P3)";
-  if (b >= 12) return "Team B (P2 & P4)";
+  if (ns >= 12) return "Team NS (North & South)";
+  if (ew >= 12) return "Team EW (East & West)";
   return null;
 }
 
@@ -465,8 +465,8 @@ function deriveScoreboards(
   const rankLookup = buildRankLookup(state);
   const cardPoints = calculateCardPoints(projected, rankLookup);
   const tricks: Record<Partnership, number> = {
-    A: Math.floor((projected[TEAM_A_WON]?.size ?? 0) / 4),
-    B: Math.floor((projected[TEAM_B_WON]?.size ?? 0) / 4),
+    NS: Math.floor((projected[TEAM_NS_WON]?.size ?? 0) / 4),
+    EW: Math.floor((projected[TEAM_EW_WON]?.size ?? 0) / 4),
   };
 
   const marriageSummary = (team: Partnership): string => {
@@ -489,43 +489,43 @@ function deriveScoreboards(
     {
       row: 1,
       col: 0,
-      text: `Team A (P1, P3)${bagStatus("A")}`,
+      text: `Team NS (N, S)${bagStatus("NS")}`,
       role: "header",
       align: "left",
     },
     {
       row: 1,
       col: 1,
-      text: String(rulesState.gamePoints.A ?? 0),
+      text: String(rulesState.gamePoints.NS ?? 0),
       align: "right",
     },
     {
       row: 1,
       col: 2,
-      text: String(cardPoints.A + rulesState.marriagePoints.A),
+      text: String(cardPoints.NS + rulesState.marriagePoints.NS),
       align: "right",
     },
-    { row: 1, col: 3, text: marriageSummary("A"), align: "left" },
+    { row: 1, col: 3, text: marriageSummary("NS"), align: "left" },
     {
       row: 2,
       col: 0,
-      text: `Team B (P2, P4)${bagStatus("B")}`,
+      text: `Team EW (E, W)${bagStatus("EW")}`,
       role: "header",
       align: "left",
     },
     {
       row: 2,
       col: 1,
-      text: String(rulesState.gamePoints.B ?? 0),
+      text: String(rulesState.gamePoints.EW ?? 0),
       align: "right",
     },
     {
       row: 2,
       col: 2,
-      text: String(cardPoints.B + rulesState.marriagePoints.B),
+      text: String(cardPoints.EW + rulesState.marriagePoints.EW),
       align: "right",
     },
-    { row: 2, col: 3, text: marriageSummary("B"), align: "left" },
+    { row: 2, col: 3, text: marriageSummary("EW"), align: "left" },
   ];
 
   const metaRow = 3;
@@ -544,7 +544,7 @@ function deriveScoreboards(
     {
       row: metaRow,
       col: 3,
-      text: `Tricks A/B: ${tricks.A}/${tricks.B}`,
+      text: `Tricks NS/EW: ${tricks.NS}/${tricks.EW}`,
       align: "right",
     }
   );
@@ -606,7 +606,7 @@ function buildDeal(
     currentTrick: { cards: [], leadSuit: null },
     trumpSuit: null,
     marriages: [],
-    marriagePoints: { A: 0, B: 0 },
+    marriagePoints: { NS: 0, EW: 0 },
     lastTrickWinner: null,
     canDeclare: true,
   };
@@ -633,34 +633,34 @@ function finishHand(
   cardPoints[lastTrickTeam] += 10;
 
   const tricksWon: Record<Partnership, number> = {
-    A: Math.floor((projected[TEAM_A_WON]?.size ?? 0) / 4),
-    B: Math.floor((projected[TEAM_B_WON]?.size ?? 0) / 4),
+    NS: Math.floor((projected[TEAM_NS_WON]?.size ?? 0) / 4),
+    EW: Math.floor((projected[TEAM_EW_WON]?.size ?? 0) / 4),
   };
 
   const totalPoints: Record<Partnership, number> = {
-    A: cardPoints.A + rulesState.marriagePoints.A,
-    B: cardPoints.B + rulesState.marriagePoints.B,
+    NS: cardPoints.NS + rulesState.marriagePoints.NS,
+    EW: cardPoints.EW + rulesState.marriagePoints.EW,
   };
 
   const nextGamePoints = { ...rulesState.gamePoints };
   const nextInTheBag = { ...rulesState.inTheBag };
 
   let handWinner: Partnership | null = null;
-  if (totalPoints.A > totalPoints.B) {
-    if (!rulesState.inTheBag.A) handWinner = "A";
-  } else if (totalPoints.B > totalPoints.A) {
-    if (!rulesState.inTheBag.B) handWinner = "B";
+  if (totalPoints.NS > totalPoints.EW) {
+    if (!rulesState.inTheBag.NS) handWinner = "NS";
+  } else if (totalPoints.EW > totalPoints.NS) {
+    if (!rulesState.inTheBag.EW) handWinner = "EW";
   }
 
   if (handWinner) {
-    const loser = handWinner === "A" ? "B" : "A";
+    const loser = handWinner === "NS" ? "EW" : "NS";
     const gp = totalPoints[loser] < 20 ? 2 : 1;
     nextGamePoints[handWinner] += gp;
   }
 
   // Update Bag status for NEXT hand
-  nextInTheBag.A = tricksWon.A === 0;
-  nextInTheBag.B = tricksWon.B === 0;
+  nextInTheBag.NS = tricksWon.NS === 0;
+  nextInTheBag.EW = tricksWon.EW === 0;
 
   const updated: MarjapussiRulesState = {
     ...rulesState,
@@ -668,7 +668,7 @@ function finishHand(
     phase: "setup",
     trumpSuit: null,
     marriages: [],
-    marriagePoints: { A: 0, B: 0 },
+    marriagePoints: { NS: 0, EW: 0 },
     currentTrick: { cards: [], leadSuit: null },
     trickLeader: null,
     trickNumber: 1,
@@ -677,7 +677,7 @@ function finishHand(
     gamePoints: nextGamePoints,
     inTheBag: nextInTheBag,
     dealerIndex: (rulesState.dealerIndex + 1) % PLAYERS.length,
-    result: `Hand ${rulesState.dealNumber} Result: Team A ${totalPoints.A} pts, Team B ${totalPoints.B} pts.`,
+    result: `Hand ${rulesState.dealNumber} Result: Team NS ${totalPoints.NS} pts, Team EW ${totalPoints.EW} pts.`,
   };
 
   const winnerStr = winnerText(nextGamePoints);
@@ -1103,7 +1103,7 @@ const marjapussiRuleModule: GameRuleModule = {
         };
       }
       const targetPile =
-        partnershipFor(winner.player) === "A" ? TEAM_A_WON : TEAM_B_WON;
+        partnershipFor(winner.player) === "NS" ? TEAM_NS_WON : TEAM_EW_WON;
       const trickCardIds = nextRulesState.currentTrick.cards.map(
         (c) => c.cardId
       );
@@ -1175,7 +1175,7 @@ export const marjapussiPlugin: GamePlugin = {
   description: META.description,
   ruleModule: marjapussiRuleModule,
   validationHints: {
-    sharedPileIds: ["deck", "trick", TEAM_A_WON, TEAM_B_WON],
+    sharedPileIds: ["deck", "trick", TEAM_NS_WON, TEAM_EW_WON],
     isPileAlwaysVisibleToRules: (pileId: string) =>
       pileId.endsWith("-hand") || pileId === "deck",
   } satisfies ValidationHints,
