@@ -32,6 +32,16 @@ type Team = "A" | "B";
 type Phase = "setup" | "playing" | "ended";
 type TurnPhase = "must-draw" | "meld-or-discard";
 
+/** Returns a user-friendly explanation of what moves are allowed in the current turn phase. */
+function getTurnPhaseGuidance(turnPhase: TurnPhase): string {
+  switch (turnPhase) {
+    case "must-draw":
+      return "During the draw phase, you must draw a card from the stock or take the discard pile.";
+    case "meld-or-discard":
+      return "After drawing, you may meld cards to your team's meld piles. When ready, discard a card to end your turn.";
+  }
+}
+
 const PLAYERS = ["S", "W", "N", "E"] as const;
 const MELD_RANKS = [
   "4",
@@ -2299,12 +2309,16 @@ export const canastaRules: GameRuleModule = {
 
       return {
         valid: false,
-        reason: "Illegal move for current phase.",
+        reason: getTurnPhaseGuidance(rulesState.turnPhase),
         engineEvents: [],
       };
     }
 
-    return { valid: false, reason: "Unsupported intent.", engineEvents: [] };
+    return {
+      valid: false,
+      reason: `That action is not available right now. ${getTurnPhaseGuidance(rulesState.turnPhase)}`,
+      engineEvents: [],
+    };
   },
 };
 

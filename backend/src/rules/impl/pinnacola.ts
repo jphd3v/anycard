@@ -26,6 +26,20 @@ type TurnPhase =
   | "must-meld-pozzo-top"
   | "must-reuse-joker";
 
+/** Returns a user-friendly explanation of what moves are allowed in the current turn phase. */
+function getTurnPhaseGuidance(turnPhase: TurnPhase): string {
+  switch (turnPhase) {
+    case "must-draw":
+      return "You must draw a card from the deck or take from the pozzo (discard pile).";
+    case "play-or-discard":
+      return "You may play cards to your melds. When ready, discard a card to end your turn.";
+    case "must-meld-pozzo-top":
+      return "You took the pozzo—now you must meld the top card before continuing.";
+    case "must-reuse-joker":
+      return "You replaced a joker from a meld—now you must use that joker in another meld.";
+  }
+}
+
 interface PinnacolaRulesState {
   phase: PinnacolaPhase;
   hasDealt: boolean;
@@ -747,7 +761,7 @@ export const pinnacolaRules: GameRuleModule = {
 
     return {
       valid: false,
-      reason: "Invalid move or unsupported action for the current phase.",
+      reason: getTurnPhaseGuidance(rs.turnPhase),
       engineEvents: [],
     };
   },

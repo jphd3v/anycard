@@ -519,7 +519,10 @@ export const durakRules: GameRuleModule = {
         nextRulesState.bout = [];
         nextPlayer = attackerId;
       } else {
-        return { valid: false, reason: "Invalid action.", engineEvents: [] };
+        const guidance = isAttacker
+          ? "As the attacker, you can play cards with matching ranks or click 'Done' to end the bout."
+          : "As the defender, you must beat attacking cards or click 'Take' to pick up all cards.";
+        return { valid: false, reason: guidance, engineEvents: [] };
       }
     }
 

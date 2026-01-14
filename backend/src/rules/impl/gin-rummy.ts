@@ -43,6 +43,26 @@ type GinPhase =
   | "ended";
 type TurnPhase = "must-draw" | "must-discard";
 
+/** Returns a user-friendly explanation of what moves are allowed in the current phase. */
+function getPhaseGuidance(phase: GinPhase, turnPhase: TurnPhase): string {
+  switch (phase) {
+    case "dealing":
+      return "The game has not started yet. Use the Start Game action to deal cards.";
+    case "first-upcard-non-dealer":
+      return "The non-dealer may take the upcard to start their turn, or pass to give the dealer a chance.";
+    case "first-upcard-dealer":
+      return "The dealer may take the upcard to start their turn, or pass to let the non-dealer draw from the deck.";
+    case "playing":
+      return turnPhase === "must-draw"
+        ? "You must draw a card from the deck or take the top card from the discard pile."
+        : "You may arrange melds in your meld piles, then discard a card to end your turn.";
+    case "layoff":
+      return "The defender may lay off cards onto the knocker's melds. Click Finish when done.";
+    case "ended":
+      return "This hand has ended.";
+  }
+}
+
 interface GinRulesState {
   phase: GinPhase;
   hasDealt: boolean;
@@ -1445,7 +1465,11 @@ export const ginRules: GameRuleModule = {
           nextRulesState = { ...nextRulesState, phase: "first-upcard-dealer" };
           engineEvents.push({ type: "set-current-player", player: dealer });
         } else
-          return { valid: false, reason: "Invalid action.", engineEvents: [] };
+          return {
+            valid: false,
+            reason: getPhaseGuidance(rulesState.phase, rulesState.turnPhase),
+            engineEvents: [],
+          };
       } else if (rulesState.phase === "first-upcard-dealer") {
         if (intent.action === "pass") {
           const nonDealer = getOtherPlayer(rulesState.dealer, players);
@@ -1456,10 +1480,18 @@ export const ginRules: GameRuleModule = {
           };
           engineEvents.push({ type: "set-current-player", player: nonDealer });
         } else
-          return { valid: false, reason: "Invalid action.", engineEvents: [] };
+          return {
+            valid: false,
+            reason: getPhaseGuidance(rulesState.phase, rulesState.turnPhase),
+            engineEvents: [],
+          };
       } else if (rulesState.phase === "layoff") {
         if (intent.action !== "finish") {
-          return { valid: false, reason: "Invalid action.", engineEvents: [] };
+          return {
+            valid: false,
+            reason: getPhaseGuidance(rulesState.phase, rulesState.turnPhase),
+            engineEvents: [],
+          };
         }
         if (!rulesState.knockPlayer || rulesState.knockType !== "knock") {
           return {
@@ -2044,7 +2076,11 @@ export const ginRules: GameRuleModule = {
       return { valid: true, engineEvents };
     }
 
-    return { valid: false, reason: "Unsupported intent.", engineEvents: [] };
+    return {
+      valid: false,
+      reason: getPhaseGuidance(rulesState.phase, rulesState.turnPhase),
+      engineEvents: [],
+    };
   },
 };
 
