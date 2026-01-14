@@ -26,6 +26,7 @@ import {
   getViewSalt,
 } from "./state.js";
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
+import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
 import { buildViewForPlayer } from "./view.js";
 import { listLegalIntentsForPlayer, validateMove } from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
@@ -853,6 +854,15 @@ export function initSocket(io: Server) {
   };
 
   io.on("connection", (socket: Socket) => {
+    const warmupWarning = getWarmupWarningMessage();
+    if (warmupWarning) {
+      socket.emit("game:status", {
+        message: warmupWarning,
+        tone: "warning" as const,
+        source: "ai" as const,
+      });
+    }
+
     socket.on("game:leave", () => {
       const watchedGameId = watchRegistry.get(socket.id);
       if (watchedGameId) {

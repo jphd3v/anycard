@@ -8,7 +8,13 @@
   ],
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
-    { "type": "action", "playerId": "P2", "action": "take-upcard" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "discard",
+      "toPileId": "P2-hand",
+      "cardId": 38
+    },
     {
       "type": "move",
       "playerId": "P2",
@@ -121,7 +127,77 @@
       "toPileId": "P2-hand",
       "cardId": 16
     },
-    { "type": "action", "playerId": "P2", "action": "knock" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-1",
+      "cardId": 27
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-1",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-1",
+      "cardId": 40
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-2",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-2",
+      "cardId": 36
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-2",
+      "cardId": 23
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-3",
+      "cardId": 37
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-3",
+      "cardId": 38
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-3",
+      "cardId": 39
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 18
+    },
+    { "type": "action", "playerId": "P1", "action": "finish" },
     { "type": "action", "playerId": "P2", "action": "start-game" }
   ],
   "expect": {
@@ -137,8 +213,9 @@
       "lastDrawSource": null,
       "knockPlayer": null,
       "knockType": "none",
+      "layoffCardIds": [],
       "result": null,
-      "matchScores": { "P1": 0, "P2": 32 },
+      "matchScores": { "P1": 0, "P2": 67 },
       "handWins": { "P1": 0, "P2": 1 },
       "matchWinner": null
     }

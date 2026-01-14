@@ -20,6 +20,7 @@
       "lastDrawSource": "deck",
       "knockPlayer": null,
       "knockType": "blocked",
+      "layoffCardIds": [],
       "result": "Hand 1 Result: Blocked (deck empty). No points scored.",
       "matchScores": { "P1": 0, "P2": 0 },
       "handWins": { "P1": 0, "P2": 0 },

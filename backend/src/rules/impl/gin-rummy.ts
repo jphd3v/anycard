@@ -39,6 +39,7 @@ type GinPhase =
   | "first-upcard-non-dealer"
   | "first-upcard-dealer"
   | "playing"
+  | "layoff"
   | "ended";
 type TurnPhase = "must-draw" | "must-discard";
 
@@ -53,6 +54,7 @@ interface GinRulesState {
   lastDrawSource: "deck" | "discard" | null;
   knockPlayer: string | null;
   knockType: "none" | "knock" | "gin" | "blocked";
+  layoffCardIds: number[];
   result: string | null;
 
   // Match-level state
@@ -103,6 +105,7 @@ const GIN_BONUS = 25;
 const UNDERCUT_BONUS = 25;
 const MAX_KNOCK_DEADWOOD = 10;
 const MATCH_POINTS_GOAL = 100;
+const MELD_SLOTS = [1, 2, 3];
 
 // -------- basic helpers --------
 
@@ -119,6 +122,7 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     lastDrawSource: null,
     knockPlayer: null,
     knockType: "none",
+    layoffCardIds: [],
     result: null,
     matchScores: Object.fromEntries(validPlayers.map((p) => [p, 0])),
     handWins: Object.fromEntries(validPlayers.map((p) => [p, 0])),
@@ -135,6 +139,9 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     matchScores: obj.matchScores ?? base.matchScores,
     handWins: obj.handWins ?? base.handWins,
     agentGuide: obj.agentGuide ?? base.agentGuide,
+    layoffCardIds: Array.isArray(obj.layoffCardIds)
+      ? obj.layoffCardIds.filter((id): id is number => typeof id === "number")
+      : base.layoffCardIds,
   };
 }
 
@@ -146,6 +153,11 @@ function getOtherPlayer(current: string, players: string[]): string {
 
 function deadwoodValue(rank: string): number {
   return DEADWOOD_VALUE[rank] ?? 0;
+}
+
+function rankNumber(rank: string): number {
+  const idx = RANK_ORDER.indexOf(rank);
+  return idx === -1 ? -1 : idx + 1;
 }
 
 function formatTurnDigest(
@@ -162,6 +174,18 @@ function formatTurnDigest(
 
 function formatCardLabel(card: { rank: string; suit: string }): string {
   return `${card.rank} of ${card.suit}`;
+}
+
+function meldPileId(playerId: string, index: number): string {
+  return `${playerId}-meld-${index}`;
+}
+
+function meldPileIdsForPlayer(playerId: string): string[] {
+  return MELD_SLOTS.map((index) => meldPileId(playerId, index));
+}
+
+function isPlayerMeldPile(pileId: string, playerId: string): boolean {
+  return pileId.startsWith(`${playerId}-meld-`);
 }
 
 function projectPilesFromGameState(gameState: GameState): ProjectedPiles {
@@ -369,34 +393,193 @@ function analyzeBestMelds(cards: SimpleCard[]): HandAnalysis {
   };
 }
 
-function canLayOff(card: SimpleCard, melds: Meld[]): boolean {
-  const rv = RANK_TO_NUM[card.rank];
-
-  for (const meld of melds) {
-    if (meld.length === 0) continue;
-    const sameRank = meld.every((c) => c.rank === meld[0].rank);
-    if (sameRank) {
-      if (card.rank === meld[0].rank && meld.length < 4) {
-        return true;
-      }
-      continue;
+function minDeadwoodAfterDiscard(cards: SimpleCard[]): number {
+  if (cards.length === 0) return 0;
+  let best = Infinity;
+  for (const card of cards) {
+    const remaining = cards.filter((c) => c.id !== card.id);
+    const analysis = analyzeBestMelds(remaining);
+    if (analysis.deadwoodValue < best) {
+      best = analysis.deadwoodValue;
     }
+  }
+  return best === Infinity ? 0 : best;
+}
 
-    const suit = meld[0].suit;
-    if (!meld.every((c) => c.suit === suit)) continue;
+function validateMeld(cards: SimpleCard[]): string | null {
+  if (cards.length < 3) {
+    return "Melds must contain at least three cards.";
+  }
 
-    const nums = meld.map((c) => RANK_TO_NUM[c.rank]).sort((a, b) => a - b);
-    const min = nums[0];
-    const max = nums[nums.length - 1];
+  const sameRank = cards.every((c) => c.rank === cards[0].rank);
+  if (sameRank) {
+    if (cards.length > 4) {
+      return "Sets cannot have more than four cards.";
+    }
+    return null;
+  }
 
-    if (card.suit !== suit) continue;
+  const sameSuit = cards.every((c) => c.suit === cards[0].suit);
+  if (!sameSuit) {
+    return "Melds must be a set or a single-suit run.";
+  }
 
-    if (rv === min - 1 || rv === max + 1) {
-      return true;
+  const nums = cards.map((c) => RANK_TO_NUM[c.rank]).sort((a, b) => a - b);
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] !== nums[i - 1] + 1) {
+      return "Run melds must be consecutive.";
     }
   }
 
+  return null;
+}
+
+function canAddToMeld(meldCards: SimpleCard[], card: SimpleCard): boolean {
+  if (meldCards.length === 0) return true;
+  if (meldCards.length === 1) {
+    const base = meldCards[0];
+    if (card.rank === base.rank) {
+      return true;
+    }
+    if (card.suit !== base.suit) return false;
+    const baseNum = rankNumber(base.rank);
+    const cardNum = rankNumber(card.rank);
+    if (baseNum === -1 || cardNum === -1) return false;
+    return cardNum === baseNum - 1 || cardNum === baseNum + 1;
+  }
+
+  const sameRank = meldCards.every((c) => c.rank === meldCards[0].rank);
+  if (sameRank) {
+    if (card.rank !== meldCards[0].rank) return false;
+    const size = meldCards.length + 1;
+    return size <= 4;
+  }
+
+  const sameSuit = meldCards.every((c) => c.suit === meldCards[0].suit);
+  if (!sameSuit || card.suit !== meldCards[0].suit) return false;
+
+  const nums = meldCards.map((c) => rankNumber(c.rank)).sort((a, b) => a - b);
+  const min = nums[0];
+  const max = nums[nums.length - 1];
+  const rv = rankNumber(card.rank);
+  if (rv === -1 || min === -1 || max === -1) return false;
+
+  if (meldCards.length === 1) {
+    return rv === min - 1 || rv === max + 1;
+  }
+
+  return rv === min - 1 || rv === max + 1;
+}
+
+function hasExistingSetMeld(
+  state: ValidationState,
+  playerId: string,
+  rank: string
+): boolean {
+  for (const pileId of meldPileIdsForPlayer(playerId)) {
+    const cards = cardsInPile(state, pileId);
+    if (cards.length === 0) continue;
+    if (cards.every((c) => c.rank === rank)) {
+      return true;
+    }
+  }
   return false;
+}
+
+type MeldInfo = {
+  melds: Meld[];
+  meldCards: SimpleCard[];
+  invalidReason: string | null;
+};
+
+function collectMeldInfo(
+  projected: ProjectedPiles,
+  playerId: string
+): MeldInfo {
+  const melds: Meld[] = [];
+  const meldCards: SimpleCard[] = [];
+  let invalidReason: string | null = null;
+
+  for (const pileId of meldPileIdsForPlayer(playerId)) {
+    const cards = projected[pileId]?.cards ?? [];
+    if (cards.length === 0) continue;
+    meldCards.push(...cards);
+    const err = validateMeld(cards);
+    if (err) {
+      invalidReason ??= `Meld pile ${pileId} is invalid. ${err}`;
+    } else {
+      melds.push(cards);
+    }
+  }
+
+  return { melds, meldCards, invalidReason };
+}
+
+function computeDeadwoodForScoreboard(
+  projected: ProjectedPiles,
+  playerId: string
+): HandAnalysis {
+  const hand = projected[`${playerId}-hand`]?.cards ?? [];
+  const meldInfo = collectMeldInfo(projected, playerId);
+
+  if (meldInfo.meldCards.length === 0) {
+    return analyzeBestMelds(hand);
+  }
+
+  const deadwoodCards = meldInfo.invalidReason
+    ? [...hand, ...meldInfo.meldCards]
+    : [...hand];
+  const deadwoodTotal = deadwoodCards.reduce(
+    (sum, c) => sum + deadwoodValue(c.rank),
+    0
+  );
+
+  return {
+    melds: meldInfo.invalidReason ? [] : meldInfo.melds,
+    deadwoodCards,
+    deadwoodValue: deadwoodTotal,
+  };
+}
+
+function computeDeadwoodManual(
+  projected: ProjectedPiles,
+  playerId: string
+): { deadwoodValue: number; invalidReason: string | null } {
+  const hand = projected[`${playerId}-hand`]?.cards ?? [];
+  const meldInfo = collectMeldInfo(projected, playerId);
+  const deadwoodCards = meldInfo.invalidReason
+    ? [...hand, ...meldInfo.meldCards]
+    : [...hand];
+  const deadwoodTotal = deadwoodCards.reduce(
+    (sum, c) => sum + deadwoodValue(c.rank),
+    0
+  );
+
+  return {
+    deadwoodValue: deadwoodTotal,
+    invalidReason: meldInfo.invalidReason,
+  };
+}
+
+function canLayOffToMeld(card: SimpleCard, meld: Meld): boolean {
+  if (meld.length < 3) return false;
+  if (validateMeld(meld)) return false;
+
+  const sameRank = meld.every((c) => c.rank === meld[0].rank);
+  if (sameRank) {
+    return card.rank === meld[0].rank && meld.length < 4;
+  }
+
+  const suit = meld[0].suit;
+  if (!meld.every((c) => c.suit === suit)) return false;
+  if (card.suit !== suit) return false;
+
+  const nums = meld.map((c) => RANK_TO_NUM[c.rank]).sort((a, b) => a - b);
+  const min = nums[0];
+  const max = nums[nums.length - 1];
+  const rv = RANK_TO_NUM[card.rank];
+
+  return rv === min - 1 || rv === max + 1;
 }
 
 // ------- Scoreboard and winner -------
@@ -413,9 +596,6 @@ function computeHandScore(
 ): GinHandScore {
   const [p1, p2] = rulesState.players;
 
-  const p1Cards = projected[`${p1}-hand`]?.cards ?? [];
-  const p2Cards = projected[`${p2}-hand`]?.cards ?? [];
-
   const knockPlayer = rulesState.knockPlayer;
   const knockType = rulesState.knockType;
 
@@ -424,8 +604,8 @@ function computeHandScore(
   let status = "";
 
   if (!knockPlayer || knockType === "blocked" || knockType === "none") {
-    const a1 = analyzeBestMelds(p1Cards);
-    const a2 = analyzeBestMelds(p2Cards);
+    const a1 = computeDeadwoodForScoreboard(projected, p1);
+    const a2 = computeDeadwoodForScoreboard(projected, p2);
     deadwood[p1] = a1.deadwoodValue;
     deadwood[p2] = a2.deadwoodValue;
     status =
@@ -434,11 +614,15 @@ function computeHandScore(
   }
 
   const defender = knockPlayer === p1 ? p2 : p1;
-  const knockerCards = knockPlayer === p1 ? p1Cards : p2Cards;
-  const defenderCards = knockPlayer === p1 ? p2Cards : p1Cards;
-
-  const knockerAnalysis = analyzeBestMelds(knockerCards);
-  const defenderAnalysis = analyzeBestMelds(defenderCards);
+  const knockerHand = projected[`${knockPlayer}-hand`]?.cards ?? [];
+  const knockerDeadwood = knockerHand.reduce(
+    (sum, c) => sum + deadwoodValue(c.rank),
+    0
+  );
+  const defenderAnalysis =
+    knockType === "knock"
+      ? computeDeadwoodManual(projected, defender)
+      : computeDeadwoodForScoreboard(projected, defender);
 
   if (knockType === "gin") {
     deadwood[knockPlayer] = 0;
@@ -449,32 +633,65 @@ function computeHandScore(
     return { deadwood, handPoints, status };
   }
 
-  const knockerMelds = knockerAnalysis.melds;
-  let effectiveDefenderDeadwood = 0;
-
-  for (const c of defenderAnalysis.deadwoodCards) {
-    if (canLayOff(c, knockerMelds)) {
-      continue;
-    }
-    effectiveDefenderDeadwood += deadwoodValue(c.rank);
-  }
-
-  const knockerDeadwood = knockerAnalysis.deadwoodValue;
   deadwood[knockPlayer] = knockerDeadwood;
-  deadwood[defender] = effectiveDefenderDeadwood;
+  deadwood[defender] = defenderAnalysis.deadwoodValue;
 
-  if (knockerDeadwood < effectiveDefenderDeadwood) {
-    const pts = effectiveDefenderDeadwood - knockerDeadwood;
+  if (knockerDeadwood < defenderAnalysis.deadwoodValue) {
+    const pts = defenderAnalysis.deadwoodValue - knockerDeadwood;
     handPoints[knockPlayer] = pts;
     status = `Knock by ${knockPlayer}`;
   } else {
-    const diff = knockerDeadwood - effectiveDefenderDeadwood;
+    const diff = knockerDeadwood - defenderAnalysis.deadwoodValue;
     const pts = UNDERCUT_BONUS + diff;
     handPoints[defender] = pts;
     status = `Undercut by ${defender}`;
   }
 
+  if (rulesState.phase === "layoff") {
+    status = `Layoff in progress (knock by ${knockPlayer})`;
+  }
+
   return { deadwood, handPoints, status };
+}
+
+function finalizeHand(
+  state: ValidationState,
+  rulesState: GinRulesState,
+  engineEvents: EngineEvent[]
+): GinRulesState {
+  const projected = projectPilesAfterEvents(state, engineEvents);
+  const scoringState: GinRulesState = { ...rulesState, phase: "ended" };
+  const handScore = computeHandScore(projected, scoringState);
+
+  const nextRulesState: GinRulesState = {
+    ...scoringState,
+    hasDealt: false,
+    layoffCardIds: [],
+    result: `Hand ${rulesState.dealNumber} Result: ${handScore.status}. Scores: ${rulesState.players[0]}=${handScore.handPoints[rulesState.players[0]]}, ${rulesState.players[1]}=${handScore.handPoints[rulesState.players[1]]}.`,
+  };
+
+  for (const p of rulesState.players) {
+    const pts = handScore.handPoints[p];
+    if (pts > 0) {
+      nextRulesState.matchScores[p] += pts;
+      nextRulesState.handWins[p] += 1;
+      nextRulesState.dealer = getOtherPlayer(p, rulesState.players);
+
+      if (nextRulesState.matchScores[p] >= MATCH_POINTS_GOAL) {
+        nextRulesState.matchWinner = p;
+      }
+    }
+  }
+
+  engineEvents.push({ type: "set-current-player", player: null });
+  if (nextRulesState.matchWinner) {
+    engineEvents.push({
+      type: "set-winner",
+      winner: nextRulesState.matchWinner,
+    });
+  }
+
+  return nextRulesState;
 }
 
 function calculateMatchTotals(rulesState: GinRulesState): {
@@ -671,49 +888,27 @@ function deriveActions(
     rulesState.phase === "first-upcard-dealer"
   ) {
     cells.push({
-      id: "take-upcard",
-      label: "Take Upcard",
-      actionId: "take-upcard",
-      row: 0,
-      col: 0,
-      enabled: true,
-    });
-    cells.push({
-      id: "pass-upcard",
+      id: "pass",
       label: "Pass",
-      actionId: "pass-upcard",
-      row: 0,
-      col: 1,
-      enabled: true,
-    });
-  } else if (
-    rulesState.phase === "playing" &&
-    rulesState.turnPhase === "must-discard"
-  ) {
-    const hand = cardsInPile(state, `${currentPlayerId}-hand`);
-    const analysis = analyzeBestMelds(hand);
-
-    cells.push({
-      id: "knock",
-      label: "Knock",
-      actionId: "knock",
+      actionId: "pass",
       row: 0,
       col: 0,
-      enabled: analysis.deadwoodValue <= MAX_KNOCK_DEADWOOD,
+      enabled: true,
     });
+  } else if (rulesState.phase === "layoff") {
     cells.push({
-      id: "gin",
-      label: "Go Gin",
-      actionId: "gin",
+      id: "finish",
+      label: "Finish",
+      actionId: "finish",
       row: 0,
-      col: 1,
-      enabled: analysis.deadwoodValue === 0,
+      col: 0,
+      enabled: true,
     });
   }
 
   return {
     rows: cells.length > 0 ? 1 : 0,
-    cols: cells.length > 0 ? 2 : 0,
+    cols: cells.length > 0 ? 1 : 0,
     cells,
   };
 }
@@ -766,8 +961,118 @@ export const ginRules: GameRuleModule = {
       rulesState.phase === "first-upcard-non-dealer" ||
       rulesState.phase === "first-upcard-dealer"
     ) {
-      intents.push({ type: "action", gameId, playerId, action: "take-upcard" });
-      intents.push({ type: "action", gameId, playerId, action: "pass-upcard" });
+      intents.push({ type: "action", gameId, playerId, action: "pass" });
+      const playerHandPileId = findHandPileIdForPlayer(state, playerId);
+      const discardTop = topCardId(state.piles["discard"] ?? null);
+      if (discardTop !== null) {
+        intents.push({
+          type: "move",
+          gameId,
+          playerId,
+          fromPileId: "discard",
+          toPileId: playerHandPileId,
+          cardId: discardTop,
+        });
+      }
+      return intents.filter((intent) => this.validate(state, intent).valid);
+    }
+
+    if (rulesState.phase === "layoff") {
+      if (rulesState.knockType !== "knock" || !rulesState.knockPlayer) {
+        return intents;
+      }
+      const defender = getOtherPlayer(rulesState.knockPlayer, players);
+      if (defender !== playerId) return intents;
+
+      intents.push({ type: "action", gameId, playerId, action: "finish" });
+
+      const handPileId = findHandPileIdForPlayer(state, playerId);
+      const handCards = cardsInPile(state, handPileId);
+      const knocker = rulesState.knockPlayer;
+      const defenderMelds = meldPileIdsForPlayer(defender);
+      for (const card of handCards) {
+        for (const meldPileId of meldPileIdsForPlayer(knocker)) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: handPileId,
+            toPileId: meldPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
+        for (const meldPileId of defenderMelds) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: handPileId,
+            toPileId: meldPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
+      }
+
+      for (const meldPileId of defenderMelds) {
+        const meldCards = cardsInPile(state, meldPileId);
+        for (const card of meldCards) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: meldPileId,
+            toPileId: handPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
+      }
+
+      for (const fromMeld of defenderMelds) {
+        const fromCards = cardsInPile(state, fromMeld);
+        for (const card of fromCards) {
+          for (const toMeld of defenderMelds) {
+            if (fromMeld === toMeld) continue;
+            const candidate: ClientIntent = {
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: fromMeld,
+              toPileId: toMeld,
+              cardId: card.id,
+            };
+            if (this.validate(state, candidate).valid) {
+              intents.push(candidate);
+            }
+          }
+        }
+      }
+
+      for (const meldPileId of meldPileIdsForPlayer(knocker)) {
+        const meldCards = cardsInPile(state, meldPileId);
+        for (const card of meldCards) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: meldPileId,
+            toPileId: handPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
+      }
+
       return intents;
     }
 
@@ -818,12 +1123,57 @@ export const ginRules: GameRuleModule = {
         }
       }
 
-      const analysis = analyzeBestMelds(handCards);
-      if (analysis.deadwoodValue === 0) {
-        intents.push({ type: "action", gameId, playerId, action: "gin" });
+      for (const card of handCards) {
+        for (const meldPileId of meldPileIdsForPlayer(playerId)) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: playerHandPileId,
+            toPileId: meldPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
       }
-      if (analysis.deadwoodValue <= MAX_KNOCK_DEADWOOD) {
-        intents.push({ type: "action", gameId, playerId, action: "knock" });
+
+      for (const meldPileId of meldPileIdsForPlayer(playerId)) {
+        const meldCards = cardsInPile(state, meldPileId);
+        for (const card of meldCards) {
+          const candidate: ClientIntent = {
+            type: "move",
+            gameId,
+            playerId,
+            fromPileId: meldPileId,
+            toPileId: playerHandPileId,
+            cardId: card.id,
+          };
+          if (this.validate(state, candidate).valid) {
+            intents.push(candidate);
+          }
+        }
+      }
+
+      for (const fromMeld of meldPileIdsForPlayer(playerId)) {
+        const fromCards = cardsInPile(state, fromMeld);
+        for (const card of fromCards) {
+          for (const toMeld of meldPileIdsForPlayer(playerId)) {
+            if (fromMeld === toMeld) continue;
+            const candidate: ClientIntent = {
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: fromMeld,
+              toPileId: toMeld,
+              cardId: card.id,
+            };
+            if (this.validate(state, candidate).valid) {
+              intents.push(candidate);
+            }
+          }
+        }
       }
     }
 
@@ -871,6 +1221,7 @@ export const ginRules: GameRuleModule = {
         lastDrawSource: null,
         knockPlayer: null,
         knockType: "none",
+        layoffCardIds: [],
         result: null,
       };
 
@@ -942,16 +1293,7 @@ export const ginRules: GameRuleModule = {
 
     if (intent.type === "action") {
       if (rulesState.phase === "first-upcard-non-dealer") {
-        if (intent.action === "take-upcard") {
-          engineEvents.push(...drawFromDiscard(state, currentPlayer));
-          nextRulesState = {
-            ...nextRulesState,
-            phase: "playing",
-            turnPhase: "must-discard",
-            lastDrawSource: "discard",
-          };
-          historyEntry = `${currentPlayer} took the upcard.`;
-        } else if (intent.action === "pass-upcard") {
+        if (intent.action === "pass") {
           const dealer = rulesState.dealer;
           nextRulesState = { ...nextRulesState, phase: "first-upcard-dealer" };
           engineEvents.push({ type: "set-current-player", player: dealer });
@@ -959,16 +1301,7 @@ export const ginRules: GameRuleModule = {
         } else
           return { valid: false, reason: "Invalid action.", engineEvents: [] };
       } else if (rulesState.phase === "first-upcard-dealer") {
-        if (intent.action === "take-upcard") {
-          engineEvents.push(...drawFromDiscard(state, currentPlayer));
-          nextRulesState = {
-            ...nextRulesState,
-            phase: "playing",
-            turnPhase: "must-discard",
-            lastDrawSource: "discard",
-          };
-          historyEntry = `${currentPlayer} took the upcard.`;
-        } else if (intent.action === "pass-upcard") {
+        if (intent.action === "pass") {
           const nonDealer = getOtherPlayer(rulesState.dealer, players);
           nextRulesState = {
             ...nextRulesState,
@@ -979,72 +1312,32 @@ export const ginRules: GameRuleModule = {
           historyEntry = `${currentPlayer} passed the upcard.`;
         } else
           return { valid: false, reason: "Invalid action.", engineEvents: [] };
-      } else if (
-        rulesState.phase === "playing" &&
-        rulesState.turnPhase === "must-discard"
-      ) {
-        const hand = cardsInPile(state, `${currentPlayer}-hand`);
-        const analysis = analyzeBestMelds(hand);
-
-        if (intent.action === "gin") {
-          if (analysis.deadwoodValue !== 0)
-            return {
-              valid: false,
-              reason: "You can only go Gin with 0 deadwood.",
-              engineEvents: [],
-            };
-          nextRulesState = {
-            ...nextRulesState,
-            knockType: "gin",
-            knockPlayer: currentPlayer,
-          };
-          historyEntry = `${currentPlayer} went gin.`;
-        } else if (intent.action === "knock") {
-          if (analysis.deadwoodValue > MAX_KNOCK_DEADWOOD)
-            return {
-              valid: false,
-              reason: `You need ${MAX_KNOCK_DEADWOOD} or fewer deadwood to knock.`,
-              engineEvents: [],
-            };
-          nextRulesState = {
-            ...nextRulesState,
-            knockType: "knock",
-            knockPlayer: currentPlayer,
-          };
-          historyEntry = `${currentPlayer} knocked.`;
-        } else
+      } else if (rulesState.phase === "layoff") {
+        if (intent.action !== "finish") {
+          return { valid: false, reason: "Invalid action.", engineEvents: [] };
+        }
+        if (!rulesState.knockPlayer || rulesState.knockType !== "knock") {
           return {
             valid: false,
-            reason: "Action not available.",
+            reason: "Layoff is not active.",
             engineEvents: [],
           };
-
-        nextRulesState = { ...nextRulesState, phase: "ended", hasDealt: false };
-        const projected = projectPilesAfterEvents(state, engineEvents);
-        const handScore = computeHandScore(projected, nextRulesState);
-
-        // Store result for collapsing when next hand starts
-        nextRulesState.result = `Hand ${rulesState.dealNumber} Result: ${handScore.status}. Scores: ${players[0]}=${handScore.handPoints[players[0]]}, ${players[1]}=${handScore.handPoints[players[1]]}.`;
-
-        for (const p of players) {
-          const pts = handScore.handPoints[p];
-          if (pts > 0) {
-            nextRulesState.matchScores[p] += pts;
-            nextRulesState.handWins[p] += 1;
-            nextRulesState.dealer = getOtherPlayer(p, players);
-
-            if (nextRulesState.matchScores[p] >= MATCH_POINTS_GOAL) {
-              nextRulesState.matchWinner = p;
-            }
+        }
+        const defender = getOtherPlayer(rulesState.knockPlayer, players);
+        for (const meldPileId of meldPileIdsForPlayer(defender)) {
+          const meldCards = cardsInPile(state, meldPileId);
+          if (meldCards.length === 0) continue;
+          const meldError = validateMeld(meldCards);
+          if (meldError) {
+            return {
+              valid: false,
+              reason: `Invalid meld in ${meldPileId}. ${meldError}`,
+              engineEvents: [],
+            };
           }
         }
-
-        engineEvents.push({ type: "set-current-player", player: null });
-        if (nextRulesState.matchWinner)
-          engineEvents.push({
-            type: "set-winner",
-            winner: nextRulesState.matchWinner,
-          });
+        nextRulesState = finalizeHand(state, nextRulesState, engineEvents);
+        historyEntry = `${currentPlayer} finished layoff.`;
       } else {
         return {
           valid: false,
@@ -1083,7 +1376,8 @@ export const ginRules: GameRuleModule = {
       if (
         rulesState.phase !== "playing" &&
         rulesState.phase !== "first-upcard-non-dealer" &&
-        rulesState.phase !== "first-upcard-dealer"
+        rulesState.phase !== "first-upcard-dealer" &&
+        rulesState.phase !== "layoff"
       ) {
         return {
           valid: false,
@@ -1104,6 +1398,158 @@ export const ginRules: GameRuleModule = {
           reason: "Card not in source pile.",
           engineEvents: [],
         };
+      }
+
+      if (rulesState.phase === "layoff") {
+        if (!rulesState.knockPlayer || rulesState.knockType !== "knock") {
+          return {
+            valid: false,
+            reason: "Layoff is not active.",
+            engineEvents: [],
+          };
+        }
+        const knocker = rulesState.knockPlayer;
+        const defender = getOtherPlayer(knocker, players);
+        if (currentPlayer !== defender) {
+          return {
+            valid: false,
+            reason: "Only the defender may lay off cards.",
+            engineEvents: [],
+          };
+        }
+
+        const handPileId = `${defender}-hand`;
+        if (from === handPileId && isPlayerMeldPile(to, knocker)) {
+          const meldCards = cardsInPile(state, to);
+          const meldError = validateMeld(meldCards);
+          if (meldError) {
+            return {
+              valid: false,
+              reason: `Cannot lay off to invalid meld. ${meldError}`,
+              engineEvents: [],
+            };
+          }
+          if (!canLayOffToMeld(movedCard, meldCards)) {
+            return {
+              valid: false,
+              reason: "Card cannot be laid off to that meld.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: handPileId,
+            toPileId: to,
+            cardIds: [cardId],
+          });
+          nextRulesState = {
+            ...nextRulesState,
+            layoffCardIds: [...nextRulesState.layoffCardIds, cardId],
+          };
+        } else if (from === handPileId && isPlayerMeldPile(to, defender)) {
+          const meldCards = cardsInPile(state, to);
+          if (
+            meldCards.length === 0 &&
+            hasExistingSetMeld(state, defender, movedCard.rank)
+          ) {
+            return {
+              valid: false,
+              reason:
+                "You already have a meld of that rank. Add to the existing meld instead.",
+              engineEvents: [],
+            };
+          }
+          if (!canAddToMeld(meldCards, movedCard)) {
+            return {
+              valid: false,
+              reason: "Card does not fit that meld.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: handPileId,
+            toPileId: to,
+            cardIds: [cardId],
+          });
+        } else if (isPlayerMeldPile(from, defender) && to === handPileId) {
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: from,
+            toPileId: handPileId,
+            cardIds: [cardId],
+          });
+        } else if (
+          isPlayerMeldPile(from, defender) &&
+          isPlayerMeldPile(to, defender)
+        ) {
+          const meldCards = cardsInPile(state, to);
+          if (!canAddToMeld(meldCards, movedCard)) {
+            return {
+              valid: false,
+              reason: "Card does not fit that meld.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: from,
+            toPileId: to,
+            cardIds: [cardId],
+          });
+        } else if (isPlayerMeldPile(from, knocker) && to === handPileId) {
+          if (!rulesState.layoffCardIds.includes(cardId)) {
+            return {
+              valid: false,
+              reason: "You can only take back cards you laid off.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: from,
+            toPileId: handPileId,
+            cardIds: [cardId],
+          });
+          nextRulesState = {
+            ...nextRulesState,
+            layoffCardIds: nextRulesState.layoffCardIds.filter(
+              (id) => id !== cardId
+            ),
+          };
+        } else {
+          return {
+            valid: false,
+            reason:
+              "Arrange your melds or lay off from your hand to the knocker's melds.",
+            engineEvents: [],
+          };
+        }
+
+        if (historyEntry) {
+          nextRulesState.agentGuide = appendHistoryDigest(
+            nextRulesState.agentGuide,
+            historyEntry
+          );
+        }
+        engineEvents.push({
+          type: "set-rules-state",
+          rulesState: nextRulesState,
+        });
+        engineEvents.push({
+          type: "set-actions",
+          actions: deriveActions(state, nextRulesState, state.currentPlayer),
+        });
+        const projected = projectPilesAfterEvents(state, engineEvents);
+        engineEvents.push({
+          type: "set-scoreboards",
+          scoreboards: buildScoreboard(
+            projected,
+            nextRulesState,
+            "__spectator__"
+          ),
+        });
+        return { valid: true, engineEvents };
       }
 
       if (rulesState.turnPhase === "must-draw") {
@@ -1134,22 +1580,28 @@ export const ginRules: GameRuleModule = {
             lastDrawSource: "deck",
           };
         } else if (from === "discard") {
-          if (
+          const tookUpcard =
             rulesState.phase === "first-upcard-non-dealer" ||
-            rulesState.phase === "first-upcard-dealer"
-          ) {
+            rulesState.phase === "first-upcard-dealer";
+          if (
+            rulesState.phase === "playing" &&
+            rulesState.lastDrawSource === null
+          )
             return {
               valid: false,
-              reason: "Use the 'Take Upcard' action.",
+              reason: "You must draw from the deck after both players pass.",
               engineEvents: [],
             };
-          }
           engineEvents.push(...drawFromDiscard(state, currentPlayer));
           nextRulesState = {
             ...nextRulesState,
+            phase: tookUpcard ? "playing" : nextRulesState.phase,
             turnPhase: "must-discard",
             lastDrawSource: "discard",
           };
+          if (tookUpcard) {
+            historyEntry = `${currentPlayer} took the upcard.`;
+          }
         } else
           return {
             valid: false,
@@ -1157,37 +1609,161 @@ export const ginRules: GameRuleModule = {
             engineEvents: [],
           };
       } else {
-        if (from !== `${currentPlayer}-hand` || to !== "discard")
+        const handPileId = `${currentPlayer}-hand`;
+        if (from === handPileId && isPlayerMeldPile(to, currentPlayer)) {
+          const hasMeldCards = meldPileIdsForPlayer(currentPlayer).some(
+            (pileId) => (state.piles[pileId]?.size ?? 0) > 0
+          );
+          if (!hasMeldCards) {
+            const handCards = cardsInPile(state, handPileId);
+            const minDeadwood = minDeadwoodAfterDiscard(handCards);
+            if (minDeadwood > MAX_KNOCK_DEADWOOD) {
+              return {
+                valid: false,
+                reason: "You can only lay down melds when you can knock.",
+                engineEvents: [],
+              };
+            }
+          }
+          const meldCards = cardsInPile(state, to);
+          if (
+            meldCards.length === 0 &&
+            hasExistingSetMeld(state, currentPlayer, movedCard.rank)
+          ) {
+            return {
+              valid: false,
+              reason:
+                "You already have a meld of that rank. Add to the existing meld instead.",
+              engineEvents: [],
+            };
+          }
+          if (!canAddToMeld(meldCards, movedCard)) {
+            return {
+              valid: false,
+              reason: "Card does not fit that meld.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: handPileId,
+            toPileId: to,
+            cardIds: [cardId],
+          });
+        } else if (isPlayerMeldPile(from, currentPlayer) && to === handPileId) {
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: from,
+            toPileId: handPileId,
+            cardIds: [cardId],
+          });
+        } else if (
+          isPlayerMeldPile(from, currentPlayer) &&
+          isPlayerMeldPile(to, currentPlayer)
+        ) {
+          const meldCards = cardsInPile(state, to);
+          if (!canAddToMeld(meldCards, movedCard)) {
+            return {
+              valid: false,
+              reason: "Card does not fit that meld.",
+              engineEvents: [],
+            };
+          }
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: from,
+            toPileId: to,
+            cardIds: [cardId],
+          });
+        } else if (from === handPileId && to === "discard") {
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: handPileId,
+            toPileId: "discard",
+            cardIds: [cardId],
+          });
+          historyEntry = formatTurnDigest(currentPlayer, rulesState, movedCard);
+
+          const projected = projectPilesAfterEvents(state, engineEvents);
+          const meldInfo = collectMeldInfo(projected, currentPlayer);
+          if (meldInfo.meldCards.length > 0) {
+            if (meldInfo.invalidReason) {
+              return {
+                valid: false,
+                reason: meldInfo.invalidReason,
+                engineEvents: [],
+              };
+            }
+            const handAfter = projected[handPileId]?.cards ?? [];
+            const deadwoodTotal = handAfter.reduce(
+              (sum, c) => sum + deadwoodValue(c.rank),
+              0
+            );
+            let knockType: "knock" | "gin";
+            if (deadwoodTotal === 0) {
+              knockType = "gin";
+            } else if (deadwoodTotal <= MAX_KNOCK_DEADWOOD) {
+              knockType = "knock";
+            } else {
+              return {
+                valid: false,
+                reason: `You need ${MAX_KNOCK_DEADWOOD} or fewer deadwood to knock.`,
+                engineEvents: [],
+              };
+            }
+
+            const baseKnockState: GinRulesState = {
+              ...nextRulesState,
+              knockType,
+              knockPlayer: currentPlayer,
+            };
+
+            if (knockType === "gin") {
+              nextRulesState = finalizeHand(
+                state,
+                baseKnockState,
+                engineEvents
+              );
+            } else {
+              const defender = getOtherPlayer(currentPlayer, players);
+              nextRulesState = {
+                ...baseKnockState,
+                phase: "layoff",
+                layoffCardIds: [],
+              };
+              engineEvents.push({
+                type: "set-current-player",
+                player: defender,
+              });
+            }
+
+            historyEntry = `${historyEntry} ${currentPlayer} ${
+              knockType === "gin" ? "went gin" : "knocked"
+            }.`;
+          } else if (projected["deck"].size <= 2) {
+            nextRulesState = {
+              ...nextRulesState,
+              phase: "ended",
+              hasDealt: false,
+              knockType: "blocked",
+              layoffCardIds: [],
+            };
+            nextRulesState.result = `Hand ${rulesState.dealNumber} Result: Blocked (deck empty). No points scored.`;
+            engineEvents.push({ type: "set-current-player", player: null });
+          } else {
+            nextRulesState = { ...nextRulesState, turnPhase: "must-draw" };
+            engineEvents.push({
+              type: "set-current-player",
+              player: getOtherPlayer(currentPlayer, players),
+            });
+          }
+        } else {
           return {
             valid: false,
-            reason: "Discard from hand to discard pile.",
+            reason:
+              "Discard from hand or arrange melds before ending your turn.",
             engineEvents: [],
           };
-
-        engineEvents.push({
-          type: "move-cards",
-          fromPileId: `${currentPlayer}-hand`,
-          toPileId: "discard",
-          cardIds: [cardId],
-        });
-        historyEntry = formatTurnDigest(currentPlayer, rulesState, movedCard);
-
-        const projected = projectPilesAfterEvents(state, engineEvents);
-        if (projected["deck"].size <= 2) {
-          nextRulesState = {
-            ...nextRulesState,
-            phase: "ended",
-            hasDealt: false,
-            knockType: "blocked",
-          };
-          nextRulesState.result = `Hand ${rulesState.dealNumber} Result: Blocked (deck empty). No points scored.`;
-          engineEvents.push({ type: "set-current-player", player: null });
-        } else {
-          nextRulesState = { ...nextRulesState, turnPhase: "must-draw" };
-          engineEvents.push({
-            type: "set-current-player",
-            player: getOtherPlayer(currentPlayer, players),
-          });
         }
       }
 
@@ -1228,6 +1804,7 @@ export const ginPlugin: GamePlugin = {
   description: META.description,
   validationHints: {
     sharedPileIds: ["deck", "discard"],
-    isPileAlwaysVisibleToRules: (pileId) => pileId.endsWith("-hand"),
+    isPileAlwaysVisibleToRules: (pileId) =>
+      pileId.endsWith("-hand") || pileId.includes("-meld-"),
   },
 };

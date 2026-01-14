@@ -4,8 +4,8 @@
   "seed": "GIN-INTEGRATION-1",
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
-    { "type": "action", "playerId": "P2", "action": "pass-upcard" },
-    { "type": "action", "playerId": "P1", "action": "pass-upcard" },
+    { "type": "action", "playerId": "P2", "action": "pass" },
+    { "type": "action", "playerId": "P1", "action": "pass" },
     {
       "type": "move",
       "playerId": "P2",
@@ -14,10 +14,12 @@
       "cardId": 15
     },
     {
-      "type": "action",
+      "type": "move",
       "playerId": "P2",
-      "action": "knock",
-      "expectedError": "You need 10 or fewer deadwood to knock."
+      "fromPileId": "P2-hand",
+      "toPileId": "P2-meld-1",
+      "cardId": 41,
+      "expectedError": "You can only lay down melds when you can knock."
     }
   ]
 }

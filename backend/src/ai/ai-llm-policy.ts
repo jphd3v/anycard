@@ -8,7 +8,7 @@ import { ClientIntentSchema } from "../../../shared/schemas.js";
 import { buildAiMessages } from "../../../shared/src/ai/prompts.js";
 import { parseAiChoice } from "../../../shared/src/ai/parser.js";
 import type { AiIntentCandidate } from "./ai-policy.js";
-import { appendAiLogEntry } from "./ai-log.js";
+import { appendAiLogEntry, sendGlobalStatus } from "./ai-log.js";
 import {
   createChatModel,
   getPolicyLlmConfig,
@@ -42,6 +42,12 @@ export const resolveRulesMarkdown = createRulesMarkdownResolver(
     },
   }
 );
+
+let warmupWarningMessage: string | null = null;
+
+export function getWarmupWarningMessage(): string | null {
+  return warmupWarningMessage;
+}
 
 export async function warmUpPolicyModel(): Promise<void> {
   if (!process.env.LLM_API_KEY || !process.env.LLM_MODEL) {
@@ -84,6 +90,9 @@ export async function warmUpPolicyModel(): Promise<void> {
 
     console.log(`[warmUpPolicyModel] Policy LLM warmed up successfully`);
   } catch (err) {
+    warmupWarningMessage =
+      "Policy LLM warm-up failed. Backend AI may be unavailable.";
+    sendGlobalStatus(warmupWarningMessage, "warning", "ai");
     console.warn(`[warmUpPolicyModel] Policy LLM warm-up failed`, err);
   }
 }

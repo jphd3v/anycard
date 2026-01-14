@@ -1,6 +1,6 @@
 {
   "rulesId": "gin-rummy",
-  "rows": 3,
+  "rows": 5,
   "cols": 2,
   "zones": [
     {
@@ -10,26 +10,34 @@
       "piles": ["P2-hand"]
     },
     {
+      "id": "p2-melds",
+      "label": "P2 Melds",
+      "cell": { "row": 1, "col": 0, "colspan": 2 },
+      "piles": ["P2-meld-1", "P2-meld-2", "P2-meld-3"]
+    },
+    {
       "id": "center-area",
       "label": "Center",
-      "cell": { "row": 1, "col": 0, "colspan": 1 },
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
       "piles": ["deck", "discard"]
     },
     {
-      "id": "actions-area",
-      "cell": { "row": 1, "col": 1, "colspan": 1 },
-      "piles": [],
-      "widget": "actions",
-      "actionOrientation": "vertical"
+      "id": "p1-melds",
+      "label": "P1 Melds",
+      "cell": { "row": 3, "col": 0, "colspan": 2 },
+      "piles": ["P1-meld-1", "P1-meld-2", "P1-meld-3"]
     },
     {
       "id": "p1-area",
       "label": "Player 1",
-      "cell": { "row": 2, "col": 0, "colspan": 2 },
+      "cell": { "row": 4, "col": 0, "colspan": 2 },
       "piles": ["P1-hand"]
     }
   ],
   "pileStyles": {
+    "P1-meld-1": { "layout": "horizontal", "label": "Meld 1" },
+    "P1-meld-2": { "layout": "horizontal", "label": "Meld 2" },
+    "P1-meld-3": { "layout": "horizontal", "label": "Meld 3" },
     "P1-hand": {
       "layout": "horizontal",
       "sort": {
@@ -85,6 +93,9 @@
         ]
       }
     },
+    "P2-meld-1": { "layout": "horizontal", "label": "Meld 1" },
+    "P2-meld-2": { "layout": "horizontal", "label": "Meld 2" },
+    "P2-meld-3": { "layout": "horizontal", "label": "Meld 3" },
     "P2-hand": {
       "layout": "horizontal",
       "sort": {

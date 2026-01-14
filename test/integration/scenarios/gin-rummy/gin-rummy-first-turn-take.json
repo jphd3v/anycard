@@ -8,7 +8,13 @@
   ],
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
-    { "type": "action", "playerId": "P2", "action": "take-upcard" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "discard",
+      "toPileId": "P2-hand",
+      "cardId": 27
+    },
     {
       "type": "move",
       "playerId": "P2",
@@ -30,6 +36,7 @@
       "lastDrawSource": "discard",
       "knockPlayer": null,
       "knockType": "none",
+      "layoffCardIds": [],
       "result": null,
       "matchScores": { "P1": 0, "P2": 0 },
       "handWins": { "P1": 0, "P2": 0 },

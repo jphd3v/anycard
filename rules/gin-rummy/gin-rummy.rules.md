@@ -31,12 +31,16 @@ You must start your turn by drawing one card:
 - **Take discard**: Take the top card from the discard pile (except on the very first turn if you just passed as dealer).
   _Note: If you draw from the discard pile, you cannot discard that same card in the same turn._
 
-**Phase 2: Discard & Ending**
-After drawing, you must discard one card. You may then:
+**Phase 2: Meld & Discard**
+After drawing, you may arrange your melds by moving cards from your hand into your meld piles. When you are ready, discard one card to end your turn. If you have laid down melds, the discard attempts to end the hand:
 
-- **Discard**: Simply end your turn by placing a card on the discard pile.
-- **Knock**: If your deadwood points are 10 or less (after discarding), you may choose to "Knock" to end the hand.
-- **Gin**: If you have 0 deadwood points (after discarding), you "Go Gin" to end the hand.
+- **Discard (no melds)**: End your turn normally by placing a card on the discard pile.
+- **Knock (melds laid down)**: If your deadwood points are 10 or less (after discarding), the hand ends as a Knock.
+- **Gin (melds laid down)**: If you have 0 deadwood points (after discarding), the hand ends as Gin.
+
+If your melds are invalid or your deadwood is too high, the discard is rejected and you must adjust your melds before trying again.
+
+**Meld visibility**: Meld piles are always face-up for both players. You may freely rearrange your melds during your turn, including taking cards back into your hand. You may only start laying down melds when your hand is already eligible to knock.
 
 ## Knocking, Gin & Laying Off
 
@@ -49,7 +53,7 @@ After drawing, you must discard one card. You may then:
 ### Knock (Good Hand)
 
 - **Requirement**: 10 or fewer deadwood points.
-- **Layoff**: The opponent may lay off their own deadwood cards onto the knocker's melds (e.g., adding a 4th King to the knocker's set of three Kings).
+- **Layoff**: The opponent may lay off their own deadwood cards onto the knocker's melds (e.g., adding a 4th King to the knocker's set of three Kings). Layoffs are manual: move cards from your hand onto the knocker's meld piles, and you may also lay down your own melds. Press **Finish** to end the layoff whenever you are done (you can finish early if you miss something).
 - **Scoring**:
   - If the knocker's deadwood is less than the opponent's (after layoffs), the knocker scores the difference.
   - **Undercut**: If the opponent has equal or less deadwood than the knocker, the opponent scores the difference plus a 25-point bonus.

@@ -70,6 +70,7 @@ export function createChatModel(cfg: OpenAiCompatibleConfig): ChatOpenAI {
     model: cfg.model,
     temperature: cfg.temperature ?? 0,
     apiKey: cfg.apiKey,
+    maxRetries: 1,
     configuration: {
       ...(normalizedBaseUrl
         ? { baseURL: normalizedBaseUrl, basePath: normalizedBaseUrl }

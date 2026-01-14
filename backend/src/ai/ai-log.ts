@@ -63,6 +63,20 @@ export function sendGameStatus(
   }
 }
 
+export function sendGlobalStatus(
+  message: string,
+  tone: "info" | "success" | "warning" | "error" = "info",
+  source: "ai" | "rules" | "engine" | "app" = "app"
+) {
+  if (io) {
+    io.emit("game:status", {
+      message,
+      tone,
+      source,
+    });
+  }
+}
+
 // Optional: to replay when a client joins
 export function getAiLog(gameId: string): AiLogEntry[] {
   return aiLogsByGame.get(gameId) ?? [];
