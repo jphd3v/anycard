@@ -89,6 +89,25 @@ export function rotateLayout(layout: GameLayout, angle: number): GameLayout {
   };
 }
 
+function getHandPileIds(layout: GameLayout): string[] {
+  if (!layout?.pileStyles) return [];
+
+  return Object.entries(layout.pileStyles)
+    .filter(([, style]) => style?.isHand)
+    .map(([pileId]) => pileId);
+}
+
+function getHandZones(layout: GameLayout): LayoutZone[] {
+  if (!layout?.zones?.length) return [];
+
+  const handPileIds = new Set(getHandPileIds(layout));
+  if (handPileIds.size === 0) return [];
+
+  return layout.zones.filter(
+    (zone) => zone?.piles?.some((pileId) => handPileIds.has(pileId)) ?? false
+  );
+}
+
 /**
  * Finds the zone that primarily belongs to the player.
  */
@@ -104,10 +123,25 @@ function getPlayerPrimaryZone(
     .filter((p) => p && p.ownerId === playerId)
     .map((p) => p.id);
 
-  let candidateZones = layout.zones.filter(
-    (z) =>
-      z && z.piles && z.piles.some((pId: string) => playerPiles.includes(pId))
-  );
+  const handPileIds = new Set(getHandPileIds(layout));
+  const playerHandPiles = playerPiles.filter((pId) => handPileIds.has(pId));
+
+  let candidateZones =
+    playerHandPiles.length > 0
+      ? layout.zones.filter(
+          (z) =>
+            z &&
+            z.piles &&
+            z.piles.some((pId: string) => playerHandPiles.includes(pId))
+        )
+      : [];
+
+  if (candidateZones.length === 0) {
+    candidateZones = layout.zones.filter(
+      (z) =>
+        z && z.piles && z.piles.some((pId: string) => playerPiles.includes(pId))
+    );
+  }
 
   // Fallback 1: Try by zone ID/label matching playerId
   if (candidateZones.length === 0) {
@@ -168,17 +202,27 @@ function getPlayerPrimaryZone(
 function getBottomReferenceZone(layout: GameLayout): LayoutZone | null {
   if (!layout || !layout.zones || layout.zones.length === 0) return null;
 
-  // Find player zones (South, P1, etc)
-  const playerZones = (layout.zones || []).filter(
-    (z) =>
-      z &&
-      ((z.id || "").toLowerCase().includes("south") ||
-        (z.id || "").toLowerCase().includes("p1") ||
-        z.label?.toLowerCase().includes("south") ||
-        z.label?.toLowerCase().includes("player 1"))
-  );
+  const handZones = getHandZones(layout);
 
-  const pool = playerZones.length > 0 ? playerZones : layout.zones;
+  // Find player zones (South, P1, etc) when no explicit hand piles exist.
+  const playerZones =
+    handZones.length > 0
+      ? []
+      : (layout.zones || []).filter(
+          (z) =>
+            z &&
+            ((z.id || "").toLowerCase().includes("south") ||
+              (z.id || "").toLowerCase().includes("p1") ||
+              z.label?.toLowerCase().includes("south") ||
+              z.label?.toLowerCase().includes("player 1"))
+        );
+
+  const pool =
+    handZones.length > 0
+      ? handZones
+      : playerZones.length > 0
+        ? playerZones
+        : layout.zones;
   if (!pool || pool.length === 0) return layout.zones?.[0] || null;
 
   return pool.reduce((prev, curr) => {
@@ -205,19 +249,24 @@ function getBottomReferenceZone(layout: GameLayout): LayoutZone | null {
 function isSideBySideLayout(layout: GameLayout): boolean {
   if (!layout || !layout.zones) return false;
 
+  const handZones = getHandZones(layout);
+  const useHandZones = handZones.length > 0;
+  const zonesToCheck = useHandZones ? handZones : layout.zones;
+
   const playerRows = new Set<number>();
   let playerZoneCount = 0;
 
-  for (const zone of layout.zones) {
+  for (const zone of zonesToCheck) {
     const id = (zone.id || "").toLowerCase();
     const label = (zone.label || "").toLowerCase();
-    const isPlayerZone =
-      id.includes("player") ||
-      id.includes("hand") ||
-      label.includes("player") ||
-      label.includes("hand") ||
-      /p\d/.test(id) ||
-      ["north", "south", "east", "west"].some((s) => id.includes(s));
+    const isPlayerZone = useHandZones
+      ? true
+      : id.includes("player") ||
+        id.includes("hand") ||
+        label.includes("player") ||
+        label.includes("hand") ||
+        /p\d/.test(id) ||
+        ["north", "south", "east", "west"].some((s) => id.includes(s));
 
     if (isPlayerZone) {
       playerRows.add(zone.cell.row);

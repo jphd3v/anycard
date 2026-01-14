@@ -16,8 +16,10 @@ import { Card } from "./Card";
 import { isTestMode } from "../utils/testMode";
 import { sendMoveIntent } from "../socket";
 
+type PileDisplayView = PileView & { isHand?: boolean };
+
 interface Props {
-  pile: PileView;
+  pile: PileDisplayView;
   className?: string;
   disabled?: boolean;
   displayName?: string;
@@ -89,7 +91,7 @@ export function Pile({
     currentPlayerId && pile.ownerId === currentPlayerId;
   const isOpponentTurn = isOwnerCurrentTurn && pile.ownerId !== myPlayerId;
   const isMyTurn = isOwnerCurrentTurn && pile.ownerId === myPlayerId;
-  const isHandPile = pile.id.includes("hand");
+  const isHandPile = pile.isHand ?? pile.id.includes("hand");
   const ownerSeat = view?.seats?.find((s) => s.seatId === pile.ownerId);
   const isAi = ownerSeat?.aiRuntime !== "none";
   const ownerName = ownerSeat?.name || pile.ownerId;
