@@ -103,8 +103,13 @@ def parse_filename(filename):
 
     # 2. Check for Jokers
     if "joker" in name or "jolly" in name:
+        if "red" in name:
+            return "1J.svg"
+        if "black" in name:
+            return "2J.svg"
+        
+        # Fallback to sequential if no color in name
         joker_counter += 1
-        # Map: 1J = Red, 2J = Black is standard, but we'll just number them sequentially
         return f"{joker_counter}J.svg"
 
     # 3. Detect Suit
