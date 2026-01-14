@@ -660,7 +660,7 @@ The policy prompt structure is minimal and factual:
   - `candidates`: list of legal moves with pickIds, summaries, tags, and anchors.
   - `context`: deterministic facts and optional recap.
     - `context.facts`: legality constraints, phase info, visible state (e.g., `mustFollowSuit`, `ledSuit`, `currentWinning`).
-    - `context.recap`: optional brief text recap of recent events (from `historyDigest`).
+    - `context.recap`: optional brief text recap of recent events (from `rulesState.recap`).
 - **Design principle**: Engine provides **facts**, LLM provides **choices**.
   - Facts: "mustFollowSuit", "ledSuit", "currentWinning card" (deterministic, rules-based).
   - NOT facts: "prefer low cards", "avoid risky moves" (strategy heuristics).
@@ -690,21 +690,30 @@ standard validation errors instead.
 
 The AI subsystem provides game history and context to help AI players make informed decisions.
 
-**Centralized Recap Management (`backend/src/ai/recap-manager.ts`)**:
+**Game-Specific Recap System**:
 
-Game history is now managed centrally rather than per-game:
+Each game implements its own recap via `aiSupport.buildContext()`, stored in `rulesState`:
 
-- Recap entries are automatically captured from game events
-- Bounded to prevent unbounded growth (last 12 entries, 120 chars each)
-- Cleared automatically when a new deal/round starts
-- Seat-specific to prevent information leakage
+- **Per-game implementation**: Each game defines what history is meaningful for AI context
+- **Stored in rulesState**: Recap array persists across turns as part of game state
+- **Collapsing**: At natural boundaries (hand end, round end), collapse details to summary
+- **Bounded**: Keep recap concise (e.g., last 30-80 entries) to prevent unbounded growth
+- **Seat-safe**: Recap must not leak hidden information from other seats
+
+Example patterns by game type:
+
+- **Trick-taking (Bridge, Katko)**: Per-trick summaries, collapse to hand summary at hand end
+- **Rummy-style (Canasta, Gin)**: Per-turn summaries (draws, melds, discards), collapse at hand end
+
+**Reference implementation**: See `bridge.ts` for a complete example.
 
 **AiSupport Interface (Optional)**:
 
 Games can optionally implement the `AiSupport` interface (`backend/src/rules/ai-support.ts`) to provide:
 
-- `buildContext(view)`: Return game-specific context facts
-  - Example: `{ phase: "bidding", trumpSuit: "♠️", mustFollowSuit: true }`
+- `buildContext(view)`: Return game-specific context including recap and facts
+  - `recap`: Array of strings summarizing game history
+  - `facts`: Structured data like `{ phase: "bidding", trumpSuit: "♠️", mustFollowSuit: true }`
   - Include only public information visible to the AI seat
   - Return structured data, not strategy hints
 
@@ -714,6 +723,7 @@ Games can optionally implement the `AiSupport` interface (`backend/src/rules/ai-
 - Good examples: `mustFollowSuit: true`, `openingMeldPointsNeeded: 50`
 - Bad examples: `preferLowCards: true` ❌, `avoidRiskyMoves: true` ❌
 - All AI context is automatically filtered to prevent hidden information leakage
+- Default recap is empty array if game doesn't implement buildContext
 
 ### AI policy candidates and output format (DSL)
 
@@ -842,7 +852,7 @@ This means:
 
 The following describes the **target design** for AI support. This simplifies the current implementation by:
 
-1. **Single recap[]**: Consolidates `historyDigest` and `memory` into one deterministic `context.recap: string[]`
+1. **Single recap[]**: Game-specific `rulesState.recap: string[]` returned via `buildContext()`
 2. **Seat-hardened views**: AI sees only `AiView` (public + private for its seat)
 3. **Simple candidate IDs**: Candidates have only `id` and optional `summary`
 4. **Strict output validation**: LLM returns `{id: "<candidate id>"}` matching one candidate exactly
@@ -918,21 +928,21 @@ interface AiSupport {
 
 #### 8.5.4 Recap Management
 
-**Recap replaces both historyDigest and memory**:
+**Each game implements its own recap via `aiSupport.buildContext()`**:
 
-- Maintained per seat: `recapBySeat[gameId:seatId]`
-- Bounded: Keep last 30-80 entries (configurable)
-- Deterministic: Turn summaries + round summaries in chronological order
-- Seat-safe: Generated from seat-hardened events or seat-specific logs only
+- Stored in `rulesState.recap: string[]` (persists across turns)
+- Returned via `buildContext()` to AI
+- Collapsed at natural boundaries (hand end, round end) to keep history bounded
+- Seat-safe: must not leak hidden information from other seats
 
-Example recap:
+Example recap (Gin Rummy):
 
 ```ts
 [
-  "Round 1 ended: You scored 15 points.",
-  "Round 2 started. Trump: ♠. You lead.",
-  "Turn 1: You played 7♠. Partner played K♠. Opponents played 3♠, 9♣.",
-  "Turn 2: Opponent led Q♥. You must follow suit.",
+  "Hand 1: P1 Gin. Points: P1=32, P2=0.",
+  "Hand 2 started (dealer: P2).",
+  "P1: drew from stock, discarded K of hearts.",
+  "P2: drew from discard, discarded 3 of clubs.",
 ];
 ```
 
@@ -995,7 +1005,7 @@ applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
 
 - [x] New types in `shared/src/ai/types.ts` (✓ done)
 - [x] AiSupport plugin interface (✓ done)
-- [x] Recap manager replacing memory/historyDigest (✓ done)
+- [x] Game-specific recap via `rulesState.recap` and `buildContext()` (✓ done)
 - [x] New prompt builder (`buildAiMessages`) (✓ done)
 - [x] New parser (`parseAiOutput`) with strict validation (✓ done)
 - [x] Update AI turn pipeline to use new flow (✓ done)

@@ -27,7 +27,6 @@ import {
 } from "./state.js";
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
 import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
-import { clearGameRecap } from "./ai/recap-manager.js";
 import { buildViewForPlayer } from "./view.js";
 import { listLegalIntentsForPlayer, validateMove } from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
@@ -213,7 +212,6 @@ export function closeGameSession(io: Server, gameId: string): boolean {
 
   roomTypeByGameId.delete(gameId);
   gameProcessingChains.delete(gameId);
-  clearGameRecap(gameId);
   closeGame(gameId);
   return true;
 }
@@ -1011,7 +1009,6 @@ export function initSocket(io: Server) {
               if (demoState) {
                 if (opts.resetDedicated) {
                   resetGame(demoGameId);
-                  clearGameRecap(demoGameId);
                   broadcastStateToGame(demoGameId);
                 }
 
@@ -1046,7 +1043,6 @@ export function initSocket(io: Server) {
 
           try {
             initGame(stateForGame);
-            clearGameRecap(gameId);
           } catch (err) {
             if (
               err instanceof Error &&
@@ -2157,7 +2153,6 @@ export function initSocket(io: Server) {
         }
 
         resetGame(gameId);
-        clearGameRecap(gameId);
 
         // Keep seats occupied; just refresh seat status and game state for clients
         broadcastSeatStatus(gameId);
@@ -2240,9 +2235,6 @@ export function initSocket(io: Server) {
           }
 
           const ok = resetGameWithSeed(gameId, seed);
-          if (ok) {
-            clearGameRecap(gameId);
-          }
           if (!ok) {
             socket.emit("game:error", {
               message: "Game not found",

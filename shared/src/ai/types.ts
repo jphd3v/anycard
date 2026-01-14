@@ -13,10 +13,10 @@ export interface AiView {
 
 /**
  * Context provided to AI (deterministic, bounded, seat-safe).
- * Single recap array replaces historyDigest + memory duplication.
+ * Recap is stored in rulesState and returned via buildContext().
  */
 export interface AiContext {
-  recap?: string[]; // Single deterministic array of summary strings (oldest → newest)
+  recap?: string[]; // Game history summaries from rulesState.recap (oldest → newest)
   facts?: Record<string, unknown>; // Optional plugin-defined deterministic extra facts (still non-secret)
 }
 

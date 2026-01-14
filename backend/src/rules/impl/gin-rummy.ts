@@ -12,6 +12,7 @@ import type {
   EngineEvent,
   ValidationResult,
 } from "../../../../shared/validation.js";
+import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
 import { loadGameMeta } from "../meta.js";
 import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
@@ -60,6 +61,9 @@ interface GinRulesState {
   matchScores: Record<string, number>;
   handWins: Record<string, number>;
   matchWinner: string | null;
+
+  // AI context: turn-by-turn summaries
+  recap: string[];
 }
 
 type SimpleCard = { id: number; rank: string; suit: string };
@@ -125,6 +129,7 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     matchScores: Object.fromEntries(validPlayers.map((p) => [p, 0])),
     handWins: Object.fromEntries(validPlayers.map((p) => [p, 0])),
     matchWinner: null,
+    recap: [],
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -138,6 +143,7 @@ function getGinRulesState(raw: unknown, players: string[]): GinRulesState {
     layoffCardIds: Array.isArray(obj.layoffCardIds)
       ? obj.layoffCardIds.filter((id): id is number => typeof id === "number")
       : base.layoffCardIds,
+    recap: Array.isArray(obj.recap) ? obj.recap : base.recap,
   };
 }
 
@@ -659,11 +665,16 @@ function finalizeHand(
   const scoringState: GinRulesState = { ...rulesState, phase: "ended" };
   const handScore = computeHandScore(projected, scoringState);
 
+  // Collapse recap to hand summary
+  const [p1, p2] = rulesState.players;
+  const handSummary = `Hand ${rulesState.dealNumber}: ${handScore.status}. Points: ${p1}=${handScore.handPoints[p1]}, ${p2}=${handScore.handPoints[p2]}.`;
+
   const nextRulesState: GinRulesState = {
     ...scoringState,
     hasDealt: false,
     layoffCardIds: [],
     result: `Hand ${rulesState.dealNumber} Result: ${handScore.status}. Scores: ${rulesState.players[0]}=${handScore.handPoints[rulesState.players[0]]}, ${rulesState.players[1]}=${handScore.handPoints[rulesState.players[1]]}.`,
+    recap: [handSummary],
   };
 
   for (const p of rulesState.players) {
@@ -1307,6 +1318,8 @@ export const ginRules: GameRuleModule = {
 
       const shuffledCardIds = shuffleAllCards(state, nextDealNumber, "GIN");
 
+      // Add hand start to recap (keeps previous hand summaries)
+      const handStartMsg = `Hand ${nextDealNumber} started (dealer: ${dealer}).`;
       nextRulesState = {
         ...rulesState,
         hasDealt: true,
@@ -1320,6 +1333,7 @@ export const ginRules: GameRuleModule = {
         knockType: "none",
         layoffCardIds: [],
         result: null,
+        recap: [...rulesState.recap, handStartMsg],
       };
 
       const { events: dealEvents, nextIndex: afterDealIdx } =
@@ -1799,7 +1813,13 @@ export const ginRules: GameRuleModule = {
             toPileId: "discard",
             cardIds: [intent.cardId!],
           });
-          formatTurnDigest(currentPlayer, rulesState, movedCard);
+
+          // Store turn digest for AI recap
+          const turnDigest = formatTurnDigest(
+            currentPlayer,
+            rulesState,
+            movedCard
+          );
 
           const projected = projectPilesAfterEvents(state, engineEvents);
           const meldInfo = collectMeldInfo(projected, currentPlayer);
@@ -1829,10 +1849,12 @@ export const ginRules: GameRuleModule = {
               };
             }
 
+            // Include turn digest in recap before knock/gin
             const baseKnockState: GinRulesState = {
               ...nextRulesState,
               knockType,
               knockPlayer: currentPlayer,
+              recap: [...rulesState.recap, turnDigest],
             };
 
             if (knockType === "gin") {
@@ -1854,17 +1876,24 @@ export const ginRules: GameRuleModule = {
               });
             }
           } else if (projected["deck"].size <= 2) {
+            const blockedSummary = `Hand ${rulesState.dealNumber}: Blocked (deck empty). No points scored.`;
             nextRulesState = {
               ...nextRulesState,
               phase: "ended",
               hasDealt: false,
               knockType: "blocked",
               layoffCardIds: [],
+              recap: [blockedSummary], // Collapse recap to hand summary
             };
             nextRulesState.result = `Hand ${rulesState.dealNumber} Result: Blocked (deck empty). No points scored.`;
             engineEvents.push({ type: "set-current-player", player: null });
           } else {
-            nextRulesState = { ...nextRulesState, turnPhase: "must-draw" };
+            // Normal turn - append turn digest to recap
+            nextRulesState = {
+              ...nextRulesState,
+              turnPhase: "must-draw",
+              recap: [...rulesState.recap, turnDigest],
+            };
             engineEvents.push({
               type: "set-current-player",
               player: getOtherPlayer(currentPlayer, players),
@@ -1913,5 +1942,40 @@ export const ginPlugin: GamePlugin = {
     sharedPileIds: ["deck", "discard"],
     isPileAlwaysVisibleToRules: (pileId) =>
       pileId.endsWith("-hand") || pileId.includes("-meld-"),
+  },
+  aiSupport: {
+    listCandidates: () => {
+      // Gin Rummy uses default candidate generation from listLegalIntentsForPlayer
+      throw new Error("Gin Rummy uses default candidate generation");
+    },
+    buildContext: (view: AiView): AiContext => {
+      const rulesState = getGinRulesState(
+        (view.public as { rulesState?: unknown }).rulesState,
+        ["P1", "P2"]
+      );
+
+      // Basic facts from game state (no strategy, just state reflection)
+      const facts: Record<string, unknown> = {
+        phase: rulesState.phase,
+        turnPhase: rulesState.turnPhase,
+        dealNumber: rulesState.dealNumber,
+        matchScores: rulesState.matchScores,
+      };
+
+      // Add knock-related info if relevant
+      if (rulesState.knockPlayer) {
+        facts.knockPlayer = rulesState.knockPlayer;
+        facts.knockType = rulesState.knockType;
+      }
+
+      return {
+        recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
+        facts,
+      };
+    },
+    applyCandidateId: () => {
+      // Gin Rummy uses default candidate handling
+      throw new Error("Gin Rummy uses default candidate handling");
+    },
   },
 };

@@ -49,10 +49,35 @@ export interface AiSupport {
    * @param view Seat-hardened view of the game state
    * @returns Context with recap (string[]) and optional facts
    *
+   * ## Recap Guidelines
+   *
+   * Each game SHOULD implement its own recap that summarizes game history in a way
+   * that's useful for AI decision making. The recap is an array of strings, where
+   * each string briefly describes what happened.
+   *
+   * **Best practices:**
+   * - Keep entries concise (1 line each)
+   * - Store recap in rulesState so it persists across turns
+   * - Collapse detailed entries to summaries at natural boundaries (e.g., end of hand)
+   * - Track meaningful events, not every atomic action
+   *
+   * **Examples by game type:**
+   *
+   * **Trick-taking games (Bridge, Katko, etc.):**
+   * - Per trick: "Trick 3: P1 K♠️, P2 7♠️ → P1 wins"
+   * - At hand end, collapse to: "Hand 2: P1 won last trick. Scores: P1=2, P2=1"
+   *
+   * **Rummy-style games (Canasta, Gin Rummy, etc.):**
+   * - Per turn: "P2: drew from stock, melded 3 cards, discarded K♠️"
+   * - At hand end, collapse to: "Hand 1: P3 went out. Scores: A=150, B=-50"
+   *
+   * **Reference:** See bridge.ts for a complete implementation example.
+   *
    * REQUIREMENTS:
    * - recap must be deterministic and bounded (e.g., last 30-80 items)
    * - recap must not leak hidden information for other seats
    * - facts must be deterministic (no strategy, no heuristics)
+   * - If not implemented, recap defaults to empty array
    */
   buildContext?(view: AiView): AiContext;
 

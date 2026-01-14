@@ -76,6 +76,7 @@ interface CanastaRulesState {
   gameScore: Record<Team, number>;
   lastHandScore: Record<Team, number>;
   result: string | null;
+  recap: string[]; // AI context: turn-by-turn summaries
 }
 
 function teamFor(playerId: string): Team {
@@ -116,6 +117,7 @@ function getRulesState(raw: unknown): CanastaRulesState {
     gameScore: { A: 0, B: 0 },
     lastHandScore: { A: 0, B: 0 },
     result: null,
+    recap: [],
   };
 
   if (!raw || typeof raw !== "object") return base;
@@ -179,6 +181,9 @@ function getRulesState(raw: unknown): CanastaRulesState {
           (n): n is number => typeof n === "number"
         )
       : [],
+    recap: Array.isArray(obj.recap)
+      ? obj.recap.filter((s): s is string => typeof s === "string")
+      : base.recap,
   };
 }
 
@@ -1346,12 +1351,16 @@ export const canastaRules: GameRuleModule = {
 
       const afterDealProjected = projectPilesAfterEvents(state, engineEvents);
       const afterDealState = buildStateFromProjected(state, afterDealProjected);
+
+      // Add hand start message to recap
+      const handStartMessage = `Hand ${nextDealNumber} started (dealer ${dealer}).`;
       nextRulesState = {
         ...nextRulesState,
         turnStartTeamHadMeld: {
           A: teamHasAnyMeld(afterDealState, "A"),
           B: teamHasAnyMeld(afterDealState, "B"),
         },
+        recap: [...nextRulesState.recap, handStartMessage],
       };
       engineEvents.push({ type: "set-current-player", player: first });
       recomputeDerived(state, nextRulesState, engineEvents);
@@ -1917,7 +1926,13 @@ export const canastaRules: GameRuleModule = {
 
           const afterHand = projected[`${current}-hand`];
           const wentOut = (afterHand?.size ?? 0) === 0;
-          formatTurnDigest(current, nextRulesState, moving, wentOut);
+          const turnDigest = formatTurnDigest(
+            current,
+            nextRulesState,
+            moving,
+            wentOut
+          );
+          nextRulesState.recap = [...nextRulesState.recap, turnDigest];
           // Black threes meld is only legal as part of going out.
           if (!wentOut) {
             const black3Out = projected[`${myTeam}-black3-out`]?.cardIds ?? [];
@@ -1967,6 +1982,9 @@ export const canastaRules: GameRuleModule = {
                     : "Team B (P2 & P4)"
                 : null;
 
+            // Collapse recap to hand summary
+            const handSummary = `Hand ${rulesState.dealNumber}: ${current} went out. Scores: A=${handScore.A}, B=${handScore.B}. Total: A=${updatedGameScore.A}, B=${updatedGameScore.B}`;
+
             nextRulesState = {
               ...nextRulesState,
               phase: winner ? "ended" : "setup",
@@ -1978,6 +1996,7 @@ export const canastaRules: GameRuleModule = {
               tookDiscardThisTurn: false,
               pickedUpFromDiscardCardIds: [],
               result: `Hand ${rulesState.dealNumber} Result: ${current} went out. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
+              recap: [handSummary], // Collapse to hand summary for new hand
             };
 
             // Gather cards back to deck for next round
@@ -2397,7 +2416,10 @@ const canastaAiSupport: AiSupport = {
       teamHasMeldNow,
     };
 
-    return { recap: [], facts };
+    return {
+      recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
+      facts,
+    };
   },
 
   applyCandidateId(

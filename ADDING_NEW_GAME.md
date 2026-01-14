@@ -1348,13 +1348,30 @@ for (const cardIdStr of Object.keys(state.allCards)) {
 
 For complex games, you can optionally provide additional AI context beyond basic legal move enumeration.
 
-**Centralized Recap System:**
+**Game-Specific Recap System:**
 
-Game history is now managed centrally by `recap-manager.ts`:
+Each game SHOULD implement its own recap that summarizes game history in a way
+that's useful for AI decision making. The recap is an array of strings stored
+in `rulesState`, returned via `buildContext()`.
 
-- Recap entries are automatically captured from game events
-- No need for per-game history management
-- Bounded to prevent unbounded growth
+Best practices:
+
+- Keep entries concise (1 line each)
+- Store recap in `rulesState` so it persists across turns
+- Collapse detailed entries to summaries at natural boundaries (e.g., end of hand)
+- Track meaningful events, not every atomic action
+
+Examples by game type:
+
+- **Trick-taking games (Bridge, Katko):**
+  - Per trick: `"Trick 3: P1 K♠️, P2 7♠️ → P1 wins"`
+  - At hand end, collapse to: `"Hand 2: P1 won last trick. Scores: P1=2, P2=1"`
+
+- **Rummy-style games (Canasta, Gin Rummy):**
+  - Per turn: `"P2: drew from stock, melded 3 cards, discarded K♠️"`
+  - At hand end, collapse to: `"Hand 1: P3 went out. Scores: A=150, B=-50"`
+
+**Reference:** See `bridge.ts` for a complete implementation example.
 
 **AiSupport Interface (Optional):**
 
@@ -1362,20 +1379,40 @@ For games that need custom AI context, implement the `AiSupport` interface in yo
 
 ```typescript
 import type { AiSupport } from "../ai-support.js";
+import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
 
-const aiSupport: AiSupport = {
-  buildContext(view: AiView): AiContext {
-    const facts = {
-      phase: view.public.phase,
-      mustFollowSuit: determineMustFollowSuit(view),
-      openingMeldNeeded: calculateOpeningMeld(view),
-    };
-    return { facts };
+// In your rulesState interface:
+interface MyGameRulesState {
+  // ... other fields ...
+  recap: string[]; // AI context: game history summaries
+}
+
+// In your plugin:
+aiSupport: {
+  listCandidates: () => {
+    // Use default candidate generation from listLegalIntentsForPlayer
+    throw new Error("MyGame uses default candidate generation");
   },
-};
+  buildContext: (view: AiView): AiContext => {
+    const rulesState = getRulesState(
+      (view.public as { rulesState?: unknown }).rulesState
+    );
 
-// Export alongside your rule module
-export { pinnacolaRules, pinnacolaPlugin, aiSupport };
+    const facts: Record<string, unknown> = {
+      phase: rulesState.phase,
+      // Add game-specific facts here
+    };
+
+    return {
+      recap: rulesState.recap.length > 0 ? rulesState.recap : undefined,
+      facts,
+    };
+  },
+  applyCandidateId: () => {
+    // Use default candidate handling
+    throw new Error("MyGame uses default candidate handling");
+  },
+},
 ```
 
 **Pile Projection Utility:**

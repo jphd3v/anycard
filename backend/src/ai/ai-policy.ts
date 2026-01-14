@@ -20,7 +20,6 @@ import type { AiTurnInput } from "../../../shared/src/ai/types.js";
 import { getViewSalt } from "../state.js";
 import { toViewCardId } from "../view-ids.js";
 import { GAME_PLUGINS } from "../rules/registry.js";
-import { getRecap } from "./recap-manager.js";
 
 export type AiIntentCandidate = AiCandidate & {
   intent: ClientIntent;
@@ -161,12 +160,14 @@ export async function buildAiRequestPayload(input: AiPolicyInput): Promise<{
   const view = buildHardenedAiView(input.view, input.playerId);
 
   // Get plugin and call buildContext if available
+  // Each game should implement its own recap via buildContext
   const plugin = GAME_PLUGINS[input.rulesId];
   const context = plugin?.aiSupport?.buildContext?.(view) ?? {};
 
-  // If plugin didn't provide recap, fetch from recap-manager
+  // Default to empty recap if plugin didn't provide one
+  // (Games should implement buildContext to provide their own recap)
   if (!context.recap) {
-    context.recap = getRecap(input.view.gameId!, input.playerId);
+    context.recap = [];
   }
 
   // Try to resolve rules markdown for this game

@@ -89,6 +89,32 @@ The engine passes the publicly visible game state, the rules, and basic strategy
 - **Performance:** Local models (like Mistral/Devstral) might take 20-30 seconds per move in complex games, whereas cloud-based models are faster but come with costs. While some smaller local models can be very fast, I have yet to confirm if they can play at a high level. Certain mechanics—especially the "free" melding in **Rummy-based** games—still tend to confuse the AI. Additionally, the **Bidding** or **Auction phase** (for example, in **Bridge**) has proven particularly difficult for current LLMs to master (this is perhaps to no surprise as it can be considered complex in real life, as well).
 - **Client-Side AI:** To avoid prohibitively expensive server costs (and storing end-user's API keys on the server), I have implemented an option for the **browser (client) to handle LLM requests directly**. This allows users to use their own API credits (keys are stored only in session storage) and ensures privacy. This approach requires addressing CORS and mixed-content issues for certain providers or local LLM runners like LM Studio. I don't see it a big issue to connect e.g. to a LM Studio on your local network if you want to experiment with it, but as adviced earlier on, this software comes without a warranty of any kind, refer to the license for more details.
 
+### AI Model Evaluation
+
+Testing was conducted with various local models on Apple Silicon (M4 Max 48GB) using LM Studio. Key findings:
+
+| Model                             | Speed               | Strategy Quality | Notes                                                                         |
+| --------------------------------- | ------------------- | ---------------- | ----------------------------------------------------------------------------- |
+| nvidia/nemotron-3-nano            | Very fast (~2s)     | Poor             | Always picks same option (c1 bias), no reasoning; timeouts with thinking on   |
+| qwen/qwen3-4b-2507                | Fast (~5s)          | Poor             | Incorrect deadwood strategy, occasional ID mapping errors                     |
+| qwen/qwen3-vl-8b                  | Variable (4-12s)    | Poor             | Wrong strategy, timeouts occur                                                |
+| mistralai/devstral-small          | Variable (8-25s)    | Mixed            | Shows reasoning but inconsistent strategy; sometimes correct, sometimes wrong |
+| qwen/qwen3-14b (thinking on)      | Very slow (30-90s+) | Good             | Correct strategy but frequent timeouts                                        |
+| **qwen/qwen3-14b (thinking off)** | Fast (~3s)          | Good             | Best balance of speed and quality                                             |
+
+**Recommended configuration for local play:**
+
+- **Model:** qwen/qwen3-14b (or similar 14B+ model)
+- **Temperature:** 0.15
+- **Thinking mode:** Disabled (in LM Studio settings)
+
+**Key observations:**
+
+- Smaller models (4B) struggle with game strategy—they may discard low-value cards when they should discard high-value cards not in melds
+- Qwen3's "thinking mode" produces better reasoning but is too slow for real-time play
+- 14B models with thinking disabled offer the best tradeoff: fast responses with correct strategic decisions
+- Temperature 0.15 helps with consistent ID mapping (choosing the candidate that matches the stated reasoning)
+
 ### Project Status
 
 The project is currently at a **demo level**. While I aim for completeness and fidelity, I am not an expert in every variant of every game and I simply haven't had time to run them all through. In that sense they could be considered work in progress and consequently, there may be bugs or missing features.
