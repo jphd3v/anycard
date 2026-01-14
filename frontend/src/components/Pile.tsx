@@ -193,27 +193,18 @@ export function Pile({
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink font-bold leading-none transition-opacity duration-200 opacity-100">
             {!isHandPile && <span>{labelText}</span>}
             {isHandPile && ownerName && (
-              <span
-                className={`inline-flex items-center px-2 py-[2px] rounded-full border text-[9px] font-semibold tracking-tight leading-none ${
-                  isMine
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : isAi
-                      ? "bg-indigo-50 text-indigo-700 border-indigo-300"
-                      : "bg-amber-50 text-amber-800 border-amber-300"
-                }`}
-              >
-                {isMine
-                  ? "Your hand"
-                  : ownerSeat?.aiRuntime === "backend"
-                    ? `${ownerName} (AI: server)`
-                    : ownerSeat?.aiRuntime === "frontend" &&
-                        ownerSeat?.isAiControlledByYou
-                      ? `${ownerName} (AI: this browser)`
-                      : ownerSeat?.aiRuntime === "frontend"
-                        ? `${ownerName} (AI: other browser)`
-                        : isAi
-                          ? `${ownerName} (AI)`
-                          : ownerName}
+              <span className="inline-flex items-center gap-1">
+                <span className="text-[10px] font-bold">{ownerName}</span>
+                {isMine && (
+                  <span className="px-1.5 py-[1px] rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[8px] font-semibold">
+                    you
+                  </span>
+                )}
+                {isAi && (
+                  <span className="px-1.5 py-[1px] rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 text-[8px] font-semibold">
+                    AI
+                  </span>
+                )}
               </span>
             )}
           </div>
