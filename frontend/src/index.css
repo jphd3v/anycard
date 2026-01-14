@@ -99,7 +99,8 @@ body {
 
   /* DEFAULT (Desktop/Large Screens) */
   --card-height: 170px;
-  --pile-gap: 1rem;
+  --zone-gap: 8px;
+  --pile-gap: 24px;
   --table-padding: 0.5rem;
 }
 
@@ -111,7 +112,6 @@ body {
        25dvh means a card is 1/4th of the screen height. 
        This guarantees 3-4 rows fit perfectly without scrolling. */
     --card-height: 22dvh;
-    --pile-gap: 4px; /* Tighter gaps on mobile */
   }
 
   .game-layout {
@@ -198,8 +198,7 @@ body {
   :root {
     /* In portrait, width is the constraint. */
     --card-height: 11vh;
-    --pile-gap: 3px;
-    --table-padding: 3px;
+    --table-padding: 4px;
   }
 }
 

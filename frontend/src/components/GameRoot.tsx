@@ -385,7 +385,7 @@ export function GameRoot({
       return (
         <div
           className="flex flex-col w-full h-full justify-center"
-          style={{ gap: "var(--pile-gap, 0.5rem)" }}
+          style={{ gap: "var(--zone-gap, 0.5rem)" }}
         >
           {view.scoreboards.map((sb) => (
             <ScoreboardGrid key={sb.id} scoreboard={sb} />
@@ -428,7 +428,7 @@ export function GameRoot({
             // minmax(0, ...) = allow shrinking below content size (prevents overflow)
             gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
             gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
-            gap: "var(--pile-gap)",
+            gap: "var(--zone-gap)",
 
             // Constrain to viewport so it never scrolls
             maxHeight: "100%",

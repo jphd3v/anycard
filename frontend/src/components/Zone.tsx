@@ -27,11 +27,11 @@ export function Zone({ zone, renderPile, disabled }: Props) {
       : "border-white/10 bg-black/5"
   }`;
   const contentClass =
-    "w-full h-full flex flex-wrap items-center justify-center gap-2 overflow-hidden";
+    "w-full h-full flex flex-wrap items-center justify-center overflow-hidden";
 
   return (
     <div ref={isSinglePileZone ? setNodeRef : null} className={containerClass}>
-      <div className={contentClass}>
+      <div className={contentClass} style={{ gap: "var(--pile-gap, 8px)" }}>
         {zone.piles.map((pileId) => renderPile(pileId, zone))}
       </div>
     </div>

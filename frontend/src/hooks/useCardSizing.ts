@@ -16,7 +16,7 @@ const DEFAULT_CARD_VARS: CardVars = {
 const MIN_TOUCH_HEIGHT = 64; // keep a comfortable hit target on touch
 const MIN_FAN_RATIO_TOUCH = 0.3; // do not collapse fanning too far on touch
 
-const PILE_CHROME_Y = { coarse: 48, fine: 40 }; // label + counters + breathing room
+const PILE_CHROME_Y = { coarse: 72, fine: 64 }; // label + counters + breathing room
 const HARD_MIN_HEIGHT = 32; // absolute floor to avoid complete collapse
 
 // Determine if a pile layout is horizontal or vertical; others don't fan.
@@ -91,11 +91,22 @@ export function useCardSizing(
 
       // Resolve grid gap to compute per-cell sizes.
       const computed = window.getComputedStyle(board);
-      const gapX = parseFloat(computed.columnGap || computed.gap || "8") || 0;
-      const gapY = parseFloat(computed.rowGap || computed.gap || "8") || 0;
+      const zoneGapX =
+        parseFloat(computed.columnGap || computed.gap || "8") || 0;
+      const zoneGapY = parseFloat(computed.rowGap || computed.gap || "8") || 0;
 
-      const cellWidth = (rect.width - gapX * (layout.cols - 1)) / layout.cols;
-      const cellHeight = (rect.height - gapY * (layout.rows - 1)) / layout.rows;
+      // Extract pile-gap from CSS variables (defaults to 24 if not found)
+      const pileGap =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--pile-gap"
+          )
+        ) || 24;
+
+      const cellWidth =
+        (rect.width - zoneGapX * (layout.cols - 1)) / layout.cols;
+      const cellHeight =
+        (rect.height - zoneGapY * (layout.rows - 1)) / layout.rows;
 
       // Cap based on viewport; keep touch devices smaller but avoid undersizing landscape.
       const maxCap = isCoarsePointer
@@ -123,8 +134,8 @@ export function useCardSizing(
       const getPileSlotSize = (zone: LayoutZone, currentFanRatio: number) => {
         const colSpan = zone.cell.colspan ?? 1;
         const rowSpan = zone.cell.rowspan ?? 1;
-        const zoneWidth = cellWidth * colSpan + gapX * (colSpan - 1);
-        const zoneHeight = cellHeight * rowSpan + gapY * (rowSpan - 1);
+        const zoneWidth = cellWidth * colSpan + zoneGapX * (colSpan - 1);
+        const zoneHeight = cellHeight * rowSpan + zoneGapY * (rowSpan - 1);
 
         const pileSlots = Math.max(zone.piles?.length ?? 1, 1);
 
@@ -162,10 +173,10 @@ export function useCardSizing(
         for (let cols = 1; cols <= pileSlots; cols++) {
           const rows = Math.ceil(pileSlots / cols);
 
-          const widthMinusGap = zoneWidth - gapX * Math.max(cols - 1, 0);
+          const widthMinusGap = zoneWidth - pileGap * Math.max(cols - 1, 0);
           // Account for label+counter chrome PER ROW in the zone.
           const heightMinusGap =
-            zoneHeight - gapY * Math.max(rows - 1, 0) - zoneMaxChrome * rows;
+            zoneHeight - pileGap * Math.max(rows - 1, 0) - zoneMaxChrome * rows;
 
           const availableWidth = Math.max(widthMinusGap / cols, 0);
           const availableHeight = Math.max(heightMinusGap / rows, 0);

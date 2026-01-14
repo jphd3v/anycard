@@ -84,13 +84,13 @@ export function ActionsGrid({
       style={{ viewTransitionName: "none" }}
     >
       {isEmpty ? (
-        <div className="w-full h-full flex items-center justify-center text-xs font-bold uppercase tracking-widest text-ink-muted">
+        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-ink-muted">
           {highlightedActionLabel ? (
-            <div className="animate-action-pop px-3 py-2 rounded-md bg-surface-2/60 border border-surface-3">
+            <div className="animate-action-pop px-2 py-1.5 rounded-md bg-surface-2/60 border border-surface-3">
               Last action: {highlightedActionLabel}
             </div>
           ) : (
-            <div className="px-3 py-2 rounded-md">No actions</div>
+            <div className="px-2 py-1.5 rounded-md">No actions</div>
           )}
         </div>
       ) : (

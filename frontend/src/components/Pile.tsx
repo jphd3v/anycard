@@ -186,7 +186,7 @@ export function Pile({
       {/* Label with owner hint and optional sort selector */}
       {!hideTitle && (
         <div
-          className={`w-full flex items-center gap-2 h-5 mb-1 ${
+          className={`w-full flex items-center gap-2 h-5 mb-1 whitespace-nowrap ${
             showSortControl ? "justify-between" : "justify-center"
           }`}
         >
@@ -315,7 +315,7 @@ export function Pile({
 
       <div
         data-testid={`pile-count:${pile.id}`}
-        className={`absolute bottom-0 text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 ${
+        className={`absolute bottom-0 text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 whitespace-nowrap ${
           showDetails ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
       >
