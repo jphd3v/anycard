@@ -20,6 +20,7 @@ export interface EnvironmentConfig {
   backendAiEnabled: boolean;
   llmPolicyMode: "llm" | "firstCandidate";
   llmShowExceptionsInFrontend: boolean;
+  isTestEnvironment: boolean;
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {
@@ -64,6 +65,12 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     llmShowExceptionsInFrontend: parseBooleanEnv(
       process.env.LLM_SHOW_EXCEPTIONS_IN_FRONTEND
     ),
+    isTestEnvironment:
+      process.env.NODE_ENV === "test" ||
+      process.argv.some((arg) => arg.includes("test")) ||
+      // Detect when running under Playwright or other test environments
+      Boolean(process.env.PLAYWRIGHT_TEST_BASE_URL) ||
+      process.env.PORT === "3010", // Playwright uses port 3010 for tests
   };
 }
 

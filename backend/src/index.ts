@@ -128,12 +128,17 @@ server.listen(PORT, () => {
     );
   }
 
-  (async () => {
-    console.log("[Startup] Warming up policy LLM once");
-    await warmUpPolicyModel().catch((err) => {
-      console.warn("[Startup] Policy LLM warm-up failed", err);
+  // Skip LLM warm-up during tests to avoid unnecessary failures
+  if (!config.isTestEnvironment) {
+    (async () => {
+      console.log("[Startup] Warming up policy LLM once");
+      await warmUpPolicyModel().catch((err) => {
+        console.warn("[Startup] Policy LLM warm-up failed", err);
+      });
+    })().catch((err) => {
+      console.warn("[Startup] Policy LLM warm-up task failed", err);
     });
-  })().catch((err) => {
-    console.warn("[Startup] Policy LLM warm-up task failed", err);
-  });
+  } else {
+    console.log("[Startup] Skipping LLM warm-up in test environment");
+  }
 });

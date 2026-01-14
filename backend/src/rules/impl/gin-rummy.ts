@@ -1194,22 +1194,8 @@ export const ginRules: GameRuleModule = {
         }
       }
 
-      for (const meldPileId of meldPileIdsForPlayer(knocker)) {
-        const meldCards = cardsInPile(state, meldPileId);
-        for (const card of meldCards) {
-          const candidate: ClientIntent = {
-            type: "move",
-            gameId,
-            playerId,
-            fromPileId: meldPileId,
-            toPileId: handPileId,
-            cardId: card.id,
-          };
-          if (this.validate(state, candidate).valid) {
-            intents.push(candidate);
-          }
-        }
-      }
+      // Note: Removed the illegal candidate generation that allowed moving cards from knocker's melds to defender's hand
+      // During layoff, the defender cannot take cards from the knocker's melds - they can only lay off their own cards
 
       return intents;
     }
