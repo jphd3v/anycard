@@ -1,40 +1,32 @@
 {
   "rulesId": "scopa",
-  "rows": 3,
-  "cols": 7,
+  "rows": 2,
+  "cols": 3,
   "zones": [
     {
-      "id": "P2-zone",
+      "id": "player1-area",
+      "label": "Player 1",
+      "cell": { "row": 0, "col": 0 },
+      "piles": ["P1-hand", "P1-won"]
+    },
+    {
+      "id": "scoreboard-area",
+      "label": "Scoreboard",
+      "cell": { "row": 0, "col": 1 },
+      "piles": [],
+      "widget": "scoreboards"
+    },
+    {
+      "id": "player2-area",
       "label": "Player 2",
-      "cell": {
-        "row": 0,
-        "col": 0,
-        "rowspan": 1,
-        "colspan": 7
-      },
+      "cell": { "row": 0, "col": 2 },
       "piles": ["P2-hand", "P2-won"]
     },
     {
-      "id": "table-zone",
+      "id": "table-area",
       "label": "Table",
-      "cell": {
-        "row": 1,
-        "col": 0,
-        "rowspan": 1,
-        "colspan": 7
-      },
+      "cell": { "row": 1, "col": 0, "colspan": 3 },
       "piles": ["table"]
-    },
-    {
-      "id": "P1-zone",
-      "label": "Player 1",
-      "cell": {
-        "row": 2,
-        "col": 0,
-        "rowspan": 1,
-        "colspan": 7
-      },
-      "piles": ["P1-hand", "P1-won"]
     }
   ],
   "pileStyles": {
@@ -78,6 +70,8 @@
         ]
       }
     },
+    "P1-won": { "layout": "complete", "showDetails": true },
+    "P2-won": { "layout": "complete", "showDetails": true },
     "table": { "layout": "spread" }
   }
 }
