@@ -64,7 +64,7 @@ export function WinnerOverlay({
         >
           <button
             onClick={() => setIsMinimized(true)}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-ink-muted hover:text-ink transition-colors"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-3 rounded-full transition-colors z-30"
             title="Minimize"
           >
             <svg
@@ -73,7 +73,7 @@ export function WinnerOverlay({
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
-              className="w-5 h-5"
+              className="w-6 h-6"
             >
               <path
                 strokeLinecap="round"

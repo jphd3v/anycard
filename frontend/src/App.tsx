@@ -2154,10 +2154,11 @@ export default function App() {
         {showRoomLobby && (
           <FullScreenMessage
             title={roomLobbyTitle}
-            panelClassName="seat-selection-panel !max-w-[480px] !w-full !p-4 sm:!p-6 max-h-[calc(100dvh_-_1rem)] overflow-y-auto"
+            panelClassName={`seat-selection-panel !max-w-[480px] !w-full !p-4 sm:!p-6 max-h-[calc(100dvh_-_1rem)] overflow-y-auto ${!isGameActive ? "!bg-surface-1" : ""}`}
             descriptionClassName="!text-ink !mb-4 sm:!mb-6"
             translucent={isGameActive}
             canMinimize={isGameActive}
+            onClose={!isGameActive ? handleExitToGameSelection : undefined}
             blockInteractionsWhenMinimized={true}
             description={
               <div
@@ -2685,10 +2686,23 @@ export default function App() {
               </div>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="opacity-50 hover:opacity-100 px-1 cursor-pointer"
+                className="p-1 -mr-1 text-current opacity-50 hover:opacity-100 hover:bg-black/5 rounded-full transition-all cursor-pointer"
                 type="button"
+                aria-label="Close notification"
               >
-                ✕
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
               </button>
             </div>
           );
