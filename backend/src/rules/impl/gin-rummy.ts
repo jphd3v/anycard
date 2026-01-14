@@ -1072,6 +1072,31 @@ export const ginRules: GameRuleModule = {
       const handCards = cardsInPile(state, handPileId);
       const knocker = rulesState.knockPlayer;
       const defenderMelds = meldPileIdsForPlayer(defender);
+
+      // Generate multi-card meld candidates for defender's own melds
+      // This allows the AI to form new melds efficiently to reduce deadwood
+      const meldCandidates = generateGinMeldCandidates(handCards);
+      for (const cardIds of meldCandidates) {
+        for (const meldPileId of defenderMelds) {
+          const pileSize = state.piles[meldPileId]?.size ?? 0;
+          if (pileSize === 0) {
+            const candidate: ClientIntent = {
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: handPileId,
+              toPileId: meldPileId,
+              cardIds,
+            };
+            if (this.validate(state, candidate).valid) {
+              intents.push(candidate);
+            }
+            break; // Only add to first empty meld pile
+          }
+        }
+      }
+
+      // Single card layoffs to knocker's melds and defender's own melds
       for (const card of handCards) {
         for (const meldPileId of meldPileIdsForPlayer(knocker)) {
           const candidate: ClientIntent = {
@@ -1536,30 +1561,80 @@ export const ginRules: GameRuleModule = {
           };
         } else if (from === handPileId && isPlayerMeldPile(to, defender)) {
           const meldCards = cardsInPile(state, to);
-          if (
-            meldCards.length === 0 &&
-            hasExistingSetMeld(state, defender, movedCard!.rank)
-          ) {
-            return {
-              valid: false,
-              reason:
-                "You already have a meld of that rank. Add to the existing meld instead.",
-              engineEvents: [],
-            };
+
+          // Support both single-card and multi-card melds during layoff
+          const cardIds =
+            intent.cardId !== undefined ? [intent.cardId] : intent.cardIds!;
+
+          // For multi-card melds to empty pile, validate as complete group
+          if (cardIds.length >= 3 && meldCards.length === 0) {
+            const movingCards = cardIds
+              .map((id) => fromPile?.cards?.find((c) => c.id === id))
+              .filter((c): c is SimpleCard => !!c);
+
+            if (movingCards.length !== cardIds.length) {
+              return {
+                valid: false,
+                reason: "One or more cards not in source pile.",
+                engineEvents: [],
+              };
+            }
+
+            // Validate the group forms a valid meld
+            const meldError = validateMeld(movingCards);
+            if (meldError) {
+              return {
+                valid: false,
+                reason: `Invalid meld: ${meldError}`,
+                engineEvents: [],
+              };
+            }
+
+            // Check for duplicate rank meld
+            const firstCard = movingCards[0];
+            if (hasExistingSetMeld(state, defender, firstCard.rank)) {
+              return {
+                valid: false,
+                reason:
+                  "You already have a meld of that rank. Add to the existing meld instead.",
+                engineEvents: [],
+              };
+            }
+
+            engineEvents.push({
+              type: "move-cards",
+              fromPileId: handPileId,
+              toPileId: to,
+              cardIds: cardIds as [number, ...number[]],
+            });
+          } else {
+            // Single card or extending existing meld
+            if (
+              meldCards.length === 0 &&
+              movedCard &&
+              hasExistingSetMeld(state, defender, movedCard.rank)
+            ) {
+              return {
+                valid: false,
+                reason:
+                  "You already have a meld of that rank. Add to the existing meld instead.",
+                engineEvents: [],
+              };
+            }
+            if (movedCard && !canAddToMeld(meldCards, movedCard)) {
+              return {
+                valid: false,
+                reason: "Card does not fit that meld.",
+                engineEvents: [],
+              };
+            }
+            engineEvents.push({
+              type: "move-cards",
+              fromPileId: handPileId,
+              toPileId: to,
+              cardIds: [intent.cardId!],
+            });
           }
-          if (!canAddToMeld(meldCards, movedCard!)) {
-            return {
-              valid: false,
-              reason: "Card does not fit that meld.",
-              engineEvents: [],
-            };
-          }
-          engineEvents.push({
-            type: "move-cards",
-            fromPileId: handPileId,
-            toPileId: to,
-            cardIds: [intent.cardId!],
-          });
         } else if (isPlayerMeldPile(from, defender) && to === handPileId) {
           engineEvents.push({
             type: "move-cards",
@@ -1660,6 +1735,7 @@ export const ginRules: GameRuleModule = {
             ...nextRulesState,
             turnPhase: "must-discard",
             lastDrawSource: "deck",
+            lastDrawnCardId: null, // Clear - can discard any card after drawing from deck
           };
         } else if (from === "discard") {
           const tookUpcard =
@@ -1674,12 +1750,17 @@ export const ginRules: GameRuleModule = {
               reason: "You must draw from the deck after both players pass.",
               engineEvents: [],
             };
+          // Track which card was drawn from discard (can't discard it this turn)
+          const discardPile = state.piles["discard"];
+          const drawnCardId =
+            discardPile?.cards?.[discardPile.cards.length - 1]?.id ?? null;
           engineEvents.push(...drawFromDiscard(state, currentPlayer));
           nextRulesState = {
             ...nextRulesState,
             phase: tookUpcard ? "playing" : nextRulesState.phase,
             turnPhase: "must-discard",
             lastDrawSource: "discard",
+            lastDrawnCardId: drawnCardId,
           };
         } else
           return {
@@ -1807,6 +1888,19 @@ export const ginRules: GameRuleModule = {
             cardIds: [intent.cardId!],
           });
         } else if (from === handPileId && to === "discard") {
+          // Cannot discard the card just drawn from discard pile
+          if (
+            rulesState.lastDrawSource === "discard" &&
+            rulesState.lastDrawnCardId !== null &&
+            intent.cardId === rulesState.lastDrawnCardId
+          ) {
+            return {
+              valid: false,
+              reason:
+                "You cannot discard the card you just drew from the discard pile.",
+              engineEvents: [],
+            };
+          }
           engineEvents.push({
             type: "move-cards",
             fromPileId: handPileId,
@@ -1854,6 +1948,7 @@ export const ginRules: GameRuleModule = {
               ...nextRulesState,
               knockType,
               knockPlayer: currentPlayer,
+              lastDrawnCardId: null, // Reset after discard
               recap: [...rulesState.recap, turnDigest],
             };
 
@@ -1882,6 +1977,7 @@ export const ginRules: GameRuleModule = {
               phase: "ended",
               hasDealt: false,
               knockType: "blocked",
+              lastDrawnCardId: null, // Reset after discard
               layoffCardIds: [],
               recap: [blockedSummary], // Collapse recap to hand summary
             };
@@ -1892,6 +1988,7 @@ export const ginRules: GameRuleModule = {
             nextRulesState = {
               ...nextRulesState,
               turnPhase: "must-draw",
+              lastDrawnCardId: null, // Reset for next turn
               recap: [...rulesState.recap, turnDigest],
             };
             engineEvents.push({

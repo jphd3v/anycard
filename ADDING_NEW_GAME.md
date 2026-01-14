@@ -1128,6 +1128,27 @@ Many games involve complex turns where a player makes multiple moves to achieve 
 **The Principle:**
 Allow players to be in a "temporarily invalid" state _during_ their turn, as long as they resolve it before _ending_ their turn.
 
+**Human Players vs AI Players:**
+
+This pattern primarily serves **human players** using drag-and-drop:
+
+- Humans move cards one at a time (drag one card, then another)
+- Validation is deferred until they commit (e.g., discard)
+- They can undo intermediate moves if they change their mind
+
+For **AI players**, use **multi-card intents** instead (see section 7.3):
+
+- AI receives complete meld options as single candidates (e.g., "meld 3 Kings")
+- No intermediate states needed - AI makes one decision
+- Reduces AI decision space from many micro-moves to few meaningful choices
+
+These are complementary patterns:
+
+- **Deferred validation**: Enables incremental human interaction
+- **Multi-card intents**: Enables efficient AI decision-making
+
+Both achieve the same game outcome (e.g., a valid 3-card meld) through different interaction models.
+
 **Strategy:**
 
 1.  **Immediate Checks (Atomic Validity):**
@@ -1432,7 +1453,9 @@ Examples by game type:
 
 **AiSupport Interface (Optional):**
 
-For games that need custom AI context, implement the `AiSupport` interface in your rule module:
+For games that need richer AI context (recap + facts), implement the
+`AiSupport` interface in your rule module. If you don't need it, omit
+`aiSupport` entirely—the AI will still work using `listLegalIntentsForPlayer`.
 
 ```typescript
 import type { AiSupport } from "../ai-support.js";
@@ -1446,10 +1469,6 @@ interface MyGameRulesState {
 
 // In your plugin:
 aiSupport: {
-  listCandidates: () => {
-    // Use default candidate generation from listLegalIntentsForPlayer
-    throw new Error("MyGame uses default candidate generation");
-  },
   buildContext: (view: AiView): AiContext => {
     const rulesState = getRulesState(
       (view.public as { rulesState?: unknown }).rulesState
@@ -1465,12 +1484,12 @@ aiSupport: {
       facts,
     };
   },
-  applyCandidateId: () => {
-    // Use default candidate handling
-    throw new Error("MyGame uses default candidate handling");
-  },
 },
 ```
+
+The `buildContext` method provides the AI with game history (recap) and
+structured facts about the current state. This helps the AI make better
+decisions without duplicating logic from `listLegalIntentsForPlayer`.
 
 **Pile Projection Utility:**
 
@@ -1683,6 +1702,15 @@ That means your rule module MUST implement:
 listLegalIntentsForPlayer(state: ValidationState, playerId: string): ClientIntent[]
 ```
 
+There are two layers of AI support:
+
+- **`listLegalIntentsForPlayer` (required):** returns **atomic legal moves**.
+  This drives both the UI and the AI baseline.
+- **`AiSupport` (optional, recommended for complex games):** provides
+  AI-friendly candidates (including **multi-step macros**) and recap/facts
+  for better play. `applyCandidateId` may return a single intent or an array
+  of intents to execute in order.
+
 Requirements:
 
 - **MANDATORY: Initial Start-Game**: Must return `{ type: "action", action: "start-game" }` (and ONLY that) when `hasDealt` is false. Automated test runners and AI seats rely on this intent to progress from the initial state.
@@ -1711,17 +1739,10 @@ If you violate this, the AI may fail to select the move, return "unknown candida
 
 If you are experimenting locally and skip this method, the engine will fall back to generic heuristics (buttons + simple card moves), but this is **not acceptable** for contributions to this repo. Missing `listLegalIntentsForPlayer` for a game is treated as a bug, not an intentional AI-disabled mode.
 
-You **do not** need to worry about the AI policy "DSL" or candidate id
-format when adding a new game. The engine will:
-
-- take the `ClientIntent[]` you return,
-- wrap each intent as a candidate with an opaque id such as `rules:0`,
-- pass those to the policy model.
-
-Your only responsibility in `listLegalIntentsForPlayer` is to return the
-correct set of legal intents for the current state. The naming of candidate
-ids (`rules:0`, `rules:1`, etc.) is an implementation detail of the engine
-and the AI policy layer.
+You **do not** need to worry about the AI policy format when adding a new
+game. The engine will assign opaque ids (`c0`, `c1`, ...) and pass those to
+the model. If you implement `AiSupport`, the engine still remaps your
+candidate ids to `cX` before calling the LLM.
 
 ### 7.2 Fireproof Legal Intents (Candidate + Filter Pattern)
 

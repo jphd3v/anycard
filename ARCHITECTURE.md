@@ -633,7 +633,23 @@ Requirements:
 - SHOULD encode all phase/turn restrictions.
 - SHOULD be deterministic for a given `(state, playerId)`.
 
-### 8.5 Fireproof Legal Intents (Candidate + Filter Pattern)
+### 8.3 Optional AI Support (AiSupport)
+
+`listLegalIntentsForPlayer` enumerates **atomic legal moves**. This is enough
+for many games.
+
+For complex games, implement **AiSupport** to give the AI better choices:
+
+- `listCandidates(view, "ai")`: returns **AI-friendly candidates** (can be
+  multi-step macros) derived only from a seat-safe `AiView`.
+- `applyCandidateId(...)`: converts a chosen candidate into a
+  `ClientIntent` **or an array of intents** (multi-step sequence).
+
+The engine remaps these candidates to opaque `c0`, `c1`, ... ids for the LLM.
+Candidate ids returned by `listCandidates` are internal only (still must be
+deterministic and unique).
+
+### 8.4 Fireproof Legal Intents (Candidate + Filter Pattern)
 
 To avoid duplicating complex logic between `validate` and `listLegalIntentsForPlayer`, rule modules should follow the **Candidate + Filter** pattern.
 
@@ -643,21 +659,25 @@ To avoid duplicating complex logic between `validate` and `listLegalIntentsForPl
 
 This architecture treats `validate` as the **single source of truth** for game rules. It prevents "desync" bugs where the AI is offered a move that the engine subsequently rejects, which is a fatal error for the AI subsystem.
 
-### 8.6 Policy flow
+### 8.5 Policy flow
 
 When it’s an AI seat’s turn:
 
-1. Rule module (if implemented) returns `ClientIntent[]` candidates.
-2. AI policy model receives candidate pickIds plus summaries/tags and picks one.
-3. Chosen intent goes through the normal validation pipeline.
-4. If `validate` rejects it, this is a fatal AI error.
+1. If `AiSupport` is implemented, the engine builds `AiView` and gets
+   `listCandidates(view, "ai")`. Otherwise it uses `listLegalIntentsForPlayer`.
+2. The engine assigns opaque `cX` ids and builds a minimal prompt
+   (current state, context, available moves, and rules markdown).
+3. The LLM returns a single `cX`.
+4. If `AiSupport` was used, the engine calls `applyCandidateId` to get a
+   `ClientIntent` or `ClientIntent[]`. Otherwise it uses the chosen intent.
+5. Each intent goes through normal validation. Any rejection is a fatal AI error.
 
 The policy prompt structure is minimal and factual:
 
 - **No boilerplate**: no `rulesId`, `version`, or irrelevant metadata.
 - **Three core sections**:
   - `now`: current game snapshot (compact view of piles, scoreboards, rulesState).
-  - `candidates`: list of legal moves with pickIds, summaries, tags, and anchors.
+- `candidates`: list of legal moves with opaque ids and summaries.
   - `context`: deterministic facts and optional recap.
     - `context.facts`: legality constraints, phase info, visible state (e.g., `mustFollowSuit`, `ledSuit`, `currentWinning`).
     - `context.recap`: optional brief text recap of recent events (from `rulesState.recap`).
@@ -665,7 +685,8 @@ The policy prompt structure is minimal and factual:
   - Facts: "mustFollowSuit", "ledSuit", "currentWinning card" (deterministic, rules-based).
   - NOT facts: "prefer low cards", "avoid risky moves" (strategy heuristics).
 - **No strategy advice**: The engine does not tell the model what to prefer or avoid. That's the LLM's job.
-- **No rules markdown**: The game rules are implicit in the facts, candidates, and state. No external markdown needed.
+- **Rules markdown**: Rules text (if present) is included in the system prompt
+  with strategy sections stripped.
 
 Games that do NOT implement `listLegalIntentsForPlayer` are considered **missing AI support**.
 The engine may still allow enabling AI for development/testing via best-effort heuristics
@@ -673,7 +694,7 @@ The engine may still allow enabling AI for development/testing via best-effort h
 special constraints. In this repo, all shipped games must implement `listLegalIntentsForPlayer`;
 missing implementations are treated as bugs.
 
-### 8.4 Fatal AI failures and retry
+### 8.6 Fatal AI failures and retry
 
 If an AI move fails catastrophically (invalid intent, timeout, etc.):
 
@@ -725,140 +746,32 @@ Games can optionally implement the `AiSupport` interface (`backend/src/rules/ai-
 - All AI context is automatically filtered to prevent hidden information leakage
 - Default recap is empty array if game doesn't implement buildContext
 
-### AI policy candidates and output format (DSL)
+### 8.8 Candidate IDs and output format
 
-The AI policy layer is given a **finite list of candidate moves** and must
-pick exactly one.
+The LLM is given a **finite list of candidates** with opaque ids (`c0`, `c1`, …)
+and must pick exactly one. Candidate ids never encode game data.
 
-Each candidate has an opaque id, a human-readable summary, optional
-game-specific tags, and reasoning anchors (action kind + primary label).
-Summaries, tags, and anchors are sent to the policy LLM as context. Conceptually:
-
-```ts
-interface AiPolicyCandidate {
-  id: string; // opaque, unique within this turn
-  pickId: string; // short opaque handle for model selection
-  summary: string; // short, human-readable
-  tags?: string[]; // game-specific semantic hints supplied by rules
-  actionKind: string; // anchor for reasoning (draw, discard, meld, etc.)
-  primaryLabel: string; // anchor label for reasoning
-  effects?: Record<string, number | boolean | null>; // optional structured deltas
-  source: "rules" | "action" | "move"; // conceptual origin
-  intent: ClientIntent; // what will be sent back into the rules
-}
-```
-
-The engine currently uses the following **id naming convention**:
-
-- `rules:<n>`
-  - Candidates produced by `listLegalIntentsForPlayer`.
-  - Example: `rules:0`, `rules:1`, …
-
-- `candidate:<n>`
-  - Fallback candidates derived from the current view when a rules module does
-    not implement `listLegalIntentsForPlayer`.
-  - Example: `candidate:0`, `candidate:1`, …
-
-**Important design point:** the engine treats `candidate.id` as an **opaque
-string**. It does not parse or interpret the `rules:` or `candidate:`
-prefixes; they are there for:
-
-- human-readable logs,
-- future routing if we ever want to treat different sources differently.
-
-The policy LLM must not invent pickIds; it must echo one of the provided
-pickIds exactly.
-
-#### Policy output schema (DSL)
-
-The policy model must return a single JSON object of this shape:
-
-```ts
-interface AiPolicyOutput {
-  chosenPickId: string;
-  why?: string; // optional, 1-2 sentences
-}
-```
-
-In other words, the response should be:
-
-```json
-{
-  "chosenPickId": "C0A1",
-  "why": "Following suit with lowest diamond."
-}
-```
-
-The model may include reasoning text, but the final JSON **must** be wrapped in
-`<final_json>` tags, and only the JSON inside those tags will be used.
-
-The response must include `chosenPickId`. The `why` field is optional and used
-only for logging/debugging.
-
-Example:
+The model must reply with:
 
 ```text
-<final_json>{"chosenPickId": "C0A1", "why": "Following suit with lowest diamond."}</final_json>
+<answer>{"id": "cX"}</answer>
 ```
 
-- No markdown fences inside the `<final_json>` block.
-
-On the backend, this is enforced by a schema such as:
-
-```ts
-const AiPolicyOutputSchema = z.object({
-  chosenPickId: z.string(),
-  aiMemory: z.string().max(600).optional(),
-  actionKind: z.string().optional(),
-  primaryLabel: z.string().optional(),
-  becauseTags: z.array(z.string()).optional(),
-  why: z.string().optional(),
-  notes: z.string().max(300).optional(),
-});
-```
-
-and by extracting the **first JSON object** found in the LLM’s raw text
-response.
-
-#### Fallback behaviour
-
-When the engine receives the LLM response:
-
-1. It looks for a JSON object inside `<final_json>` tags; if not found, it
-   falls back to scanning the response for JSON objects.
-2. It validates the result against `AiPolicyOutputSchema` (including `aiMemory` bounds).
-3. It finds the candidate whose `pickId === chosenPickId`.
-
-If any of these steps fail (no JSON found, schema mismatch, unknown pick/id),
-the engine logs the failure for debugging, retries once with a rejection hint,
-and may auto-repair by matching `actionKind` + `primaryLabel` to a unique
-candidate. If it still fails, it falls back to a deterministic candidate.
-
-Deterministic fallback is available only when `LLM_POLICY_MODE=firstCandidate`
-for testing; in that mode the AI skips the LLM and always picks a default
-candidate (first non-pass if available).
-
-This means:
-
-- The DSL is deliberately **minimal**: one required string field and one optional note.
-- The policy layer is **advisory**: a broken or misbehaving model cannot
-  corrupt state, only cause us to rely on the fallback.
+The engine validates that the id exists in the candidate list.
 
 ---
 
-### 8.5 NEW AI Contract (Simplified, Recap-based, Seat-Safe)
+### 8.9 Current AI Contract (Simplified, Recap-based, Seat-Safe)
 
-**Status: Planned refactor to consolidate AI support**
+This is the **current** AI contract used by the engine:
 
-The following describes the **target design** for AI support. This simplifies the current implementation by:
-
-1. **Single recap[]**: Game-specific `rulesState.recap: string[]` returned via `buildContext()`
+1. **Single recap[]**: `rulesState.recap: string[]` returned via `buildContext()`
 2. **Seat-hardened views**: AI sees only `AiView` (public + private for its seat)
 3. **Simple candidate IDs**: Candidates have only `id` and optional `summary`
-4. **Strict output validation**: LLM returns `{id: "<candidate id>"}` matching one candidate exactly
-5. **Multi-move AI candidates**: Candidate IDs can represent macros (e.g., `ai:macro:follow-suit-lowest`)
+4. **Strict output validation**: LLM returns `{id: "<candidate id>"}`
+5. **Multi-move AI candidates**: Candidates can map to intent sequences
 
-#### 8.5.1 New AI Types
+#### 8.9.1 AI Types
 
 ```ts
 // Seat-hardened view (no information leakage)
@@ -893,7 +806,7 @@ interface AiTurnOutput {
 }
 ```
 
-#### 8.5.2 Plugin Interface (AiSupport)
+#### 8.9.2 Plugin Interface (AiSupport)
 
 Game plugins implement `AiSupport` interface:
 
@@ -915,7 +828,7 @@ interface AiSupport {
 }
 ```
 
-#### 8.5.3 Canonical AI Turn Flow
+#### 8.9.3 Canonical AI Turn Flow
 
 1. **Build seat-hardened view**: `view = buildAiView(state, seatId)`
 2. **Build context**: `context = plugin.buildContext?.(view)` or use stored recap
@@ -926,7 +839,7 @@ interface AiSupport {
 7. **Apply**: `intents = plugin.applyCandidateId(state, seatId, output.id)`
 8. **Execute**: Process intent(s) through normal rule validation
 
-#### 8.5.4 Recap Management
+#### 8.9.4 Recap Management
 
 **Each game implements its own recap via `aiSupport.buildContext()`**:
 
@@ -946,7 +859,7 @@ Example recap (Gin Rummy):
 ];
 ```
 
-#### 8.5.5 Multi-Move AI Candidates
+#### 8.9.5 Multi-Move AI Candidates
 
 To reduce candidate count for AI, plugins may return macro candidates:
 
@@ -1022,9 +935,8 @@ applyCandidateId(state, seat, "ai:macro:follow-suit-lowest") {
 - [x] Tests pass with new contract
 - [x] Documentation updated in ARCHITECTURE.md
 
-**Status:** Core migration complete. Briscola demonstrates the AiSupport pattern.
-Other games work with default candidate generation and can optionally adopt
-AiSupport for advanced features like multi-move macros and richer context.
+**Status:** Core AI contract is active. Games can use `listLegalIntentsForPlayer`
+alone or add `AiSupport` for multi-move macros and richer context.
 
 ```
 
