@@ -131,27 +131,27 @@
       "visibility": "public",
       "cardIds": []
     },
-    "P1-hand": {
-      "id": "P1-hand",
-      "ownerId": "P1",
+    "S-hand": {
+      "id": "S-hand",
+      "ownerId": "S",
       "visibility": "owner",
       "cardIds": []
     },
-    "P2-hand": {
-      "id": "P2-hand",
-      "ownerId": "P2",
+    "W-hand": {
+      "id": "W-hand",
+      "ownerId": "W",
       "visibility": "owner",
       "cardIds": []
     },
-    "P3-hand": {
-      "id": "P3-hand",
-      "ownerId": "P3",
+    "N-hand": {
+      "id": "N-hand",
+      "ownerId": "N",
       "visibility": "owner",
       "cardIds": []
     },
-    "P4-hand": {
-      "id": "P4-hand",
-      "ownerId": "P4",
+    "E-hand": {
+      "id": "E-hand",
+      "ownerId": "E",
       "visibility": "owner",
       "cardIds": []
     },
@@ -313,10 +313,10 @@
     }
   },
   "players": [
-    { "id": "P1", "name": "South" },
-    { "id": "P2", "name": "West" },
-    { "id": "P3", "name": "North" },
-    { "id": "P4", "name": "East" }
+    { "id": "S", "name": "South" },
+    { "id": "W", "name": "West" },
+    { "id": "N", "name": "North" },
+    { "id": "E", "name": "East" }
   ],
   "currentPlayer": null,
   "winner": null,
@@ -338,7 +338,7 @@
     "hasDealt": false,
     "dealNumber": 0,
     "dealerIndex": 0,
-    "players": ["P1", "P2", "P3", "P4"],
+    "players": ["S", "W", "N", "E"],
     "turnPhase": "must-draw",
     "turnStartTeamHadMeld": { "A": false, "B": false },
     "tookDiscardThisTurn": false,
@@ -378,7 +378,7 @@
         {
           "row": 1,
           "col": 0,
-          "text": "A (P1+P3)",
+          "text": "NS",
           "role": "header",
           "align": "left"
         },
@@ -397,7 +397,7 @@
         {
           "row": 2,
           "col": 0,
-          "text": "B (P2+P4)",
+          "text": "EW",
           "role": "header",
           "align": "left"
         },

@@ -3,106 +3,106 @@
   "rulesId": "canasta",
   "seed": "CANASTA-INTEGRATION-1",
   "intents": [
-    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "S", "action": "start-game" },
 
     {
       "type": "move",
-      "playerId": "P2",
+      "playerId": "W",
       "fromPileId": "deck",
-      "toPileId": "P2-hand",
+      "toPileId": "W-hand",
       "cardId": 46
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "discard",
       "cardId": 2
     },
 
     {
       "type": "move",
-      "playerId": "P3",
+      "playerId": "N",
       "fromPileId": "deck",
-      "toPileId": "P3-hand",
+      "toPileId": "N-hand",
       "cardId": 14
     },
     {
       "type": "move",
-      "playerId": "P3",
-      "fromPileId": "P3-hand",
+      "playerId": "N",
+      "fromPileId": "N-hand",
       "toPileId": "discard",
       "cardId": 57
     },
 
     {
       "type": "move",
-      "playerId": "P4",
+      "playerId": "E",
       "fromPileId": "deck",
-      "toPileId": "P4-hand",
+      "toPileId": "E-hand",
       "cardId": 15
     },
     {
       "type": "move",
-      "playerId": "P4",
-      "fromPileId": "P4-hand",
+      "playerId": "E",
+      "fromPileId": "E-hand",
       "toPileId": "discard",
       "cardId": 42
     },
 
     {
       "type": "move",
-      "playerId": "P1",
+      "playerId": "S",
       "fromPileId": "deck",
-      "toPileId": "P1-hand",
+      "toPileId": "S-hand",
       "cardId": 48
     },
     {
       "type": "move",
-      "playerId": "P1",
-      "fromPileId": "P1-hand",
+      "playerId": "S",
+      "fromPileId": "S-hand",
       "toPileId": "discard",
       "cardId": 13
     },
 
     {
       "type": "move",
-      "playerId": "P2",
+      "playerId": "W",
       "fromPileId": "deck",
-      "toPileId": "P2-hand",
+      "toPileId": "W-hand",
       "cardId": 24
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "discard",
       "cardId": 71
     },
 
     {
       "type": "move",
-      "playerId": "P3",
+      "playerId": "N",
       "fromPileId": "discard",
       "toPileId": "A-meld-4",
       "cardId": 71
     }
   ],
   "expect": {
-    "currentPlayer": "P3",
+    "currentPlayer": "N",
     "rulesState": {
       "phase": "playing",
       "hasDealt": true,
       "dealNumber": 1,
       "dealerIndex": 0,
-      "players": ["P1", "P2", "P3", "P4"],
+      "players": ["S", "W", "N", "E"],
       "turnPhase": "meld-or-discard",
       "turnStartTeamHadMeld": { "A": false, "B": false },
       "tookDiscardThisTurn": true,
       "pickedUpFromDiscardCardIds": [59, 2, 57, 42, 13],
       "cardsPlayedToMeldsThisTurn": [71, 30, 84],
       "meldHistory": {
-        "P3": {
+        "N": {
           "hasMeldedEver": true,
           "hasAddedToExistingMeldEver": false
         }

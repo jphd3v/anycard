@@ -7,7 +7,7 @@
       "id": "north",
       "label": "N",
       "cell": { "row": 0, "col": 0, "colspan": 5 },
-      "piles": ["P3-hand"]
+      "piles": ["N-hand"]
     },
     {
       "id": "team-b-melds",
@@ -33,7 +33,7 @@
       "id": "west",
       "label": "W",
       "cell": { "row": 1, "col": 0, "rowspan": 8 },
-      "piles": ["P2-hand"]
+      "piles": ["W-hand"]
     },
     {
       "id": "center",
@@ -45,7 +45,7 @@
       "id": "east",
       "label": "E",
       "cell": { "row": 1, "col": 4, "rowspan": 8 },
-      "piles": ["P4-hand"]
+      "piles": ["E-hand"]
     },
     {
       "id": "team-a-melds",
@@ -71,7 +71,7 @@
       "id": "south",
       "label": "S",
       "cell": { "row": 9, "col": 0, "colspan": 5 },
-      "piles": ["P1-hand"]
+      "piles": ["S-hand"]
     }
   ],
   "pileStyles": {
@@ -81,7 +81,7 @@
       "label": "Discard",
       "showDetails": true
     },
-    "P1-hand": {
+    "S-hand": {
       "layout": "horizontal",
       "sort": {
         "default": "rank-asc",
@@ -119,7 +119,7 @@
         ]
       }
     },
-    "P2-hand": {
+    "W-hand": {
       "layout": "vertical",
       "sort": {
         "default": "rank-asc",
@@ -157,7 +157,7 @@
         ]
       }
     },
-    "P3-hand": {
+    "N-hand": {
       "layout": "horizontal",
       "sort": {
         "default": "rank-asc",
@@ -195,7 +195,7 @@
         ]
       }
     },
-    "P4-hand": {
+    "E-hand": {
       "layout": "vertical",
       "sort": {
         "default": "rank-asc",

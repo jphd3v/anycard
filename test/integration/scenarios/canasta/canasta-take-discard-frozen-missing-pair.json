@@ -3,38 +3,38 @@
   "rulesId": "canasta",
   "seed": "CANASTA-INTEGRATION-1",
   "intents": [
-    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "S", "action": "start-game" },
     {
       "type": "move",
-      "playerId": "P2",
+      "playerId": "W",
       "fromPileId": "deck",
-      "toPileId": "P2-hand",
+      "toPileId": "W-hand",
       "cardId": 46
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "discard",
       "cardId": 71
     },
     {
       "type": "move",
-      "playerId": "P3",
+      "playerId": "N",
       "fromPileId": "deck",
-      "toPileId": "P3-hand",
+      "toPileId": "N-hand",
       "cardId": 14
     },
     {
       "type": "move",
-      "playerId": "P3",
-      "fromPileId": "P3-hand",
+      "playerId": "N",
+      "fromPileId": "N-hand",
       "toPileId": "discard",
       "cardId": 30
     },
     {
       "type": "move",
-      "playerId": "P4",
+      "playerId": "E",
       "fromPileId": "discard",
       "toPileId": "B-meld-4",
       "cardId": 30,

@@ -3,32 +3,32 @@
   "rulesId": "canasta",
   "seed": "CANASTA-INTEGRATION-1",
   "intents": [
-    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "S", "action": "start-game" },
     {
       "type": "move",
-      "playerId": "P2",
+      "playerId": "W",
       "fromPileId": "deck",
-      "toPileId": "P2-hand",
+      "toPileId": "W-hand",
       "cardId": 46
     },
     {
       "comment": "P2 melds 3 eights + 1 wild (4 cards at once) to meet 50-point minimum",
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "B-meld-8",
       "cardIds": [34, 21, 2, 88]
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "discard",
       "cardId": 66
     }
   ],
   "expect": {
-    "currentPlayer": "P3",
+    "currentPlayer": "N",
     "piles": {
       "B-meld-8": {
         "cardIds": [34, 21, 2, 88]

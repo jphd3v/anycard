@@ -2,15 +2,15 @@
   "id": "canasta-red-three",
   "rulesId": "canasta",
   "seed": "RED3-TEST-0",
-  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "intents": [{ "type": "action", "playerId": "S", "action": "start-game" }],
   "expect": {
-    "currentPlayer": "P2",
+    "currentPlayer": "W",
     "rulesState": {
       "phase": "playing",
       "hasDealt": true,
       "dealNumber": 1,
       "dealerIndex": 0,
-      "players": ["P1", "P2", "P3", "P4"],
+      "players": ["S", "W", "N", "E"],
       "turnPhase": "must-draw",
       "turnStartTeamHadMeld": { "A": false, "B": false },
       "tookDiscardThisTurn": false,

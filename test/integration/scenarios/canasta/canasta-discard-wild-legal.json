@@ -4,31 +4,31 @@
   "seed": "CANASTA-INTEGRATION-1",
   "description": "Test that wild cards (2s and Jokers) can be legally discarded even when non-wild cards are available in hand.",
   "intents": [
-    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "S", "action": "start-game" },
     {
       "type": "move",
-      "playerId": "P2",
+      "playerId": "W",
       "fromPileId": "deck",
-      "toPileId": "P2-hand",
+      "toPileId": "W-hand",
       "cardId": 46
     },
     {
       "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
+      "playerId": "W",
+      "fromPileId": "W-hand",
       "toPileId": "discard",
       "cardId": 2,
       "comment": "Discard 2♣ (wild card) - must be legal even with non-wild cards in hand"
     }
   ],
   "expect": {
-    "currentPlayer": "P3",
+    "currentPlayer": "N",
     "rulesState": {
       "phase": "playing",
       "hasDealt": true,
       "dealNumber": 1,
       "dealerIndex": 0,
-      "players": ["P1", "P2", "P3", "P4"],
+      "players": ["S", "W", "N", "E"],
       "turnPhase": "must-draw",
       "turnStartTeamHadMeld": { "A": false, "B": false },
       "tookDiscardThisTurn": false,

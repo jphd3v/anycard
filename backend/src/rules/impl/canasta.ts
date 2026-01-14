@@ -39,7 +39,7 @@ type Team = "A" | "B";
 type Phase = "setup" | "playing" | "ended";
 type TurnPhase = "must-draw" | "meld-or-discard";
 
-const PLAYERS = ["P1", "P2", "P3", "P4"] as const;
+const PLAYERS = ["S", "W", "N", "E"] as const;
 const MELD_RANKS = [
   "4",
   "5",
@@ -80,12 +80,12 @@ interface CanastaRulesState {
 }
 
 function teamFor(playerId: string): Team {
-  return playerId === "P1" || playerId === "P3" ? "A" : "B";
+  return playerId === "S" || playerId === "N" ? "A" : "B";
 }
 
 function nextPlayerClockwise(current: string): string {
   const idx = PLAYERS.indexOf(current as (typeof PLAYERS)[number]);
-  if (idx === -1) return "P1";
+  if (idx === -1) return "S";
   return PLAYERS[(idx + 1) % PLAYERS.length];
 }
 
@@ -370,7 +370,7 @@ function buildScoreboard(
     { row: 0, col: 3, text: "Total", role: "header", align: "right" },
 
     { row: 1, col: 0, text: "A", role: "header", align: "left" },
-    { row: 1, col: 1, text: "P1 & P3", align: "left" },
+    { row: 1, col: 1, text: "S & N", align: "left" },
     {
       row: 1,
       col: 2,
@@ -380,7 +380,7 @@ function buildScoreboard(
     { row: 1, col: 3, text: String(aScore), role: "total", align: "right" },
 
     { row: 2, col: 0, text: "B", role: "header", align: "left" },
-    { row: 2, col: 1, text: "P2 & P4", align: "left" },
+    { row: 2, col: 1, text: "W & E", align: "left" },
     {
       row: 2,
       col: 2,
@@ -1291,8 +1291,26 @@ export const canastaRules: GameRuleModule = {
         }
       }
 
-      // Note: Cards cannot be moved back from melds to hand.
-      // Once melded, cards stay on the table for the partnership.
+      // Allow taking back cards played to melds this turn.
+      const playedThisTurn = new Set<number>(
+        rulesState.cardsPlayedToMeldsThisTurn ?? []
+      );
+      if (playedThisTurn.size > 0) {
+        for (const mid of meldPiles) {
+          const cards = pileCards(state.piles[mid] ?? null);
+          for (const c of cards) {
+            if (!playedThisTurn.has(c.id)) continue;
+            candidates.push({
+              type: "move",
+              gameId,
+              playerId,
+              fromPileId: mid,
+              toPileId: `${playerId}-hand`,
+              cardId: c.id,
+            });
+          }
+        }
+      }
     }
 
     for (const c of candidates) {
@@ -1461,8 +1479,8 @@ export const canastaRules: GameRuleModule = {
             ? updatedGameScore.A === updatedGameScore.B
               ? "Tie"
               : updatedGameScore.A > updatedGameScore.B
-                ? "Team A (P1 & P3)"
-                : "Team B (P2 & P4)"
+                ? "Team A (S & N)"
+                : "Team B (W & E)"
             : null;
 
         nextRulesState = {
@@ -1556,8 +1574,8 @@ export const canastaRules: GameRuleModule = {
             ? updatedGameScore.A === updatedGameScore.B
               ? "Tie"
               : updatedGameScore.A > updatedGameScore.B
-                ? "Team A (P1 & P3)"
-                : "Team B (P2 & P4)"
+                ? "Team A (S & N)"
+                : "Team B (W & E)"
             : null;
 
         nextRulesState = {
@@ -2007,8 +2025,8 @@ export const canastaRules: GameRuleModule = {
                 ? updatedGameScore.A === updatedGameScore.B
                   ? "Tie"
                   : updatedGameScore.A > updatedGameScore.B
-                    ? "Team A (P1 & P3)"
-                    : "Team B (P2 & P4)"
+                    ? "Team A (S & N)"
+                    : "Team B (W & E)"
                 : null;
 
             // Collapse recap to hand summary
@@ -2049,6 +2067,7 @@ export const canastaRules: GameRuleModule = {
             turnPhase: "must-draw",
             tookDiscardThisTurn: false,
             pickedUpFromDiscardCardIds: [],
+            cardsPlayedToMeldsThisTurn: [],
             turnStartTeamHadMeld: {
               A: teamHasAnyMeld(finalHandStateAfterDiscard, "A"),
               B: teamHasAnyMeld(finalHandStateAfterDiscard, "B"),

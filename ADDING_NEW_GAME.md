@@ -243,7 +243,64 @@ At a high level:
 
 Use existing games (Bridge, Gin Rummy, Scopa, Kasino) as concrete examples.
 
-### 3.2 Decks, hands, and shuffling
+### 3.2 Player Naming Conventions
+
+Use consistent naming for players throughout a game. The naming should be used uniformly in:
+
+- Initial state (`players[].id` and `players[].name`)
+- Scoreboards
+- Recap/history messages
+- UI labels
+
+**Convention Guidelines:**
+
+1. **Traditional/game-specific naming (preferred when applicable):**
+   - Partnership card games traditionally use compass directions: `N`, `S`, `E`, `W`
+   - Use this for Bridge, Canasta, and similar 4-player partnership games
+   - Full names: "North", "South", "East", "West"
+   - Short aliases: "N", "S", "E", "W"
+   - Partnerships: "NS" / "EW" or "North-South" / "East-West"
+
+2. **4-player games without compass tradition:**
+   - If compass naming doesn't fit, use `N`, `S`, `E`, `W` anyway (it's a reasonable default)
+   - Alternatively, use positional naming: `P1`, `P2`, `P3`, `P4`
+
+3. **2-3 player games:**
+   - Use positional naming: `P1`, `P2`, `P3`
+   - Full names: "Player 1", "Player 2", "Player 3"
+   - Short aliases: "P1", "P2", "P3"
+
+4. **Short vs. full names:**
+   - Use short aliases ("P1", "N") in recap messages and constrained UI elements
+   - For simple games with spacious scoreboards (e.g., Katko), full names ("Player 1") are fine
+
+**Examples:**
+
+```jsonc
+// Bridge/Canasta (4-player partnership games)
+"players": [
+  { "id": "N", "name": "North" },
+  { "id": "E", "name": "East" },
+  { "id": "S", "name": "South" },
+  { "id": "W", "name": "West" }
+]
+
+// Gin Rummy (2-player game)
+"players": [
+  { "id": "P1", "name": "Player 1" },
+  { "id": "P2", "name": "Player 2" }
+]
+```
+
+**Consistency Rule:**
+Once you choose a naming convention for a game, use it **everywhere**:
+
+- ✅ Scoreboard headers: "N", "S" or "P1", "P2"
+- ✅ Recap messages: "N won trick 3" or "P1 went out"
+- ✅ Team labels: "NS" or "Team A (P1 & P3)"
+- ❌ Don't mix: "Player 1 (North)" in one place and "P1" in another
+
+### 3.3 Decks, hands, and shuffling
 
 Rules for decks:
 
@@ -286,7 +343,7 @@ Typical pattern:
 - A `"deck"` pile with `visibility: "hidden"` and `shuffle: true`.
 - One `"*-hand"` pile per seat with `visibility: "owner"` and empty `cardIds`.
 
-### 3.3 Hidden piles and drawing cards
+### 3.4 Hidden piles and drawing cards
 
 Clients receive `CardView.id` values (opaque per viewer), while engine card IDs
 stay server-side. Ranks/suits are stripped when they are not visible.
@@ -339,7 +396,7 @@ If your game involves a discard or waste pile where players are not supposed to 
 
 Do **not** expose hidden piles in the layout unless the real game shows them.
 
-### 3.4 Validation hints and shared piles
+### 3.5 Validation hints and shared piles
 
 **Important:** If your game needs to access hidden piles (like the deck) during rule validation, you must add those pile IDs to the `sharedPileIds` array in the `validationHints` of your game plugin.
 
@@ -379,7 +436,7 @@ Always review your game's logic and add any piles that the rules module needs to
 - Trick/battle resolution
 - Any rule that needs to examine cards in non-public piles
 
-### 3.5 Turn management: critical rules
+### 3.6 Turn management: critical rules
 
 **CRITICAL:** The rule module is **solely responsible** for managing turn order. There is no automatic turn switching in the engine. If you don't explicitly emit `set-current-player` events, the turn will never change!
 
