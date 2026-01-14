@@ -12,7 +12,7 @@ import {
 } from "./ai-llm-policy.js";
 import { assignCandidateId } from "./ai-candidates.js";
 import { listLegalIntentsForPlayer } from "../rule-engine.js";
-import { appendAiLogEntry } from "./ai-log.js";
+import { appendAiLogEntry, sendGameStatus } from "./ai-log.js";
 import { getHumanTurnNumber } from "../state.js";
 import { getEnvironmentConfig } from "../config.js";
 import { buildAiMessages } from "../../../shared/src/ai/prompts.js";
@@ -33,54 +33,44 @@ export interface AiPolicyInput {
   turnNumber: number;
 }
 
-/**
- * Render scoreboards as compact ASCII text instead of verbose JSON cell arrays.
- * Much more token-efficient and easier for LLMs to read.
- */
-function renderScoreboardsAsText(
-  scoreboards: Array<{
-    id: string;
-    title?: string;
-    rows: number;
-    cols: number;
-    cells: Array<{
-      row: number;
-      col: number;
-      text: string;
-      colspan?: number;
-    }>;
-  }>
-): string[] {
-  return scoreboards.map((sb) => {
-    const lines: string[] = [];
+function sanitizeAiRulesState(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeAiRulesState(entry));
+  }
 
-    // Add title if present
-    if (sb.title) {
-      lines.push(`[${sb.title}]`);
-    }
+  const obj = value as Record<string, unknown>;
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(obj)) {
+    if (key.toLowerCase().includes("score")) continue;
+    cleaned[key] = sanitizeAiRulesState(entry);
+  }
+  return cleaned;
+}
 
-    // Build a 2D grid from cells
-    const grid: string[][] = Array.from({ length: sb.rows }, () =>
-      Array.from({ length: sb.cols }, () => "")
-    );
+function stripRecapFromView(view: AiView): AiView {
+  const publicData =
+    view.public && typeof view.public === "object"
+      ? (view.public as Record<string, unknown>)
+      : null;
+  if (!publicData) return view;
 
-    for (const cell of sb.cells) {
-      if (cell.row < sb.rows && cell.col < sb.cols) {
-        grid[cell.row][cell.col] = cell.text;
-      }
-    }
+  const rulesState =
+    publicData.rulesState && typeof publicData.rulesState === "object"
+      ? (publicData.rulesState as Record<string, unknown>)
+      : null;
+  if (!rulesState || !("recap" in rulesState)) return view;
 
-    // Render each row as pipe-separated values
-    for (const row of grid) {
-      const rowText = row.map((cell) => cell.trim()).join(" | ");
-      if (rowText.replace(/\|/g, "").trim()) {
-        // Skip empty rows
-        lines.push(rowText);
-      }
-    }
+  const nextRulesState = { ...rulesState };
+  delete nextRulesState.recap;
 
-    return lines.join("\n");
-  });
+  return {
+    ...view,
+    public: {
+      ...publicData,
+      rulesState: nextRulesState,
+    },
+  };
 }
 
 /**
@@ -89,6 +79,8 @@ function renderScoreboardsAsText(
  * Optimized to minimize token usage by omitting hidden card details.
  */
 function buildHardenedAiView(view: PlayerGameView, seatId: string): AiView {
+  const safeRulesState = sanitizeAiRulesState(view.rulesState);
+
   return {
     seat: seatId,
     public: {
@@ -124,8 +116,7 @@ function buildHardenedAiView(view: PlayerGameView, seatId: string): AiView {
             };
           }
         }),
-      scoreboards: renderScoreboardsAsText(view.scoreboards),
-      rulesState: view.rulesState,
+      rulesState: safeRulesState,
     },
     private: {
       // AI only needs to know its legal intents from the hardened view
@@ -174,7 +165,7 @@ export async function buildAiRequestPayload(input: AiPolicyInput): Promise<{
   const rulesMarkdown = (await resolveRulesMarkdown(input.rulesId)) ?? "";
 
   const req: AiTurnInput = {
-    view,
+    view: stripRecapFromView(view),
     context,
     rulesMarkdown,
     candidates: input.candidates.map((c) => ({
@@ -380,6 +371,9 @@ function summarizeIntent(view: PlayerGameView, intent: ClientIntent): string {
     const fromLabel = from?.label ?? intent.fromPileId;
     const toLabel = to?.label ?? intent.toPileId;
     const cardLabel = formatPrimaryLabel(intent, view) || "card";
+    if (intent.fromPileId === "discard") {
+      return `Take discard pile (move ${cardLabel} to "${toLabel}")`;
+    }
     let pileNote = "";
     if (intent.cardIds && intent.cardIds.length > 1) {
       if (!to) {
@@ -664,6 +658,29 @@ export async function chooseAiIntent(
   }
 
   if (candidates.length === 1) {
+    const onlyCandidate = candidates[0];
+    const rulesState = view.rulesState as
+      | { cardsPlayedToMeldsThisTurn?: unknown }
+      | null
+      | undefined;
+    const priorMelds = Array.isArray(rulesState?.cardsPlayedToMeldsThisTurn)
+      ? rulesState?.cardsPlayedToMeldsThisTurn.length
+      : 0;
+    const intent = onlyCandidate.intent;
+    const isFollowUpMove =
+      priorMelds > 0 &&
+      intent.type === "move" &&
+      intent.fromPileId.endsWith("-hand") &&
+      intent.toPileId !== "discard";
+    if (isFollowUpMove) {
+      sendGameStatus(
+        gameId,
+        `Auto-applied follow-up move: ${onlyCandidate.summary ?? "move"}.`,
+        "info",
+        "engine"
+      );
+    }
+
     console.log("AI has single candidate, using it directly", {
       playerId,
       candidateId: candidates[0].id,

@@ -2439,7 +2439,6 @@ const canastaAiSupport: AiSupport = {
       ) ?? false;
     const facts: Record<string, unknown> = {
       turnPhase: rulesState.turnPhase,
-      gameScore: rulesState.gameScore,
       team,
       teamHadMeldAtTurnStart: rulesState.turnStartTeamHadMeld?.[team] ?? false,
       teamHasMeldNow,
