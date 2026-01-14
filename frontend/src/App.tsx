@@ -914,7 +914,7 @@ export default function App() {
       const serverSupportsAi = config.serverAiEnabled ?? false;
       setServerAiEnabled(serverSupportsAi);
       // Game Log is always enabled for all games.
-      // config.llmDebugHttp determines if we get detailed AI internals.
+      // config.llmShowPromptsInFrontend determines if we get detailed AI internals for backend AI.
       setAiShowExceptions(config.llmShowExceptionsInFrontend ?? false);
 
       // Handle AI Runtime Preference Defaults

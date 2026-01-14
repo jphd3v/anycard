@@ -18,6 +18,7 @@ import { appendAiLogEntry, sendGameStatus } from "./ai-log.js";
 import { emitFatalErrorEvent } from "../engine-events.js";
 import { getEnvironmentConfig, isServerAiEnabled } from "../config.js";
 import { AiError } from "../../../shared/src/ai/types.js";
+import { extractLlmErrorDetails } from "../../../shared/src/ai/llm-utils.js";
 
 const config = getEnvironmentConfig();
 const LLM_MIN_THINK_TIME_MS = config.llmMinThinkTimeMs; // default 300ms; set 0 or negative to disable
@@ -135,12 +136,15 @@ export async function runAiTurn(
     }
   } catch (err) {
     let aiError: AiError;
+    const extracted = extractLlmErrorDetails(err);
 
     if (err instanceof AiError) {
       aiError = err;
     } else {
       const errorDetail = err instanceof Error ? err.message : String(err);
       const isTimeout =
+        extracted.status === 408 ||
+        extracted.status === 504 ||
         errorDetail.toLowerCase().includes("timeout") ||
         errorDetail.toLowerCase().includes("timed out") ||
         errorDetail.toLowerCase().includes("deadline exceeded");
@@ -150,7 +154,11 @@ export async function runAiTurn(
       } else if (err instanceof AiPolicyError) {
         aiError = new AiError("policy", err.message, err.details);
       } else {
-        aiError = new AiError("unexpected", errorDetail);
+        aiError = new AiError(
+          "unexpected",
+          errorDetail,
+          extracted.responseBody
+        );
       }
     }
 
@@ -167,11 +175,15 @@ export async function runAiTurn(
         phase: "execution",
         level: "warn",
         message: `AI timed out. Selecting random move.`,
+        source: "backend",
         details: {
           error: aiError.message,
           timeoutMs: LLM_TURN_TIMEOUT_MS,
           selectedCandidate: randomCandidate?.id,
           summary: randomCandidate?.summary,
+          status: extracted.status,
+          statusText: extracted.statusText,
+          responseBody: extracted.responseBody,
         },
       });
 
@@ -200,7 +212,12 @@ export async function runAiTurn(
         level: "error",
         message: `AI policy failed: ${aiError.message}`,
         details: showExceptionsInFrontend
-          ? { error: aiError.details }
+          ? {
+              error: aiError.details,
+              status: extracted.status,
+              statusText: extracted.statusText,
+              responseBody: extracted.responseBody,
+            }
           : undefined,
       });
 
@@ -224,7 +241,12 @@ export async function runAiTurn(
         level: "error",
         message: `Unexpected error while choosing AI intent: ${aiError.message}`,
         details: showExceptionsInFrontend
-          ? { error: aiError.message }
+          ? {
+              error: aiError.message,
+              status: extracted.status,
+              statusText: extracted.statusText,
+              responseBody: extracted.responseBody,
+            }
           : undefined,
       });
       emitFatalErrorEvent(

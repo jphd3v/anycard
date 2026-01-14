@@ -1738,6 +1738,7 @@ export function initSocket(io: Server) {
           phase: "llm-raw",
           level: "info",
           message: "Received raw AI policy response from LLM (frontend).",
+          source: "frontend",
           details: {
             kind: "llm-response-raw",
             content,
@@ -1765,6 +1766,7 @@ export function initSocket(io: Server) {
           phase: "llm-parsed",
           level: "info",
           message: "Parsed AI policy response (frontend).",
+          source: "frontend",
           details: {
             kind: "llm-response-parsed",
             parsed,
@@ -1792,6 +1794,7 @@ export function initSocket(io: Server) {
           phase: "error",
           level: "error",
           message: "LLM policy request failed (frontend).",
+          source: "frontend",
           details: {
             kind: "llm-error",
             ...(errorDetails as Record<string, unknown>),

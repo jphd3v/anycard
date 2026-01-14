@@ -5,7 +5,6 @@ import { getEnvironmentConfig } from "../config.js";
 export type { AiLogEntry } from "../../../shared/ai-log.js";
 
 const aiLogsByGame = new Map<string, AiLogEntry[]>();
-const { llmDebugHttp } = getEnvironmentConfig();
 
 // Call this once with your socket.io server instance or a wrapper
 let io: SocketIOServer | null = null;
@@ -13,12 +12,21 @@ export function initAiLogIo(server: SocketIOServer) {
   io = server;
 }
 
-export function appendAiLogEntry(
-  entry: Omit<AiLogEntry, "timestamp"> & { timestamp?: string }
-) {
-  if (!llmDebugHttp && entry.phase !== "game") {
+export function appendAiLogEntry(entry: AiLogEntry): void {
+  const { llmShowPromptsInFrontend } = getEnvironmentConfig();
+
+  // Determine if this entry should be stored and broadcast.
+  // Game events (moves/actions) are always allowed.
+  // Frontend-originated logs are always allowed (the AI runs in the browser).
+  // Backend technical logs (prompts/responses) are filtered by LLM_SHOW_PROMPTS_IN_FRONTEND.
+  const isGameEvent = entry.phase === "game";
+  const isFrontend = entry.source === "frontend";
+  const allowBackendTechnical = llmShowPromptsInFrontend;
+
+  if (!isGameEvent && !isFrontend && !allowBackendTechnical) {
     return;
   }
+
   const fullEntry: AiLogEntry = {
     ...entry,
     timestamp: entry.timestamp ?? new Date().toISOString(),

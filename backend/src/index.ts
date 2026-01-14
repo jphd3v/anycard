@@ -96,7 +96,7 @@ app.get("/config", (_req, res) => {
   res.json({
     ruleEngineMode: RULE_ENGINE_MODE,
     serverAiEnabled: isServerAiEnabled(),
-    llmDebugHttp: config.llmDebugHttp,
+    llmShowPromptsInFrontend: config.llmShowPromptsInFrontend,
     llmShowExceptionsInFrontend: config.llmShowExceptionsInFrontend,
   });
 });

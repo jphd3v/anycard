@@ -17,9 +17,10 @@ import { getEnvironmentConfig } from "../config.js";
 import { loadRulesForGame } from "../game-config.js";
 import { createRulesMarkdownResolver } from "../../../shared/src/ai/rules-markdown.js";
 import {
-  isSystemUnsupportedError,
-  mergeSystemIntoUser,
-} from "../../../shared/src/ai/system-fallback.js";
+  collectErrorStrings,
+  extractLlmErrorDetails,
+  runLlmWithFallback,
+} from "../../../shared/src/ai/llm-utils.js";
 
 export interface AiPolicyInput {
   rulesId: string;
@@ -64,16 +65,22 @@ export async function warmUpPolicyModel(): Promise<void> {
   const model = createChatModel(cfg);
 
   try {
-    await invokeWithSystemFallback(
-      model,
-      "Universal card engine warm-up ping. Reply with a tiny JSON object to confirm readiness.",
+    // We manually invoke here to test connectivity, bypassing the full fallback wrapper for simplicity,
+    // or we could use the wrapper. For warm-up, a simple invoke is usually fine.
+    // However, if we want to test system fallback logic, we should use callPolicyLlm.
+    // But callPolicyLlm expects prompts.
+    // Let's just use model.invoke directly as before for warmup.
+    // But we need to handle the response format manually as before.
+
+    const response = await model.invoke([
       {
-        warmup: true,
-        type: "policy-llm-warmup",
-        note: "This is not game-specific; just exercise the usual call path.",
+        role: "user",
+        content:
+          "Universal card engine warm-up ping. Reply with a tiny JSON object to confirm readiness.",
       },
-      { modelId: cfg.model, baseUrl: cfg.baseUrl }
-    );
+    ]);
+    const content = extractContent(response);
+    if (!content) throw new Error("No content in warmup response");
 
     console.log(`[warmUpPolicyModel] Policy LLM warmed up successfully`);
   } catch (err) {
@@ -117,6 +124,7 @@ export async function chooseAiIntentWithLlm(
           phase: "fallback",
           level: "warn",
           message: "System role unsupported; retrying without system role.",
+          source: "backend",
           details: {
             kind: "system-fallback",
             ...info,
@@ -137,6 +145,7 @@ export async function chooseAiIntentWithLlm(
     phase: "llm-raw",
     level: "info",
     message: "Received raw AI policy response from LLM.",
+    source: "backend",
     details: {
       kind: "llm-response-raw",
       content,
@@ -166,6 +175,7 @@ export async function chooseAiIntentWithLlm(
     phase: "llm-parsed",
     level: "info",
     message: "Parsed AI policy response.",
+    source: "backend",
     details: {
       kind: "llm-response-parsed",
       parsed,
@@ -218,6 +228,7 @@ function logPolicyRequest(input: AiPolicyInput, messages: unknown) {
     phase: "llm",
     level: "info",
     message: "Sending AI policy request to LLM.",
+    source: "backend",
     details: {
       kind: "llm-request",
       url: buildPolicyUrl(cfg.baseUrl),
@@ -231,34 +242,11 @@ function logPolicyRequest(input: AiPolicyInput, messages: unknown) {
   });
 }
 
-function extractStatus(err: unknown): {
-  status?: number;
-  statusText?: string;
-  responseBody?: string;
-} {
-  const anyErr = err as Record<string, unknown> | undefined;
-  const status =
-    (anyErr?.status as number | undefined) ??
-    (anyErr?.response as { status?: number } | undefined)?.status;
-  const statusText =
-    (anyErr?.statusText as string | undefined) ??
-    (anyErr?.response as { statusText?: string } | undefined)?.statusText;
-  let responseBody: string | undefined;
-  const body = anyErr?.body ?? (anyErr?.response as { data?: unknown })?.data;
-  if (body !== undefined) {
-    try {
-      responseBody = JSON.stringify(body);
-    } catch {
-      responseBody = String(body);
-    }
-  }
-  return { status, statusText, responseBody };
-}
-
 function logPolicyError(input: AiPolicyInput, err: unknown) {
   const { llmShowExceptionsInFrontend } = getEnvironmentConfig();
   const cfg = getPolicyLlmConfig();
-  const { status, statusText, responseBody } = extractStatus(err);
+  const { status, statusText, responseBody, error } =
+    extractLlmErrorDetails(err);
   appendAiLogEntry({
     gameId: input.view.gameId ?? "unknown",
     turnNumber: input.turnNumber,
@@ -266,6 +254,7 @@ function logPolicyError(input: AiPolicyInput, err: unknown) {
     phase: "error",
     level: "error",
     message: "LLM policy request failed.",
+    source: "backend",
     details: {
       kind: "llm-error",
       ...(llmShowExceptionsInFrontend
@@ -277,13 +266,20 @@ function logPolicyError(input: AiPolicyInput, err: unknown) {
             },
             status,
             statusText,
-            error: err instanceof Error ? err.message : String(err),
+            error,
             responseBody,
           }
         : {}),
     },
   });
 }
+
+type SystemFallbackInfo = {
+  errorMessage: string;
+  status?: number;
+  baseUrl?: string;
+  modelId?: string;
+};
 
 async function callPolicyLlm(
   systemPrompt: string,
@@ -292,11 +288,42 @@ async function callPolicyLlm(
 ): Promise<string> {
   const cfg = getPolicyLlmConfig();
   const model = createChatModel(cfg);
+  const userPrompt = formatMessageContent(userPromptObject);
 
-  return invokeWithSystemFallback(model, systemPrompt, userPromptObject, {
-    modelId: cfg.model,
-    baseUrl: cfg.baseUrl,
-    onSystemFallback,
+  return runLlmWithFallback({
+    systemPrompt,
+    userPrompt,
+    invoke: async (messages) => {
+      // Map shared LlmMessage to what ChatOpenAI expects
+      const langchainMessages = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+      const response = await model.invoke(langchainMessages);
+      return extractContent(response);
+    },
+    systemRoleAllowed: policyLlmAllowsSystemRole,
+    onSystemFallback: (err) => {
+      policyLlmAllowsSystemRole = false;
+      const { status, error } = extractLlmErrorDetails(err);
+      const errorStrings = collectErrorStrings(err);
+      const errorMessage = errorStrings.join(" ") || error || String(err);
+
+      console.warn(
+        `[LLM] Disabling system role for policy LLM calls after error: ${errorMessage}`
+      );
+
+      onSystemFallback?.({
+        errorMessage,
+        status,
+        baseUrl: cfg.baseUrl,
+        modelId: cfg.model,
+      });
+    },
+    fallbackContext: {
+      baseUrl: cfg.baseUrl,
+      modelId: cfg.model,
+    },
   });
 }
 
@@ -328,125 +355,4 @@ function extractContent(response: { content: unknown }): string {
       .join("");
   }
   return String(rawContent ?? "");
-}
-
-function disableSystemRole(reason: string) {
-  if (!policyLlmAllowsSystemRole) {
-    return;
-  }
-  policyLlmAllowsSystemRole = false;
-  console.warn(
-    `[LLM] Disabling system role for policy LLM calls after error: ${reason}`
-  );
-}
-
-function describeError(err: unknown): string {
-  if (err instanceof Error && err.message) return err.message;
-  return String(err);
-}
-
-function collectErrorStrings(err: unknown): string[] {
-  const parts: string[] = [];
-  const push = (val: unknown) => {
-    if (typeof val === "string" && val.trim()) parts.push(val);
-  };
-
-  const anyErr = err as Record<string, unknown> | undefined;
-  push(err instanceof Error ? err.message : undefined);
-  push(anyErr?.error as string | undefined);
-  push((anyErr?.error as { message?: string } | undefined)?.message);
-  push(
-    (anyErr?.body as { error?: { message?: string } } | undefined)?.error
-      ?.message
-  );
-  push(
-    (
-      anyErr?.response as
-        | { data?: { error?: { message?: string }; message?: string } }
-        | undefined
-    )?.data?.error?.message
-  );
-  push(
-    (
-      anyErr?.response as
-        | { data?: { error?: { message?: string }; message?: string } }
-        | undefined
-    )?.data?.message
-  );
-
-  return parts;
-}
-
-type SystemFallbackInfo = {
-  errorMessage: string;
-  status?: number;
-  baseUrl?: string;
-  modelId?: string;
-};
-
-type InvokeWithSystemFallbackOptions = {
-  modelId?: string;
-  baseUrl?: string;
-  onSystemFallback?: (info: SystemFallbackInfo) => void;
-};
-
-async function invokeWithSystemFallback(
-  model: ReturnType<typeof createChatModel>,
-  systemPrompt: string,
-  userPromptObject: unknown,
-  context?: InvokeWithSystemFallbackOptions
-): Promise<string> {
-  const userContent = formatMessageContent(userPromptObject);
-
-  if (!policyLlmAllowsSystemRole) {
-    const response = await model.invoke([
-      {
-        role: "user" as const,
-        content: mergeSystemIntoUser(systemPrompt, userContent),
-      },
-    ]);
-    return extractContent(response);
-  }
-
-  try {
-    const response = await model.invoke([
-      {
-        role: "system" as const,
-        content: systemPrompt,
-      },
-      {
-        role: "user" as const,
-        content: userContent,
-      },
-    ]);
-    return extractContent(response);
-  } catch (err) {
-    const reason = describeError(err);
-    const { status } = extractStatus(err);
-    const errorMessage = collectErrorStrings(err).join(" ");
-    const unsupported = isSystemUnsupportedError({
-      errorMessage: errorMessage || reason,
-      status,
-      baseUrl: context?.baseUrl,
-      modelId: context?.modelId,
-    });
-    if (unsupported) {
-      const info: SystemFallbackInfo = {
-        errorMessage: errorMessage || reason,
-        status,
-        baseUrl: context?.baseUrl,
-        modelId: context?.modelId,
-      };
-      disableSystemRole(info.errorMessage);
-      context?.onSystemFallback?.(info);
-    }
-
-    const response = await model.invoke([
-      {
-        role: "user" as const,
-        content: mergeSystemIntoUser(systemPrompt, userContent),
-      },
-    ]);
-    return extractContent(response);
-  }
 }

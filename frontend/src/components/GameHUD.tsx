@@ -169,7 +169,8 @@ export function GameHUD({
         playerId,
         entries: entries.sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(a.timestamp ?? 0).getTime() -
+            new Date(b.timestamp ?? 0).getTime()
         ),
       }));
     return { groupedByTurn: grouped, renderedAiLogCount: filteredAiLog.length };
@@ -609,7 +610,9 @@ export function GameHUD({
                         playerId
                       )}\n`;
                       for (const entry of entries) {
-                        const time = formatTimestampWithMs(entry.timestamp);
+                        const time = formatTimestampWithMs(
+                          entry.timestamp ?? ""
+                        );
                         const details = parseAiLogDetails(entry.details);
                         logContent += `${time} ${
                           details
@@ -659,13 +662,13 @@ export function GameHUD({
                           <ul className="px-4 py-2 space-y-1">
                             {entries.map((entry, idx) => {
                               const time = formatTimestampWithMs(
-                                entry.timestamp
+                                entry.timestamp ?? ""
                               );
                               const details = parseAiLogDetails(entry.details);
 
                               return (
                                 <li
-                                  key={`${entry.timestamp}-${idx}`}
+                                  key={`${entry.timestamp ?? idx}-${idx}`}
                                   className="flex gap-2 items-start"
                                 >
                                   <span className="text-ink-muted shrink-0 tabular-nums w-[96px]">

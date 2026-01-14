@@ -59,7 +59,7 @@ export function getPolicyLlmConfig(): OpenAiCompatibleConfig {
 export function createChatModel(cfg: OpenAiCompatibleConfig): ChatOpenAI {
   const config = getEnvironmentConfig();
   const normalizedBaseUrl = normalizeBaseUrl(cfg.baseUrl);
-  const enableLogging = config.llmDebugHttp;
+  const enableLogging = config.llmLoggingEnabled;
   const enableSanitize = process.env.LLM_STRIP_OPENAI_DEFAULTS !== "0";
   const instrumentedFetch = createInstrumentedFetch({
     enableLogging,

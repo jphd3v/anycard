@@ -2,9 +2,10 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef } from "react";
 import { parseAiChoice } from "../../../shared/src/ai/parser";
 import {
-  isSystemUnsupportedError,
-  mergeSystemIntoUser,
-} from "../../../shared/src/ai/system-fallback";
+  extractLlmErrorDetails,
+  runLlmWithFallback,
+  type LlmMessage,
+} from "../../../shared/src/ai/llm-utils";
 import {
   aiShowExceptionsAtom,
   fatalErrorAtom,
@@ -24,6 +25,12 @@ import type { ClientIntent } from "../../../shared/schemas";
 import { AiError } from "../../../shared/src/ai/types";
 
 let policyLlmAllowsSystemRole = true;
+
+const TURN_TIMEOUT_MS =
+  Number(import.meta.env.VITE_LLM_TURN_TIMEOUT_MS) || 10000;
+const MIN_THINK_TIME_MS =
+  Number(import.meta.env.VITE_LLM_MIN_THINK_TIME_MS) || 300;
+const IS_LOGGING_ENABLED = import.meta.env.VITE_LLM_LOGGING_ENABLED === "true";
 
 export function useAiSponsor() {
   const view = useAtomValue(gameViewAtom);
@@ -136,11 +143,13 @@ export function useAiSponsor() {
         );
 
         if (promptPayload.stale) {
-          console.debug("[AI] Ignoring stale AI prompt response", {
-            seat: seat.seatId,
-            requestedStateVersion: promptPayload.requestedStateVersion,
-            stateVersion: promptPayload.stateVersion,
-          });
+          if (IS_LOGGING_ENABLED) {
+            console.debug("[AI] Ignoring stale AI prompt response", {
+              seat: seat.seatId,
+              requestedStateVersion: promptPayload.requestedStateVersion,
+              stateVersion: promptPayload.stateVersion,
+            });
+          }
           return;
         }
         if (promptPayload.error) {
@@ -166,15 +175,14 @@ export function useAiSponsor() {
             ) as Record<string, unknown> | undefined
           )?.content ?? "";
 
-        console.debug(
-          "[AI] Frontend sponsor running AI",
-
-          seat.seatId,
-
-          "candidates=",
-
-          context.candidates.length
-        );
+        if (IS_LOGGING_ENABLED) {
+          console.debug(
+            "[AI] Frontend sponsor running AI",
+            seat.seatId,
+            "candidates=",
+            context.candidates.length
+          );
+        }
 
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -184,26 +192,19 @@ export function useAiSponsor() {
           headers.Authorization = `Bearer ${aiConfig.apiKey}`;
         }
 
-        const logPolicyRequest = (
-          messagesToSend: unknown[],
-
-          note?: string
-        ) => {
-          // LLM request logging is handled by backend if desired,
-
-          // but we can add a simple client-side console.debug here.
-
-          console.debug("[AI] Sending LLM request", {
-            note: note ?? "normal",
-            messagesToSend,
-          });
-        };
-
-        const callPolicy = async (
-          messagesToSend: unknown[]
+        const invokeLlm = async (
+          messagesToSend: LlmMessage[]
         ): Promise<string> => {
+          // LLM request logging is handled by backend if desired,
+          // but we can add a simple client-side console.debug here.
+          if (IS_LOGGING_ENABLED) {
+            console.debug("[AI] Sending LLM request", {
+              messagesToSend,
+            });
+          }
+
           const controller = new AbortController();
-          const timeoutMs = 15000; // Use a reasonable default for frontend timeout
+          const timeoutMs = TURN_TIMEOUT_MS;
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
           try {
@@ -277,59 +278,24 @@ export function useAiSponsor() {
           }
         };
 
-        let content: string;
-
-        if (!policyLlmAllowsSystemRole) {
-          const merged = mergeSystemIntoUser(
-            systemPrompt as string,
-            userPrompt as string
-          );
-
-          const fallbackMessages = [{ role: "user", content: merged }];
-
-          logPolicyRequest(fallbackMessages, "system role disabled");
-
-          content = await callPolicy(fallbackMessages);
-        } else {
-          logPolicyRequest(messages);
-
-          try {
-            content = await callPolicy(messages);
-          } catch (err: unknown) {
-            const { status, responseBody } = extractHttpErrorDetails(err);
-
-            const errorMessage = [
-              err instanceof Error ? err.message : String(err),
-              responseBody,
-            ]
-              .filter(Boolean)
-              .join(" ");
-
-            const unsupported = isSystemUnsupportedError({
-              errorMessage,
-              status,
-              baseUrl: aiConfig.baseUrl,
-              modelId: aiConfig.model,
-            });
-
-            if (!unsupported) {
-              throw err;
-            }
-
+        const content = await runLlmWithFallback({
+          systemPrompt: systemPrompt as string,
+          userPrompt: userPrompt as string,
+          invoke: invokeLlm,
+          systemRoleAllowed: policyLlmAllowsSystemRole,
+          onSystemFallback: () => {
             policyLlmAllowsSystemRole = false;
-
-            const merged = mergeSystemIntoUser(
-              systemPrompt as string,
-              userPrompt as string
-            );
-
-            const fallbackMessages = [{ role: "user", content: merged }];
-
-            logPolicyRequest(fallbackMessages, "retry without system role");
-
-            content = await callPolicy(fallbackMessages);
-          }
-        }
+            if (IS_LOGGING_ENABLED) {
+              console.debug(
+                "[AI] System role unsupported; disabling for future calls"
+              );
+            }
+          },
+          fallbackContext: {
+            baseUrl: aiConfig.baseUrl,
+            modelId: aiConfig.model,
+          },
+        });
 
         logAiLlmRaw(view.gameId, seat.seatId, stateVersion, content);
 
@@ -367,16 +333,16 @@ export function useAiSponsor() {
         }
       } catch (err: unknown) {
         let aiError: AiError;
+        const extracted = extractLlmErrorDetails(err);
 
         if (err instanceof AiError) {
           aiError = err;
         } else {
-          const { status, responseBody } = extractHttpErrorDetails(err);
           const detail = err instanceof Error ? err.message : String(err);
 
           const isTimeout =
-            status === 408 ||
-            status === 504 ||
+            extracted.status === 408 ||
+            extracted.status === 504 ||
             detail.toLowerCase().includes("timeout") ||
             detail.toLowerCase().includes("timed out") ||
             detail.toLowerCase().includes("deadline exceeded");
@@ -384,7 +350,7 @@ export function useAiSponsor() {
           if (isTimeout) {
             aiError = new AiError("timeout", detail);
           } else {
-            aiError = new AiError("unexpected", detail, responseBody);
+            aiError = new AiError("unexpected", detail, extracted.responseBody);
           }
         }
 
@@ -400,6 +366,9 @@ export function useAiSponsor() {
                 },
                 error: aiError.message,
                 details: aiError.details,
+                status: extracted.status,
+                statusText: extracted.statusText,
+                responseBody: extracted.responseBody,
               }
             : {}),
         });
@@ -449,7 +418,7 @@ export function useAiSponsor() {
       }
     };
 
-    const timer = setTimeout(runAi, 1000);
+    const timer = setTimeout(runAi, MIN_THINK_TIME_MS);
     return () => clearTimeout(timer);
   }, [
     aiConfig.apiKey,
@@ -473,19 +442,4 @@ export function useAiSponsor() {
 function buildPolicyUrl(baseUrl: string): string {
   const normalized = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return `${normalized}chat/completions`;
-}
-
-function extractHttpErrorDetails(err: unknown): {
-  status?: number;
-  statusText?: string;
-  responseBody?: string;
-} {
-  const anyErr = err as
-    | { status?: number; statusText?: string; responseBody?: string }
-    | undefined;
-  return {
-    status: anyErr?.status,
-    statusText: anyErr?.statusText,
-    responseBody: anyErr?.responseBody,
-  };
 }

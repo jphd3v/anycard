@@ -46,7 +46,8 @@ export async function buildAiRequestPayload(input: AiPolicyInput): Promise<{
     playerId: input.playerId,
     phase: "candidates",
     level: "info",
-    message: `AI has ${input.candidates.length} candidate intents.`,
+    message: `Generated ${input.candidates.length} AI intent candidates.`,
+    source: "backend",
     details: {
       kind: "candidates",
       candidates: input.candidates.map((c) => ({

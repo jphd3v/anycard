@@ -11,7 +11,8 @@ export interface EnvironmentConfig {
   llmApiKey?: string;
   llmModel: string | undefined;
   llmTemperature: number;
-  llmDebugHttp: boolean;
+  llmLoggingEnabled: boolean;
+  llmShowPromptsInFrontend: boolean;
   llmStripOpenaiDefaults: boolean;
   llmTurnTimeoutMs: number;
   llmMinThinkTimeMs: number;
@@ -42,7 +43,10 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       process.env.LLM_TEMPERATURE !== undefined
         ? Number(process.env.LLM_TEMPERATURE)
         : 0,
-    llmDebugHttp: parseBooleanEnv(process.env.LLM_DEBUG_HTTP),
+    llmLoggingEnabled: parseBooleanEnv(process.env.LLM_LOGGING_ENABLED),
+    llmShowPromptsInFrontend: parseBooleanEnv(
+      process.env.LLM_SHOW_PROMPTS_IN_FRONTEND
+    ),
     llmStripOpenaiDefaults: process.env.LLM_STRIP_OPENAI_DEFAULTS !== "false",
     llmTurnTimeoutMs: Number(process.env.LLM_TURN_TIMEOUT_MS ?? 10000),
     llmMinThinkTimeMs:
@@ -103,12 +107,22 @@ export function getEnvironmentVariablesInfo(): Array<{
       isSet: Boolean(process.env.LLM_TEMPERATURE),
     },
     {
-      key: "LLM_DEBUG_HTTP",
+      key: "LLM_LOGGING_ENABLED",
       value: String(
-        process.env.LLM_DEBUG_HTTP ?? (config.llmDebugHttp ? "true" : "false")
+        process.env.LLM_LOGGING_ENABLED ??
+          (config.llmLoggingEnabled ? "true" : "false")
       ),
       defaultValue: "false",
-      isSet: Boolean(process.env.LLM_DEBUG_HTTP),
+      isSet: Boolean(process.env.LLM_LOGGING_ENABLED),
+    },
+    {
+      key: "LLM_SHOW_PROMPTS_IN_FRONTEND",
+      value: String(
+        process.env.LLM_SHOW_PROMPTS_IN_FRONTEND ??
+          (config.llmShowPromptsInFrontend ? "true" : "false")
+      ),
+      defaultValue: "false",
+      isSet: Boolean(process.env.LLM_SHOW_PROMPTS_IN_FRONTEND),
     },
     {
       key: "LLM_STRIP_OPENAI_DEFAULTS",

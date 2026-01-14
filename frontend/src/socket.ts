@@ -423,7 +423,7 @@ export async function closeGame(gameId: string): Promise<void> {
 export type ServerConfig = {
   ruleEngineMode: RuleEngineMode;
   serverAiEnabled?: boolean;
-  llmDebugHttp?: boolean;
+  llmShowPromptsInFrontend?: boolean;
   llmShowExceptionsInFrontend?: boolean;
 };
 
@@ -435,7 +435,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
   const data = (await response.json()) as {
     ruleEngineMode?: unknown;
     serverAiEnabled?: unknown;
-    llmDebugHttp?: unknown;
+    llmShowPromptsInFrontend?: unknown;
     llmShowExceptionsInFrontend?: unknown;
   };
   if (data.ruleEngineMode && data.ruleEngineMode !== "code") {
@@ -448,7 +448,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
   return {
     ruleEngineMode: "code",
     serverAiEnabled: data.serverAiEnabled === true,
-    llmDebugHttp: data.llmDebugHttp === true,
+    llmShowPromptsInFrontend: data.llmShowPromptsInFrontend === true,
     llmShowExceptionsInFrontend: data.llmShowExceptionsInFrontend === true,
   };
 }
@@ -501,11 +501,12 @@ export async function fetchAiPrompt(
   expectedStateVersion: number
 ): Promise<AiPromptPayload> {
   const s = ensureSocket();
+  const timeoutMs = Number(import.meta.env.VITE_AI_PROMPT_TIMEOUT_MS) || 10000;
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       s.off("game:ai-prompt-ready", handleReady);
       reject(new Error("Timeout waiting for AI prompt"));
-    }, 10000);
+    }, timeoutMs);
 
     const handleReady = (payload: AiPromptPayload) => {
       if (
