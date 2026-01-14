@@ -321,6 +321,7 @@ Common types:
 | `set-scoreboards`     | Replace scoreboards array              |
 | `set-actions`         | Replace action grid                    |
 | `set-pile-visibility` | Change a pile’s visibility             |
+| `announce`            | Broadcast a transient UI announcement  |
 | `fatal-error`         | Catastrophic failure (engine/AI/rules) |
 
 ### 4.1 Pile order and `move-cards` semantics

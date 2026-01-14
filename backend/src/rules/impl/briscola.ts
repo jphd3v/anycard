@@ -590,6 +590,13 @@ export const briscolaRules: GameRuleModule = {
         trickCardsAfterMove,
         rulesState.briscolaSuit
       );
+
+      engineEvents.push({
+        type: "announce",
+        text: `Trick won by ${winner}`,
+        anchor: { type: "pile", pileId: "trick" },
+      });
+
       const cardIds = trickCardsAfterMove.map((c) => c.id) as [
         number,
         ...number[],

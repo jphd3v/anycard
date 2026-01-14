@@ -653,6 +653,12 @@ export const pinnacolaRules: GameRuleModule = {
           const wentOut = hand.size === 0;
 
           if (wentOut) {
+            engineEvents.push({
+              type: "announce",
+              text: `${intent.playerId} closes!`,
+              anchor: { type: "pile", pileId: "discard" },
+            });
+
             let hasPinnacola = false,
               hasPoker = false;
             for (const mid of ownMeldPiles) {

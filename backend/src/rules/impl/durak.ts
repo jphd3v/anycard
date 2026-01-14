@@ -496,6 +496,12 @@ export const durakRules: GameRuleModule = {
         nextRulesState.bout = [];
         nextPlayer = newAttacker;
       } else if (intent.action === "take" && isDefender) {
+        engineEvents.push({
+          type: "announce",
+          text: `${defenderId} takes`,
+          anchor: { type: "pile", pileId: "table" },
+        });
+
         const tableCardIds = state.piles["table"].cards!.map((c) => c.id);
         engineEvents.push({
           type: "move-cards",

@@ -949,9 +949,45 @@ You should only use the existing event types:
 - `set-rules-state`
 - `set-scoreboards`
 - `set-actions`
+- `announce`
 - (optional) `fatal-error` for catastrophic situations (rare, usually engine side)
 
 Do **not** invent new event types.
+
+#### Announcements (`announce`)
+
+The engine supports lightweight, transient UI announcements for high-signal game moments.
+Use this sparingly to improve clarity, not as a play-by-play log.
+
+**Good uses (examples):**
+
+- A trick winner (“Trick won by …”)
+- A sweep / scopa (“Sweep by …!”)
+- A key phase transition (“Bidding ended: …”)
+- A hand/round milestone (“Hand 2 Result: …”)
+- A rare declaration (“Marriage declared in …”)
+
+**Avoid:**
+
+- Announcing every normal card move
+- Repeating information already obvious from the move itself
+
+**Event shape:**
+
+```ts
+engineEvents.push({
+  type: "announce",
+  text: "Sweep by P1!",
+  // optional
+  anchor: { type: "pile", pileId: "table" },
+});
+```
+
+**Anchors:**
+
+- Omit `anchor` to show it centered (implicit).
+- Use `{ type: "screen" }` for explicit center.
+- Use `{ type: "pile", pileId }` to position near a pile (falls back to center if the pile is not present in the current layout).
 
 #### Canonical pile order
 

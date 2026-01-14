@@ -654,6 +654,11 @@ function handleBidding(
       valid: true,
       engineEvents: [
         ...rEvents,
+        {
+          type: "announce",
+          text: `Hand ${rulesState.dealNumber} Result: Passed out.`,
+          anchor: { type: "screen" },
+        },
         { type: "set-rules-state", rulesState: rState },
         { type: "set-current-player", player: rState.dealerSeat },
       ],
@@ -673,6 +678,15 @@ function handleBidding(
   return {
     valid: true,
     engineEvents: [
+      ...(historyEntry
+        ? [
+            {
+              type: "announce",
+              text: historyEntry,
+              anchor: { type: "screen" },
+            } as const,
+          ]
+        : []),
       { type: "set-rules-state", rulesState: nextRulesState },
       {
         type: "set-actions",
@@ -830,6 +844,7 @@ function handlePlay(
           valid: true,
           engineEvents: [
             ...engineEvents,
+            { type: "announce", text: dealSummary, anchor: { type: "screen" } },
             { type: "set-rules-state", rulesState: rState },
             {
               type: "set-actions",

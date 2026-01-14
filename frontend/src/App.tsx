@@ -71,6 +71,7 @@ import type {
   GameView,
   ViewEventPayload,
   LayoutZone,
+  AnnounceAnchor,
 } from "../../shared/schemas";
 import { GameHUD } from "./components/GameHUD";
 import { GameHeader } from "./components/GameHeader";
@@ -79,7 +80,10 @@ import { RulesOverlay } from "./components/RulesOverlay";
 import { AboutOverlay } from "./components/AboutOverlay";
 import { WinnerOverlay } from "./components/WinnerOverlay";
 import { LoadingOverlay } from "./components/LoadingOverlay";
-import { LobbyFooter } from "./components/Lobby/LobbyFooter";
+import {
+  FloatingActionOverlay,
+  type FloatingActionItem,
+} from "./components/FloatingActionOverlay";
 import { useAiLog } from "./hooks/useAiLog";
 import { useGameLayout } from "./hooks/useGameLayout";
 import {
@@ -91,6 +95,7 @@ import { GameListItem } from "./components/Lobby/GameListItem";
 import { GameDetailsModal } from "./components/Lobby/GameDetailsModal";
 import { AiSettings } from "./components/Lobby/AiSettings";
 import { JoinGameInput } from "./components/Lobby/JoinGameInput";
+import { LobbyFooter } from "./components/Lobby/LobbyFooter";
 import { useMenuControls } from "./hooks/useMenuControls";
 import { useGameTitle } from "./hooks/useGameTitle";
 
@@ -100,6 +105,7 @@ type ParsedRoute =
   | null;
 
 type IncomingStatePayload = GameView;
+type AnnounceViewEvent = Extract<ViewEventPayload, { type: "announce" }>;
 
 function applyViewEventToView(
   prev: GameView,
@@ -237,6 +243,9 @@ function applyViewEventToView(
       );
       return { ...next, piles };
     }
+
+    case "announce":
+      return next;
 
     case "fatal-error":
       // Fatal errors are handled by setting the error state atom,
@@ -418,6 +427,9 @@ export default function App() {
   >(null);
   const [headerTransitionCards, setHeaderTransitionCards] = useState<
     CardView[]
+  >([]);
+  const [announcementItems, setAnnouncementItems] = useState<
+    FloatingActionItem[]
   >([]);
 
   const activeRulesId = view?.rulesId ?? rulesId;
@@ -1213,6 +1225,43 @@ export default function App() {
     [setActiveToasts, removeToast, toastAutoCloseEnabled]
   );
 
+  const resolveAnnouncementPosition = useCallback((anchor?: AnnounceAnchor) => {
+    if (anchor?.type === "pile") {
+      const selector = `[data-testid="pile:${anchor.pileId}"]`;
+      const target = document.querySelector(selector);
+      if (target instanceof HTMLElement) {
+        const rect = target.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+      }
+    }
+
+    return {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    };
+  }, []);
+
+  const queueAnnouncement = useCallback(
+    (event: AnnounceViewEvent) => {
+      window.requestAnimationFrame(() => {
+        const { x, y } = resolveAnnouncementPosition(event.anchor);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        setAnnouncementItems((prev) => [
+          ...prev,
+          { id, label: event.text, x, y },
+        ]);
+      });
+    },
+    [resolveAnnouncementPosition]
+  );
+
+  const handleAnnouncementComplete = useCallback((id: string) => {
+    setAnnouncementItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
   const clearHighlightsTimerRef = useRef<number | null>(null);
 
   // Stable socket setup that doesn't tear down on gameId changes
@@ -1255,6 +1304,13 @@ export default function App() {
       const animationEvents = events.filter(
         (event) => event.type !== "fatal-error"
       );
+      const queueAnnouncements = (eventsToQueue: ViewEventPayload[]) => {
+        for (const event of eventsToQueue) {
+          if (event.type === "announce") {
+            queueAnnouncement(event);
+          }
+        }
+      };
 
       const nextView: GameView = {
         ...payload,
@@ -1349,6 +1405,7 @@ export default function App() {
         setView(nextView);
         setActiveTransitionCardIds(null);
         setHeaderTransitionCards([]);
+        queueAnnouncements(animationEvents);
         return;
       }
 
@@ -1358,6 +1415,7 @@ export default function App() {
         setView(nextView);
         setActiveTransitionCardIds(null);
         setHeaderTransitionCards([]);
+        queueAnnouncements(animationEvents);
         return;
       }
 
@@ -1393,6 +1451,9 @@ export default function App() {
             setActiveTransitionCardIds(null);
             setHeaderTransitionCards([]);
           });
+          if (event.type === "announce") {
+            queueAnnouncement(event);
+          }
           continue;
         }
 
@@ -1692,6 +1753,7 @@ export default function App() {
     setHighlightedActionId,
     setHighlightedActionLabel,
     setHighlightedScoreboardCells,
+    queueAnnouncement,
   ]); // Removed gameId from dependencies to prevent listener teardown race
 
   const handleJoin = (selectedPlayerId: string) => {
@@ -2721,6 +2783,11 @@ export default function App() {
                 disabled={!isConnected}
                 suppressStartOverlay={suppressStartOverlay}
                 highlightedWidget={highlightedWidget}
+              />
+              <FloatingActionOverlay
+                actions={announcementItems}
+                onComplete={handleAnnouncementComplete}
+                durationMs={2800}
               />
               {gameId && (
                 <FatalErrorOverlay

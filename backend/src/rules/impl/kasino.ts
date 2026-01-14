@@ -623,6 +623,11 @@ export const kasinoRules: GameRuleModule = {
           (rulesState.scores[playerId] || 0) < 10
         ) {
           rulesState.sweeps[playerId] = (rulesState.sweeps[playerId] || 0) + 1;
+          engineEvents.push({
+            type: "announce",
+            text: `Sweep by ${playerId}!`,
+            anchor: { type: "pile", pileId: "table" },
+          });
         }
       } else {
         engineEvents.push({

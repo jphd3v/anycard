@@ -48,6 +48,10 @@ Agents working on this repository are required to run this script and ensure it 
 - **Frontend:** React, Vite, TypeScript
 - **Backend:** Node.js, TypeScript
 
+## UI Announcements
+
+The engine supports lightweight, transient UI announcements emitted by game rules via the `announce` event. These are intended for high-signal moments (e.g., sweeps, trick winners, hand/phase results) and should be used sparingly.
+
 ## Development & Disclaimer
 
 This project was developed almost entirely through "vibe coding" techniques, utilizing various coding agents and LLMs—primarily GPT Codex, but also tools like Qwen CLI and Gemini CLI. While very little manual code was written (though some manual fixes were applied), the project is driven by a clear intuition and vision of what I wanted to create.

@@ -2287,6 +2287,17 @@ export const canastaRules: GameRuleModule = {
 
         // Track meld history (for future concealed support and debugging)
         const before = pileCards(state.piles[to] ?? null);
+
+        if (before.length < 7 && targetPileCards.length >= 7) {
+          const wildCount = targetPileCards.filter(isWild).length;
+          const kind = wildCount === 0 ? "Natural" : "Mixed";
+          engineEvents.push({
+            type: "announce",
+            text: `Team ${myTeam} completed a ${kind} canasta (${targetRank}s)`,
+            anchor: { type: "pile", pileId: to },
+          });
+        }
+
         const entry: MeldHistoryEntry = nextRulesState.meldHistory[current] ?? {
           hasMeldedEver: false,
           hasAddedToExistingMeldEver: false,

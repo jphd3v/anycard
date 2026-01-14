@@ -509,6 +509,11 @@ export const ristiseiskaRules: GameRuleModule = {
     const isWin = nextHand && nextHand.size === 0;
     if (nextHand && nextHand.size === 0) {
       engineEvents.push({
+        type: "announce",
+        text: `${intent.playerId} played the last card!`,
+        anchor: { type: "screen" },
+      });
+      engineEvents.push({
         type: "set-winner",
         winner: intent.playerId,
       });

@@ -857,6 +857,7 @@ const marjapussiRuleModule: GameRuleModule = {
 
       const declared = suitsDeclaredByAny(rulesState);
       let nextRulesState = { ...rulesState };
+      let declaredMarriageSuit: Suit | null = null;
 
       if (intent.action.startsWith("declare-marriage-self-")) {
         const suitStr = intent.action.replace("declare-marriage-self-", "");
@@ -885,6 +886,7 @@ const marjapussiRuleModule: GameRuleModule = {
         }
 
         nextRulesState = recordMarriage(nextRulesState, suit, team);
+        declaredMarriageSuit = suit;
       } else if (intent.action.startsWith("declare-marriage-partner-")) {
         const suitStr = intent.action.replace("declare-marriage-partner-", "");
         if (!SUITS.includes(suitStr as Suit)) {
@@ -913,6 +915,7 @@ const marjapussiRuleModule: GameRuleModule = {
         }
 
         nextRulesState = recordMarriage(nextRulesState, suit, team);
+        declaredMarriageSuit = suit;
       } else {
         return {
           valid: false,
@@ -924,6 +927,14 @@ const marjapussiRuleModule: GameRuleModule = {
       const winner = winnerText(nextRulesState.gamePoints);
       if (winner) {
         nextRulesState = { ...nextRulesState, phase: "game-over" };
+      }
+
+      if (declaredMarriageSuit) {
+        engineEvents.push({
+          type: "announce",
+          text: `${playerId} declared marriage in ${getSuitSymbol(declaredMarriageSuit)}`,
+          anchor: { type: "screen" },
+        });
       }
 
       engineEvents.push({
@@ -1103,6 +1114,15 @@ const marjapussiRuleModule: GameRuleModule = {
           winner.player
         );
         nextRulesState = finish.nextRulesState;
+
+        if (nextRulesState.result) {
+          engineEvents.push({
+            type: "announce",
+            text: nextRulesState.result,
+            anchor: { type: "screen" },
+          });
+        }
+
         nextPlayer = finish.nextPlayer;
         if (finish.winner) {
           engineEvents.push({ type: "set-winner", winner: finish.winner });

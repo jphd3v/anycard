@@ -354,6 +354,12 @@ export const katkoRules: GameRuleModule = {
         nextRulesState.scores = currentScores;
         nextRulesState.result = `Hand ${rulesState.dealNumber} Result: ${winnerId} won the point. Scores: P1=${currentScores["P1"] || 0}, P2=${currentScores["P2"] || 0}.`;
 
+        engineEvents.push({
+          type: "announce",
+          text: nextRulesState.result,
+          anchor: { type: "screen" },
+        });
+
         // Collapse recap to hand summary (replace trick-by-trick with summary)
         nextRulesState.recap = [
           formatHandSummary(rulesState.dealNumber, winnerId, currentScores),

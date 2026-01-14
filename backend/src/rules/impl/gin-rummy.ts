@@ -1501,6 +1501,13 @@ export const ginRules: GameRuleModule = {
           };
         }
         const defender = getOtherPlayer(rulesState.knockPlayer, players);
+
+        engineEvents.push({
+          type: "announce",
+          text: `${defender} finishes layoff`,
+          anchor: { type: "screen" },
+        });
+
         for (const meldPileId of meldPileIdsForPlayer(defender)) {
           const meldCards = cardsInPile(state, meldPileId);
           if (meldCards.length === 0) continue;
@@ -2001,6 +2008,15 @@ export const ginRules: GameRuleModule = {
               lastDrawnCardId: null, // Reset after discard
               recap: [...rulesState.recap, turnDigest],
             };
+
+            engineEvents.push({
+              type: "announce",
+              text:
+                knockType === "gin"
+                  ? `${currentPlayer} goes Gin!`
+                  : `${currentPlayer} knocks`,
+              anchor: { type: "screen" },
+            });
 
             if (knockType === "gin") {
               nextRulesState = finalizeHand(

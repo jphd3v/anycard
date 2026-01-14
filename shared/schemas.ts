@@ -191,6 +191,24 @@ export const SetPilePropertiesEventSchema = EventBaseSchema.extend({
   properties: z.record(z.string(), PilePropertyOverridesSchema),
 });
 
+export const AnnounceAnchorSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("pile"),
+    pileId: z.string(),
+  }),
+  z.object({
+    type: z.literal("screen"),
+  }),
+]);
+
+export type AnnounceAnchor = z.infer<typeof AnnounceAnchorSchema>;
+
+export const AnnounceEventSchema = EventBaseSchema.extend({
+  type: z.literal("announce"),
+  text: z.string().min(1),
+  anchor: AnnounceAnchorSchema.optional(),
+});
+
 export const FatalErrorEventSchema = EventBaseSchema.extend({
   type: z.literal("fatal-error"),
   message: z.string(),
@@ -207,6 +225,7 @@ export const GameEventSchema = z.discriminatedUnion("type", [
   SetPileVisibilityEventSchema,
   SetCardVisualsEventSchema,
   SetPilePropertiesEventSchema,
+  AnnounceEventSchema,
   FatalErrorEventSchema,
 ]);
 
@@ -259,6 +278,12 @@ const SetPilePropertiesEventPayloadSchema = SetPilePropertiesEventSchema.omit({
   playerId: true,
 });
 
+const AnnounceEventPayloadSchema = AnnounceEventSchema.omit({
+  id: true,
+  gameId: true,
+  playerId: true,
+});
+
 const FatalErrorEventPayloadSchema = FatalErrorEventSchema.omit({
   id: true,
   gameId: true,
@@ -275,6 +300,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion("type", [
   SetPileVisibilityEventPayloadSchema,
   SetCardVisualsEventPayloadSchema,
   SetPilePropertiesEventPayloadSchema,
+  AnnounceEventPayloadSchema,
   FatalErrorEventPayloadSchema,
 ]);
 
@@ -291,9 +317,11 @@ export type SetCardVisualsEvent = z.infer<typeof SetCardVisualsEventSchema>;
 export type SetPilePropertiesEvent = z.infer<
   typeof SetPilePropertiesEventSchema
 >;
+export type AnnounceEvent = z.infer<typeof AnnounceEventSchema>;
 export type FatalErrorEvent = z.infer<typeof FatalErrorEventSchema>;
 export type GameEvent = z.infer<typeof GameEventSchema>;
 export type GameEventPayload = z.infer<typeof GameEventPayloadSchema>;
+export type AnnounceEventPayload = z.infer<typeof AnnounceEventPayloadSchema>;
 
 // Base move intent schema
 const MoveIntentBaseSchema = z.object({
@@ -404,6 +432,7 @@ export const ViewEventPayloadSchema = z.discriminatedUnion("type", [
   SetActionsEventPayloadSchema,
   SetPileVisibilityEventPayloadSchema,
   ViewSetCardVisualsEventPayloadSchema,
+  AnnounceEventPayloadSchema,
   FatalErrorEventPayloadSchema,
 ]);
 

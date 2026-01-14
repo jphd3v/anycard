@@ -704,6 +704,13 @@ const scopaRules: GameRuleModule = {
 
         if (!isLastTrick) {
           const prev = nextRulesState.scopas[playerId] ?? 0;
+
+          engineEvents.push({
+            type: "announce",
+            text: `Scopa by ${playerId}!`,
+            anchor: { type: "pile", pileId: "table" },
+          });
+
           nextRulesState = {
             ...nextRulesState,
             scopas: {

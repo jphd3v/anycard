@@ -375,6 +375,9 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
         actions: event.actions,
       };
       break;
+    case "announce":
+      nextState = state;
+      break;
     default:
       nextState = state;
   }
