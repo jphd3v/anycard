@@ -1,4 +1,10 @@
-import { forwardRef, HTMLAttributes, CSSProperties, useEffect } from "react";
+import {
+  forwardRef,
+  HTMLAttributes,
+  CSSProperties,
+  useEffect,
+  useState,
+} from "react";
 import { useAtom, useAtomValue } from "jotai";
 import type { CardView, PileLayout } from "../../../shared/schemas";
 import {
@@ -151,6 +157,8 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
     const testMode = isTestMode();
     const isClickMoveActive = testMode || moveType === "click";
+    const [isHovered, setIsHovered] = useState(false);
+    const [isPressed, setIsPressed] = useState(false);
 
     const legalIntents = view?.legalIntents ?? [];
     const isMovable =
@@ -171,22 +179,34 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
     const isSelected = isClickMoveActive && selectedCard?.cardId === card.id;
 
-    // Pulse cards that are allowed to move when free move is off.
-    // This provides a helpful hint even in Drag mode.
-    // We suppress the attention effect if the card is already highlighted as a target.
-    const shouldPulseMovable = !freeDragEnabled && isMovable && !isMoveTarget;
+    // Attention effects for cards that are allowed to move when free move is off.
+    // Glow and sheen persist even when selected or hovered/pressed.
+    // Wiggle stops during interaction (hover/press/selection).
+    const shouldAttentionGlow = !freeDragEnabled && isMovable && !isMoveTarget;
+    const shouldAttentionWiggle =
+      shouldAttentionGlow && !isHovered && !isPressed && !isSelected;
+
     const mergedStyle: CSSProperties & { viewTransitionName?: string } = {
       width: "var(--card-width)",
       height: "var(--card-height)",
       ...style,
       viewTransitionName: shouldAnimate ? `card-${card.id}` : "none",
+      // Disable long-press context menus and scrolling/zooming on cards to ensure
+      // reliable interaction in both drag and click modes.
+      touchAction: "none",
+      WebkitTouchCallout: "none",
       ...(isSelected
         ? {
             transform: `${style?.transform ?? ""} translateY(-12px)`,
             zIndex: 100,
             transition: "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
           }
-        : {}),
+        : isPressed
+          ? {
+              transform: `${style?.transform ?? ""} scale(0.96)`,
+              transition: "transform 0.1s ease-out",
+            }
+          : {}),
     };
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -197,6 +217,18 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       // and we have a DIFFERENT card selected, we assume the user wants to complete the move.
       // We let the event bubble to the Pile handler which will execute the move.
       if (isMoveTarget && selectedCard && selectedCard.cardId !== card.id) {
+        return;
+      }
+
+      // In free-move click mode, allow clicking any other pile to complete the move.
+      // Let the pile handler decide and avoid changing the selection.
+      if (
+        freeDragEnabled &&
+        isClickMoveActive &&
+        selectedCard &&
+        selectedCard.cardId !== card.id &&
+        selectedCard.fromPileId !== pileId
+      ) {
         return;
       }
 
@@ -252,29 +284,48 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         data-selected={isSelected ? "true" : undefined}
         onClick={isClickable ? handleCardClick : undefined}
         tabIndex={isClickable ? 0 : -1}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          setIsPressed(false);
+        }}
+        onPointerDown={() => !isClickMoveActive && setIsPressed(true)}
+        onPointerUp={() => {
+          setIsPressed(false);
+          setIsHovered(false); // Clear hover on pointer up to fix sticky hover on mobile
+        }}
+        onPointerCancel={() => {
+          setIsPressed(false);
+          setIsHovered(false);
+        }}
+        onContextMenu={(e) => e.preventDefault()}
         {...rest}
       >
         <div
-          className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"} ${shouldPulseMovable ? "animate-card-attention" : ""}`}
+          className={`w-full h-full ${shouldAttentionGlow ? "card-attention-glow card-attention-sheen" : ""} ${shouldAttentionWiggle ? "animate-card-attention-wiggle" : ""}`}
         >
-          {" "}
-          <div className="card-face card-face-front">
-            <img
-              src={frontAsset}
-              alt={card.label ?? "Card"}
-              className="w-full h-full object-contain drop-shadow-md"
-              style={rotationStyle}
-              draggable={false}
-            />
-          </div>
-          <div className="card-face card-face-back">
-            <img
-              src={back}
-              alt="Face-down card"
-              className="w-full h-full object-contain drop-shadow-md"
-              style={rotationStyle}
-              draggable={false}
-            />
+          <div
+            className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"}`}
+          >
+            {" "}
+            <div className="card-face card-face-front">
+              <img
+                src={frontAsset}
+                alt={card.label ?? "Card"}
+                className="w-full h-full object-contain drop-shadow-md"
+                style={rotationStyle}
+                draggable={false}
+              />
+            </div>
+            <div className="card-face card-face-back">
+              <img
+                src={back}
+                alt="Face-down card"
+                className="w-full h-full object-contain drop-shadow-md"
+                style={rotationStyle}
+                draggable={false}
+              />
+            </div>
           </div>
         </div>
       </div>

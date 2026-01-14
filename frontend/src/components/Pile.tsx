@@ -1,5 +1,5 @@
 import { useDroppable, useDraggable, useDndContext } from "@dnd-kit/core";
-import { CSSProperties } from "react";
+import { CSSProperties, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import {
   gameViewAtom,
@@ -91,12 +91,12 @@ export function Pile({
   const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
   const { active } = useDndContext();
   const legalIntents = view?.legalIntents ?? [];
+  const [isHovered, setIsHovered] = useState(false);
 
   const currentPlayerId = view?.currentPlayer;
   const isOwnerCurrentTurn =
     currentPlayerId && pile.ownerId === currentPlayerId;
   const isOpponentTurn = isOwnerCurrentTurn && pile.ownerId !== myPlayerId;
-  const isMyTurn = isOwnerCurrentTurn && pile.ownerId === myPlayerId;
   const isHandPile = pile.isHand ?? pile.id.includes("hand");
   const ownerSeat = view?.seats?.find((s) => s.seatId === pile.ownerId);
   const isAi = ownerSeat?.aiRuntime !== "none";
@@ -108,9 +108,7 @@ export function Pile({
     ? isAi
       ? "ring-2 ring-indigo-400/60 shadow-[0_0_15px_rgba(99,102,241,0.25)]"
       : "ring-2 ring-amber-400/40 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
-    : isMyTurn && isHandPile
-      ? "ring-2 ring-emerald-300/60 shadow-[0_0_15px_rgba(16,185,129,0.22)]"
-      : "";
+    : "";
 
   const labelText = displayName ?? pile.label ?? "";
 
@@ -193,9 +191,19 @@ export function Pile({
           intent.cardIds?.includes(activeCardId) === true)
     );
 
+  const isFreeMoveHoverTarget =
+    !isProxyTarget &&
+    freeDragEnabled &&
+    isClickMoveActive &&
+    !!selectedCard &&
+    selectedCard.fromPileId !== pile.id &&
+    isHovered;
+
   const handlePileClick = (e: React.MouseEvent) => {
-    if (!isClickMoveActive || !selectedCard || disabled || !isDropTarget)
-      return;
+    if (!isClickMoveActive || !selectedCard || disabled) return;
+    const canFreeMoveClickTarget =
+      freeDragEnabled && selectedCard.fromPileId !== pile.id;
+    if (!isDropTarget && !canFreeMoveClickTarget) return;
     if (!view?.gameId || !myPlayerId) return;
 
     e.stopPropagation();
@@ -274,12 +282,14 @@ export function Pile({
         data-testid={`pile:${pile.id}`}
         className={`
            transition-all duration-500 rounded-lg
-           ${isOverActive ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
+           ${isOverActive || isFreeMoveHoverTarget ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
            ${isDropTarget && !isProxyTarget ? "cursor-pointer" : ""}
            ${className ?? ""}
            ${activeGlowClass}
          `}
         onClick={isClickMoveActive ? handlePileClick : undefined}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         data-droptarget={isDropTarget ? "true" : undefined}
       >
         {isDropTarget && !isProxyTarget && (

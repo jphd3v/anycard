@@ -830,8 +830,38 @@ body,
     animation: card-shiver 2s ease-in-out infinite;
   }
 
-  .animate-card-attention {
-    animation: card-attention 3s ease-in-out infinite;
+  .animate-card-attention-wiggle {
+    animation: card-attention-wiggle 2.5s ease-in-out infinite;
+  }
+
+  .card-attention-glow {
+    filter: brightness(1.1) drop-shadow(0 0 2px rgba(16, 185, 129, 0.5))
+      drop-shadow(0 0 8px rgba(16, 185, 129, 0.2));
+  }
+
+  .card-attention-sheen {
+    position: relative;
+  }
+
+  .card-attention-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      45deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0) 45%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0) 55%,
+      transparent 65%
+    );
+    background-size: 300% 300%;
+    background-position: 150% 150%;
+    animation: card-sheen 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+    z-index: 20;
+    /* Round corners to match card faces without needing overflow:hidden on parent */
+    border-radius: 8px;
   }
 
   .font-serif-display {
@@ -871,13 +901,23 @@ body,
   }
 }
 
-@keyframes card-attention {
+@keyframes card-attention-wiggle {
   0%,
   100% {
-    transform: translateY(0) rotate(0deg);
+    transform: rotate(-1.2deg) translateY(0) scale(1.01);
   }
   50% {
-    transform: translateY(-4px) rotate(0.8deg);
+    transform: rotate(1.2deg) translateY(-3px) scale(1.01);
+  }
+}
+
+@keyframes card-sheen {
+  0% {
+    background-position: 150% 150%;
+  }
+  20%,
+  100% {
+    background-position: -50% -50%;
   }
 }
 

@@ -1,5 +1,6 @@
 import { useDroppable, useDndContext } from "@dnd-kit/core";
 import { useAtom, useAtomValue } from "jotai";
+import { useState } from "react";
 import type { LayoutZone } from "../../../shared/schemas";
 import {
   freeDragEnabledAtom,
@@ -30,6 +31,7 @@ export function Zone({ zone, renderPile, disabled }: Props) {
   const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
   const { active } = useDndContext();
   const legalIntents = view?.legalIntents ?? [];
+  const [isHovered, setIsHovered] = useState(false);
 
   const dragData = active?.data.current as
     | { pileId?: string; cardId?: number }
@@ -46,7 +48,10 @@ export function Zone({ zone, renderPile, disabled }: Props) {
     typeof activeCardId === "number" && !!activeFromPileId;
 
   const handleZoneClick = (e: React.MouseEvent) => {
-    if (!isDropTarget || !view?.gameId || !myPlayerId || !selectedCard) return;
+    if (!view?.gameId || !myPlayerId || !selectedCard) return;
+    const canFreeMoveClickTarget =
+      freeDragEnabled && selectedCard.fromPileId !== singlePileId;
+    if (!isDropTarget && !canFreeMoveClickTarget) return;
 
     e.stopPropagation();
 
@@ -96,10 +101,17 @@ export function Zone({ zone, renderPile, disabled }: Props) {
         (intent.cardId === activeCardId ||
           intent.cardIds?.includes(activeCardId) === true)
     );
+  const isFreeMoveHoverTarget =
+    isSinglePileZone &&
+    freeDragEnabled &&
+    isClickMoveActive &&
+    !!selectedCard &&
+    selectedCard.fromPileId !== singlePileId &&
+    isHovered;
 
   // Match original container styles exactly
   const containerClass = `relative flex items-center justify-center rounded-xl border transition-all duration-200 w-full h-full min-h-0 min-w-0 ${
-    isOverActive
+    isOverActive || isFreeMoveHoverTarget
       ? "ring-4 ring-blue-400/50 bg-blue-400/10 border-blue-400/50"
       : "border-white/10 bg-black/5"
   } ${isDropTarget ? "cursor-pointer" : ""}`;
@@ -111,6 +123,8 @@ export function Zone({ zone, renderPile, disabled }: Props) {
       ref={isSinglePileZone ? setNodeRef : null}
       className={containerClass}
       onClick={isClickMoveActive ? handleZoneClick : undefined}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {isDropTarget && (
         <div className="absolute inset-0 rounded-xl ring-4 ring-target/70 animate-pulse pointer-events-none z-10" />
