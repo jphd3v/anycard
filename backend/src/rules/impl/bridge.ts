@@ -810,6 +810,14 @@ function handlePlay(
       formatTrickSummary(rulesState.currentTrickNumber, trickCards, winner),
     ];
     const side = partnership(winner)!;
+
+    // Announce trick winner
+    engineEvents.push({
+      type: "announce",
+      text: `Trick won by ${winner}`,
+      anchor: { type: "pile", pileId: "trick" },
+    });
+
     engineEvents.push({
       type: "move-cards",
       fromPileId: "trick",

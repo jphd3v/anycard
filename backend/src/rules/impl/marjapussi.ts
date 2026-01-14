@@ -1098,6 +1098,14 @@ const marjapussiRuleModule: GameRuleModule = {
       const trickCardIds = nextRulesState.currentTrick.cards.map(
         (c) => c.cardId
       );
+
+      // Announce trick winner
+      engineEvents.push({
+        type: "announce",
+        text: `Trick won by ${winner.player}`,
+        anchor: { type: "pile", pileId: "trick" },
+      });
+
       engineEvents.push({
         type: "move-cards",
         fromPileId: "trick",

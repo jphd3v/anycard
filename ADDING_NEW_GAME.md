@@ -965,7 +965,12 @@ Use this sparingly to improve clarity, not as a play-by-play log.
 - A sweep / scopa (“Sweep by …!”)
 - A key phase transition (“Bidding ended: …”)
 - A hand/round milestone (“Hand 2 Result: …”)
-- A rare declaration (“Marriage declared in …”)
+- A rare declaration ("Marriage declared in …")
+
+> **Trick-taking games:** In trick-taking games (or the trick-taking phase of
+> games like Bridge), always announce the trick winner when a trick is complete.
+> This gives players clear feedback about who won. See Briscola, Katko,
+> Marjapussi, and Bridge for examples.
 
 **Avoid:**
 

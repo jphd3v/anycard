@@ -327,6 +327,13 @@ export const katkoRules: GameRuleModule = {
       nextPlayer = winnerId;
       engineEvents.push({ type: "set-current-player", player: winnerId });
 
+      // Announce trick winner
+      engineEvents.push({
+        type: "announce",
+        text: `Trick won by ${winnerId}`,
+        anchor: { type: "pile", pileId: "trick" },
+      });
+
       // Move trick to discard
       engineEvents.push({
         type: "move-cards",
