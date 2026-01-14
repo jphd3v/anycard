@@ -6,6 +6,7 @@ import {
   playerIdAtom,
   selectedCardAtom,
   freeDragEnabledAtom,
+  moveTypeAtom,
 } from "../state";
 import type {
   PileView,
@@ -36,10 +37,12 @@ function DraggableCard({
   card,
   pileId,
   disabled,
+  isMoveTarget,
 }: {
   card: CardView;
   pileId: string;
   disabled: boolean;
+  isMoveTarget?: boolean;
 }) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `pile-${pileId}-card-${card.id}`,
@@ -57,7 +60,7 @@ function DraggableCard({
         disabled ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
       }
     >
-      <Card card={card} pileId={pileId} />
+      <Card card={card} pileId={pileId} isMoveTarget={isMoveTarget} />
     </div>
   );
 }
@@ -80,7 +83,9 @@ export function Pile({
     disabled: disabled || isProxyTarget,
   });
   const [selectedCard, setSelectedCard] = useAtom(selectedCardAtom);
+  const moveType = useAtomValue(moveTypeAtom);
   const testMode = isTestMode();
+  const isClickMoveActive = testMode || moveType === "click";
   const view = useAtomValue(gameViewAtom);
   const myPlayerId = useAtomValue(playerIdAtom);
   const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
@@ -159,7 +164,7 @@ export function Pile({
   }
 
   const isDropTarget =
-    testMode &&
+    isClickMoveActive &&
     !!selectedCard &&
     legalIntents.some(
       (intent) =>
@@ -169,9 +174,12 @@ export function Pile({
         intent.toPileId === pile.id
     );
 
-  const handlePileClick = () => {
-    if (!testMode || !selectedCard || disabled || !isDropTarget) return;
+  const handlePileClick = (e: React.MouseEvent) => {
+    if (!isClickMoveActive || !selectedCard || disabled || !isDropTarget)
+      return;
     if (!view?.gameId || !myPlayerId) return;
+
+    e.stopPropagation();
 
     sendMoveIntent(
       view.gameId,
@@ -235,13 +243,16 @@ export function Pile({
         className={`
            transition-all duration-500 rounded-lg
            ${isOver ? "ring-4 ring-blue-400/50 bg-blue-400/10" : ""}
-           ${isDropTarget ? "cursor-pointer ring-2 ring-yellow-300/70" : ""}
+           ${isDropTarget && !isProxyTarget ? "cursor-pointer" : ""}
            ${className ?? ""}
            ${activeGlowClass}
          `}
-        onClick={testMode ? handlePileClick : undefined}
+        onClick={isClickMoveActive ? handlePileClick : undefined}
         data-droptarget={isDropTarget ? "true" : undefined}
       >
+        {isDropTarget && !isProxyTarget && (
+          <div className="absolute inset-0 rounded-lg ring-4 ring-target/70 animate-pulse pointer-events-none z-50" />
+        )}
         {/* Placeholder for empty pile */}
         {count === 0 && (
           <div
@@ -268,7 +279,7 @@ export function Pile({
                 intent.fromPileId === pile.id &&
                 intent.cardId === card.id
             );
-          const dragDisabled = !!disabled || !movable || testMode;
+          const dragDisabled = !!disabled || !movable || isClickMoveActive;
           const isTopCard = index === pile.cards.length - 1;
 
           const cardStyle: CSSProperties = {
@@ -310,6 +321,7 @@ export function Pile({
                 card={card}
                 pileId={pile.id}
                 disabled={dragDisabled}
+                isMoveTarget={isDropTarget}
               />
             </div>
           );

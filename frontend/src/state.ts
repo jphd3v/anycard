@@ -180,7 +180,14 @@ export const aiShowExceptionsAtom = atom<boolean>(false);
 
 export const freeDragEnabledAtom = atomWithStorage<boolean>(
   "free-drag-enabled",
-  true
+  false
+);
+
+export type MoveType = "click" | "drag";
+
+export const moveTypeAtom = atomWithStorage<MoveType>(
+  "move-type",
+  typeof window !== "undefined" && window.innerWidth <= 768 ? "click" : "drag"
 );
 
 export const toastAutoCloseEnabledAtom = atomWithStorage<boolean>(

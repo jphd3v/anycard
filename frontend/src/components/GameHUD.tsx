@@ -7,10 +7,12 @@ import {
   aiLogAtom,
   allSeatsAutomatedAtom,
   freeDragEnabledAtom,
+  moveTypeAtom,
   toastAutoCloseEnabledAtom,
   soundEnabledAtom,
   autoRotateSeatAtom,
   statusMessageAtom,
+  selectedCardAtom,
 } from "../state";
 import type { AiLogEntry } from "../state";
 
@@ -56,12 +58,14 @@ export function GameHUD({
   const aiLog = useAtomValue(aiLogAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
   const [freeDragEnabled, setFreeDragEnabled] = useAtom(freeDragEnabledAtom);
+  const [moveType, setMoveType] = useAtom(moveTypeAtom);
   const [toastAutoCloseEnabled, setToastAutoCloseEnabled] = useAtom(
     toastAutoCloseEnabledAtom
   );
   const [soundEnabled, setSoundEnabled] = useAtom(soundEnabledAtom);
   const [autoRotateSeat, setAutoRotateSeat] = useAtom(autoRotateSeatAtom);
   const addStatusMessage = useSetAtom(statusMessageAtom);
+  const setSelectedCard = useSetAtom(selectedCardAtom);
 
   const showToast = useCallback(
     (
@@ -473,10 +477,28 @@ export function GameHUD({
                 title="Change tabletop theme"
               />
 
+              <HUDValue
+                label="Move type"
+                value={moveType === "click" ? "Click" : "Drag"}
+                onClick={() => {
+                  const next = moveType === "click" ? "drag" : "click";
+                  if (next === "drag") {
+                    setSelectedCard(null);
+                  }
+                  setMoveType(next);
+                }}
+                title="Choose between click-to-move or drag-and-drop"
+              />
+
               <HUDToggle
-                label="Free drag"
+                label="Free move"
                 enabled={freeDragEnabled}
-                onClick={() => setFreeDragEnabled((prev) => !prev)}
+                onClick={() => {
+                  if (freeDragEnabled) {
+                    setSelectedCard(null);
+                  }
+                  setFreeDragEnabled((prev) => !prev);
+                }}
                 title="Allow dragging any card (debug)"
               />
 

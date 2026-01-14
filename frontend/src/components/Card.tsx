@@ -9,7 +9,9 @@ import {
 import {
   activeTransitionCardIdsAtom,
   cardSetAtom,
+  freeDragEnabledAtom,
   gameViewAtom,
+  moveTypeAtom,
   selectedCardAtom,
 } from "../state";
 import { normalizeRank, normalizeSuit } from "../utils/cardCodes";
@@ -118,6 +120,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   index?: number;
   pileLayout?: PileLayout;
   pileId?: string;
+  isMoveTarget?: boolean;
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -128,6 +131,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       index = 0,
       pileLayout = "complete",
       pileId,
+      isMoveTarget,
       style,
       ...rest
     },
@@ -143,23 +147,60 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     const cachedFront = frontCache?.get(card.id);
     const frontAsset = frontCandidate ?? cachedFront ?? front;
     const [selectedCard, setSelectedCard] = useAtom(selectedCardAtom);
+    const moveType = useAtomValue(moveTypeAtom);
+    const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
     const testMode = isTestMode();
+    const isClickMoveActive = testMode || moveType === "click";
+
+    const legalIntents = view?.legalIntents ?? [];
+    const isMovable =
+      freeDragEnabled ||
+      legalIntents.some(
+        (intent) =>
+          intent.type === "move" &&
+          intent.fromPileId === pileId &&
+          intent.cardId === card.id
+      );
+
+    const isClickable = isClickMoveActive && (isMovable || isMoveTarget);
 
     void index;
     void pileLayout;
     const activeTransitionCardIds = useAtomValue(activeTransitionCardIdsAtom);
     const shouldAnimate = activeTransitionCardIds?.has(card.id) ?? false;
 
+    const isSelected = isClickMoveActive && selectedCard?.cardId === card.id;
+
+    // Pulse cards that are allowed to move when free move is off.
+    // This provides a helpful hint even in Drag mode.
+    // We suppress the attention effect if the card is already highlighted as a target.
+    const shouldPulseMovable = !freeDragEnabled && isMovable && !isMoveTarget;
     const mergedStyle: CSSProperties & { viewTransitionName?: string } = {
       width: "var(--card-width)",
       height: "var(--card-height)",
       ...style,
       viewTransitionName: shouldAnimate ? `card-${card.id}` : "none",
+      ...(isSelected
+        ? {
+            transform: `${style?.transform ?? ""} translateY(-12px)`,
+            zIndex: 100,
+            transition: "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
+          }
+        : {}),
     };
 
-    const handleCardClick = () => {
-      if (!testMode) return;
+    const handleCardClick = (e: React.MouseEvent) => {
+      if (!isClickable) return;
       if (!pileId) return;
+
+      // If we are clicking a card in a pile that is a valid move target,
+      // and we have a DIFFERENT card selected, we assume the user wants to complete the move.
+      // We let the event bubble to the Pile handler which will execute the move.
+      if (isMoveTarget && selectedCard && selectedCard.cardId !== card.id) {
+        return;
+      }
+
+      e.stopPropagation();
 
       if (
         selectedCard &&
@@ -173,18 +214,14 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       setSelectedCard({ fromPileId: pileId, cardId: card.id });
     };
 
-    const isSelected = selectedCard?.cardId === card.id;
     const finalClassName = `
-      relative select-none card-scene
-      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
-      ${className}
-      ${
-        testMode && isSelected
-          ? "ring-4 ring-yellow-400 ring-inset shadow-lg"
-          : ""
-      }
-      ${testMode ? "cursor-pointer hover:ring-2 hover:ring-blue-300" : ""}
-    `;
+                  relative select-none card-scene
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
+                  ${className}
+                  ${isSelected ? "shadow-2xl" : ""}
+                  ${isClickable ? "cursor-pointer" : isMovable ? "cursor-grab" : "cursor-default"}
+                  ${!isClickMoveActive && isMovable ? "hover:ring-2 hover:ring-blue-300" : ""}
+                `;
 
     const rotationStyle: CSSProperties | undefined =
       typeof card.rotationDeg === "number"
@@ -207,14 +244,15 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         style={mergedStyle}
         draggable={false}
         data-testid={card.faceDown ? `card:back:${card.id}` : `card:${card.id}`}
-        data-selected={testMode && isSelected ? "true" : undefined}
-        onClick={testMode ? handleCardClick : undefined}
-        tabIndex={0}
+        data-selected={isSelected ? "true" : undefined}
+        onClick={isClickable ? handleCardClick : undefined}
+        tabIndex={isClickable ? 0 : -1}
         {...rest}
       >
         <div
-          className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"}`}
+          className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"} ${shouldPulseMovable ? "animate-card-attention" : ""}`}
         >
+          {" "}
           <div className="card-face card-face-front">
             <img
               src={frontAsset}

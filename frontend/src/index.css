@@ -30,6 +30,8 @@
   --color-error-ink: #7f1d1d;
   --color-error-surface: #fef2f2;
 
+  --color-target: #d97706; /* Amber 600 for better contrast on light tabletop */
+
   --shadow-card: 0 1px 2.5px rgba(0, 0, 0, 0.1);
   --shadow-floating: 0 5px 12px rgba(0, 0, 0, 0.1);
 
@@ -65,6 +67,8 @@
   --color-error: #f87171;
   --color-error-ink: #fecdd3;
   --color-error-surface: #331316;
+
+  --color-target: #fbbf24; /* Yellow/Amber 400 for dark theme */
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
   --shadow-floating: 0 6px 14px rgba(0, 0, 0, 0.32);
@@ -826,6 +830,10 @@ body,
     animation: card-shiver 2s ease-in-out infinite;
   }
 
+  .animate-card-attention {
+    animation: card-attention 3s ease-in-out infinite;
+  }
+
   .font-serif-display {
     font-family: var(--font-serif);
   }
@@ -860,6 +868,16 @@ body,
     .seat-selection-panel {
       transform: scale(0.9);
     }
+  }
+}
+
+@keyframes card-attention {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0.8deg);
   }
 }
 
