@@ -6,31 +6,37 @@
     {
       "id": "p2-area",
       "label": "Player 2",
-      "cell": { "row": 0, "col": 0, "colspan": 3 },
+      "cell": { "row": 0, "col": 0, "colspan": 2 },
       "piles": ["P2-hand"]
     },
     {
       "id": "p2-melds",
       "label": "P2 Melds",
-      "cell": { "row": 1, "col": 0 },
+      "cell": { "row": 0, "col": 2 },
       "piles": ["P2-meld-1", "P2-meld-2", "P2-meld-3"]
     },
     {
       "id": "center-area",
       "label": "Center",
-      "cell": { "row": 1, "col": 1 },
+      "cell": { "row": 1, "col": 0, "colspan": 2 },
       "piles": ["deck", "discard"]
+    },
+    {
+      "id": "actions-area",
+      "cell": { "row": 1, "col": 2 },
+      "piles": [],
+      "widget": "actions"
     },
     {
       "id": "p1-melds",
       "label": "P1 Melds",
-      "cell": { "row": 1, "col": 2 },
+      "cell": { "row": 2, "col": 2 },
       "piles": ["P1-meld-1", "P1-meld-2", "P1-meld-3"]
     },
     {
       "id": "p1-area",
       "label": "Player 1",
-      "cell": { "row": 2, "col": 0, "colspan": 3 },
+      "cell": { "row": 2, "col": 0, "colspan": 2 },
       "piles": ["P1-hand"]
     }
   ],
