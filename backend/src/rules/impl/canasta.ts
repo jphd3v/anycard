@@ -1005,6 +1005,31 @@ function recomputeDerived(
       const cards = pileCards(projectedState.piles[pileId] ?? null);
       if (cards.length >= 7) {
         pileProperties[pileId] = { layout: "complete" };
+
+        // Ensure correct card is on top (Natural: Red, Mixed: Black).
+        const isMixed = cards.some(isWild);
+        const preferredSuits = isMixed
+          ? ["spades", "clubs"]
+          : ["hearts", "diamonds"];
+
+        // Find a natural card of the preferred suit to be on top.
+        let topCardIdx = cards.findIndex(
+          (c) => !isWild(c) && preferredSuits.includes(c.suit)
+        );
+        // Fallback: any natural card.
+        if (topCardIdx === -1) {
+          topCardIdx = cards.findIndex((c) => !isWild(c));
+        }
+
+        // If a suitable card is found and it's not already at the top, move it.
+        if (topCardIdx !== -1 && topCardIdx !== cards.length - 1) {
+          engineEvents.push({
+            type: "move-cards",
+            fromPileId: pileId,
+            toPileId: pileId,
+            cardIds: [cards[topCardIdx].id],
+          });
+        }
       } else if (cards.length > 0) {
         // Ensure piles that aren't complete use horizontal layout
         pileProperties[pileId] = { layout: "horizontal" };
@@ -1223,8 +1248,10 @@ export const canastaRules: GameRuleModule = {
           cardId: c.id,
         });
         if (isBlackThree(c)) {
-          const remaining = hand.filter((card) => card.id !== c.id);
-          if (remaining.every(isBlackThree) && teamHasCanasta(state, myTeam)) {
+          // Allow melding black threes if after melding ALL black threes,
+          // at most 1 non-black-three remains (which can be discarded to go out)
+          const nonBlackThrees = hand.filter((card) => !isBlackThree(card));
+          if (nonBlackThrees.length <= 1 && teamHasCanasta(state, myTeam)) {
             candidates.push({
               type: "move",
               gameId,
@@ -1850,12 +1877,14 @@ export const canastaRules: GameRuleModule = {
               engineEvents: [],
             };
           }
-          const remaining = hand.filter((c) => c.id !== intent.cardId!);
-          if (remaining.some((c) => !isBlackThree(c))) {
+          // Allow melding black threes if at most 1 non-black-three remains
+          // (which can be discarded to go out)
+          const nonBlackThrees = hand.filter((c) => !isBlackThree(c));
+          if (nonBlackThrees.length > 1) {
             return {
               valid: false,
               reason:
-                "Black threes can only be laid down once the rest of your hand is melded.",
+                "Black threes can only be melded when going out (at most one other card to discard).",
               engineEvents: [],
             };
           }

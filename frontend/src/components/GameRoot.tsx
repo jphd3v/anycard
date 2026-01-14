@@ -308,7 +308,9 @@ export function GameRoot({
     const override = layout?.pileStyles?.[pileId];
     const { sort, ...restOverride } = override ?? {};
     const normalizedLayout =
-      normalizePileLayout(override?.layout) ?? "complete";
+      normalizePileLayout(basePile.layout) ??
+      normalizePileLayout(override?.layout) ??
+      "complete";
     const optionIds = sort?.options?.map((o) => o.id) ?? [];
     const fallbackSortId =
       sort && sort.default && optionIds.includes(sort.default)

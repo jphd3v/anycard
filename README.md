@@ -115,6 +115,11 @@ Testing was conducted with various local models on Apple Silicon (M4 Max 48GB) u
 - 14B models with thinking disabled offer the best tradeoff: fast responses with correct strategic decisions
 - Temperature 0.15 helps with consistent ID mapping (choosing the candidate that matches the stated reasoning)
 
+**Game-specific strategy issues (even with qwen3-14b):**
+
+- **Gin Rummy**: Generally good—correctly identifies melds, discards high-value deadwood
+- **Canasta**: Weak strategic awareness—may discard wild cards (Jokers/2s) which is almost never correct, and discards cards that opponents have already melded (e.g., Aces when opponent team has an Ace meld), making it easy for them to pick up the pile
+
 ### Project Status
 
 The project is currently at a **demo level**. While I aim for completeness and fidelity, I am not an expert in every variant of every game and I simply haven't had time to run them all through. In that sense they could be considered work in progress and consequently, there may be bugs or missing features.

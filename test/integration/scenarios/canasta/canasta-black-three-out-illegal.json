@@ -31,7 +31,7 @@
       "fromPileId": "P3-hand",
       "toPileId": "A-black3-out",
       "cardId": 57,
-      "expectedError": "Black threes can only be laid down once the rest of your hand is melded."
+      "expectedError": "Black threes can only be melded when going out (at most one other card to discard)."
     }
   ]
 }

@@ -105,3 +105,10 @@ Scoring happens when the hand ends. The hand score is:
 ## End of the Stock
 
 If the stock runs out, the hand ends when the current player cannot legally take the discard pile. If the player can take it, the pile must be taken.
+
+## Game Strategy
+
+- **Never discard wild cards** (Jokers, 2s) unless you are going out—they are too valuable for building melds and canastas.
+- **Watch opponent melds** before discarding—avoid giving them cards they can use. E.g. if opponents have melded Aces, don't discard an Ace.
+- **Use black threes defensively**—discarding a black three (3♣, 3♠) blocks the next player from taking the pile.
+- **Build toward canastas**—you need at least one canasta (7+ cards) to go out, so prioritize growing your melds.
