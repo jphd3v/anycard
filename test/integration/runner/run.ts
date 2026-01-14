@@ -29,6 +29,7 @@ type ScenarioExpect = {
           cardIds?: number[];
           size?: number;
           minSize?: number;
+          visibility?: string;
         }
       >
     | undefined;
@@ -225,6 +226,14 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
         assert.ok(
           pile.cardIds.length >= pileExpectation.minSize,
           `pile '${pileId}' expected minSize ${pileExpectation.minSize}, got ${pile.cardIds.length}`
+        );
+      }
+
+      if (pileExpectation.visibility !== undefined) {
+        assert.equal(
+          pile.visibility,
+          pileExpectation.visibility,
+          `pile '${pileId}' visibility mismatch`
         );
       }
     }

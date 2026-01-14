@@ -1,0 +1,21 @@
+{
+  "id": "bridge-visibility",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-VISIBILITY-TEST",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "piles": {
+      "N-hand": { "visibility": "owner" },
+      "E-hand": { "visibility": "owner" },
+      "S-hand": { "visibility": "owner" },
+      "W-hand": { "visibility": "owner" }
+    }
+  }
+}

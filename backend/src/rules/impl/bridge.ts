@@ -523,6 +523,16 @@ function resetForNextDeal(
     projectedPiles,
   });
 
+  // Reset all hand visibilities to owner-only for the next deal
+  const seats: BridgeSeat[] = ["N", "E", "S", "W"];
+  for (const seat of seats) {
+    events.push({
+      type: "set-pile-visibility",
+      pileId: `${seat}-hand`,
+      visibility: "owner",
+    });
+  }
+
   const nextDealer = NEXT_PLAYER[rulesState.dealerSeat];
   const nextDealNumber = rulesState.dealNumber + 1;
 

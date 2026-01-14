@@ -1,0 +1,26 @@
+{
+  "id": "bridge-dummy-visibility",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-TEST-1",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "N", "action": "1NT" },
+    { "type": "action", "playerId": "E", "action": "pass" },
+    { "type": "action", "playerId": "S", "action": "3NT" },
+    { "type": "action", "playerId": "W", "action": "pass" },
+    { "type": "action", "playerId": "N", "action": "pass" },
+    { "type": "action", "playerId": "E", "action": "pass" },
+    {
+      "type": "move",
+      "playerId": "E",
+      "fromPileId": "E-hand",
+      "toPileId": "trick",
+      "cardId": 16
+    }
+  ],
+  "expect": {
+    "piles": {
+      "S-hand": { "visibility": "public" }
+    }
+  }
+}
