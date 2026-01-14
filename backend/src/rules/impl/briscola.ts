@@ -328,20 +328,6 @@ function refillHands(
   return events;
 }
 
-function computeCardVisuals(
-  state: ValidationState,
-  _nextRulesState: BriscolaRulesState,
-  engineEvents: EngineEvent[]
-): EngineEvent {
-  const projected = projectPilesAfterEvents(state, engineEvents);
-  const briscolaPile = projected["briscola"];
-  const visuals: Record<number, { rotationDeg?: number }> = {};
-  if (briscolaPile && (briscolaPile.cardIds?.length ?? 0) > 0) {
-    visuals[briscolaPile.cardIds![0]] = { rotationDeg: 90 };
-  }
-  return { type: "set-card-visuals", visuals };
-}
-
 export const briscolaRules: GameRuleModule = {
   listLegalIntentsForPlayer(
     state: ValidationState,
@@ -477,10 +463,6 @@ export const briscolaRules: GameRuleModule = {
         type: "set-current-player",
         player: firstPlayer,
       });
-
-      engineEvents.push(
-        computeCardVisuals(state, nextRulesState, engineEvents)
-      );
 
       const projected = projectPilesAfterEvents(state, engineEvents);
       const scoreboard = buildScoreboard(projected, nextRulesState);
@@ -675,9 +657,6 @@ export const briscolaRules: GameRuleModule = {
         { cardId: intent.cardId!, playedBy: playerId },
       ];
     }
-
-    // Card visuals for briscola rotation
-    engineEvents.push(computeCardVisuals(state, nextRulesState, engineEvents));
 
     // Update scoreboard
     const finalProjected = projectPilesAfterEvents(state, engineEvents);

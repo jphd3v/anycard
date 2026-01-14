@@ -7,7 +7,5 @@
     "policy": "first-legal",
     "maxMoves": 100
   },
-  "expect": {
-    "cardVisuals": {}
-  }
+  "expect": {}
 }
