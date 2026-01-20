@@ -108,7 +108,6 @@ export function GameMenu({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
       onClick={handleBackdropClick}
-      style={{ viewTransitionName: "game-menu-backdrop" }}
     >
       <div
         className="relative w-full max-w-[1280px] h-full max-h-[820px] bg-surface-1 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-surface-3"

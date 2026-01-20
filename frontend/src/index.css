@@ -769,22 +769,11 @@ body,
 }
 
 /* Game Menu View Transition */
-::view-transition-group(game-menu-backdrop),
 ::view-transition-group(game-menu-content),
-::view-transition-old(game-menu-backdrop),
-::view-transition-new(game-menu-backdrop),
 ::view-transition-old(game-menu-content),
 ::view-transition-new(game-menu-content) {
   animation-duration: 300ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-::view-transition-new(game-menu-backdrop):only-child {
-  animation-name: fade-in;
-}
-
-::view-transition-old(game-menu-backdrop):only-child {
-  animation-name: fade-out;
 }
 
 ::view-transition-new(game-menu-content):only-child {
@@ -792,7 +781,8 @@ body,
 }
 
 ::view-transition-old(game-menu-content):only-child {
-  animation-name: menu-exit;
+  animation: none;
+  opacity: 0;
 }
 
 @keyframes menu-enter {
@@ -806,18 +796,6 @@ body,
     opacity: 1;
     transform: scale(1);
     filter: blur(0);
-  }
-}
-
-@keyframes menu-exit {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: scale(0.95);
   }
 }
 
