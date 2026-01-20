@@ -756,7 +756,16 @@ body,
   ); /* Slow card view transitions ~2x for moves */
   animation-timing-function: var(--card-move-ease, ease-in-out);
   pointer-events: none;
-  z-index: 9999; /* Ensure animated cards appear on top of everything */
+  z-index: 9999; /* Keep animated cards above the base UI layers */
+}
+
+::view-transition-group(announcement-overlay),
+::view-transition-old(announcement-overlay),
+::view-transition-new(announcement-overlay),
+::view-transition-group(action-overlay),
+::view-transition-old(action-overlay),
+::view-transition-new(action-overlay) {
+  z-index: 10050;
 }
 
 /* Game Menu View Transition */

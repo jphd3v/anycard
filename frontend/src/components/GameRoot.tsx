@@ -641,6 +641,7 @@ export function GameRoot({
         <FloatingActionOverlay
           actions={floatingActions}
           onComplete={handleRemoveFloatingAction}
+          viewTransitionName="action-overlay"
         />
       </DndContext>
     </section>

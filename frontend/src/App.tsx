@@ -3179,6 +3179,7 @@ export default function App() {
                 actions={announcementItems}
                 onComplete={handleAnnouncementComplete}
                 durationMs={2800}
+                viewTransitionName="announcement-overlay"
               />
               {gameId && (
                 <FatalErrorOverlay

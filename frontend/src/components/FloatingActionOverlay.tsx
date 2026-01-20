@@ -12,17 +12,22 @@ interface Props {
   onComplete: (id: string) => void;
   /** Duration in ms for the float/fade animation + auto-dismiss. Defaults to existing behavior. */
   durationMs?: number;
+  viewTransitionName?: string;
 }
 
 export function FloatingActionOverlay({
   actions,
   onComplete,
   durationMs,
+  viewTransitionName,
 }: Props) {
   const resolvedDurationMs = durationMs ?? 1600;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+    <div
+      className="fixed inset-0 pointer-events-none z-[10050] overflow-hidden"
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+    >
       {actions.map((action) => (
         <FloatingAction
           key={action.id}
