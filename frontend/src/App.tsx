@@ -1100,6 +1100,29 @@ export default function App() {
     }
   }, [attemptRejoin, isConnected]);
 
+  // Monitor browser network state for immediate disconnection detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsConnected(true);
+      connect();
+    };
+    const handleOffline = () => {
+      setIsConnected(false);
+    };
+
+    if (!navigator.onLine) {
+      setIsConnected(false);
+    }
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [setIsConnected]);
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -2938,8 +2961,10 @@ export default function App() {
                       const isJoinLocked = isAiSeat || isHumanOccupied;
 
                       const canEnableAiSeat = effectiveAiPreference !== "off";
+                      // Backend AI: Can't enable AI on your own seat
+                      // Frontend AI: Can enable AI on your own seat (sponsoring)
                       const aiToggleDisabled =
-                        isHumanOccupiedByOther ||
+                        (isSeatMine && effectiveAiPreference === "backend") ||
                         (!canEnableAiSeat && !isAiSeat);
 
                       return (

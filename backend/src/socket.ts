@@ -225,17 +225,6 @@ function shouldCloseGameForNoHumans(gameId: string): boolean {
   return playerCount + spectatorCount === 0;
 }
 
-function isAiOnlyGame(gameId: string): boolean {
-  const state = projectState(gameId);
-  if (!state) return false;
-  if (state.players.length === 0) return false;
-
-  return state.players.every((seat) => {
-    const aiRuntime = seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-    return aiRuntime !== "none";
-  });
-}
-
 function maybeCloseAbandonedGame(io: Server, gameId: string): boolean {
   if (!shouldCloseGameForNoHumans(gameId)) {
     clearPendingClose(gameId);
@@ -247,14 +236,9 @@ function maybeCloseAbandonedGame(io: Server, gameId: string): boolean {
   }
 
   const isDemo = isDemoRoom(gameId);
-  const isAiOnly = isAiOnlyGame(gameId);
 
-  // Non-demo AI-only games still close immediately
-  if (isAiOnly && !isDemo) {
-    clearPendingClose(gameId);
-    return closeGameSession(io, gameId);
-  }
-
+  // All games wait for timeout - this allows human players to reconnect
+  // even if they were playing against AI and minimized their browser
   const delay = isDemo
     ? DEMO_ABANDONED_RESET_DELAY_MS
     : NO_HUMAN_CLOSE_DELAY_MS;

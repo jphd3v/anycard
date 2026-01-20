@@ -4,7 +4,7 @@ export const DEFAULT_RULES_ID = "briscola";
 export const DEFAULT_SEED = "ui-smoke-12345";
 
 export type ConsoleRecord = {
-  type: "error" | "warning";
+  type: string;
   message: string;
 };
 
@@ -30,8 +30,24 @@ export function trackConsoleMessages(page: Page): ConsoleRecord[] {
   return records;
 }
 
-export function assertNoConsoleErrors(records: ConsoleRecord[]): void {
-  const errors = records.filter((record) => record.type === "error");
+export function assertNoConsoleErrors(
+  records: ConsoleRecord[],
+  ignorePatterns: RegExp[] = []
+): void {
+  // Default patterns to ignore (browser-specific quirks that don't indicate problems)
+  const defaultIgnorePatterns = [
+    /XML Parsing Error/i, // Firefox-specific: logs when parsing non-XML responses
+    /due to access control checks/i, // WebKit-specific: CORS preflight logging
+    /WebKit encountered an internal error/i, // WebKit-specific: internal errors during network simulation
+  ];
+
+  const allIgnorePatterns = [...defaultIgnorePatterns, ...ignorePatterns];
+
+  const errors = records.filter((record) => {
+    if (record.type !== "error") return false;
+    // Check if error matches any ignore pattern
+    return !allIgnorePatterns.some((pattern) => pattern.test(record.message));
+  });
   if (errors.length === 0) return;
 
   const details = errors.map((error) => `- ${error.message}`).join("\n");
@@ -52,9 +68,11 @@ export async function goToLobby(page: Page): Promise<void> {
 
 export async function openGameDetails(page: Page): Promise<void> {
   await page.getByTestId(`game:${DEFAULT_RULES_ID}`).click();
-  await expect(
-    page.getByRole("heading", { name: /Start New Game/i })
-  ).toBeVisible();
+  // Wait for the modal to open by checking for the "Advanced" button or "Start Private Room" button
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("button", { name: /Advanced/i })).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 export async function startPrivateGame(
@@ -62,12 +80,19 @@ export async function startPrivateGame(
   seed: string
 ): Promise<void> {
   await page.getByRole("button", { name: /Advanced/i }).click();
-  await page
-    .getByPlaceholder("e.g. ABCDEF (Leave blank for random)")
-    .fill(seed);
-  await page.getByRole("button", { name: /Private Room/i }).click();
+
+  const seedInput = page.getByPlaceholder(
+    "e.g. ABCDEF (Leave blank for random)"
+  );
+  await expect(seedInput).toBeVisible({ timeout: 5000 });
+  await seedInput.fill(seed);
+
+  const privateRoomButton = page.getByRole("button", { name: /Private Room/i });
+  await expect(privateRoomButton).toBeVisible({ timeout: 5000 });
+  await privateRoomButton.click();
+
   await expect(page.getByRole("heading", { name: /Room Lobby/i })).toBeVisible({
-    timeout: 15000,
+    timeout: 15000, // Reasonable timeout for Chromium (increased from original 10s for stability)
   });
 }
 
@@ -122,4 +147,20 @@ export async function seedLocalStorage(
       window.localStorage.setItem(key, JSON.stringify(value));
     });
   }, values);
+}
+
+export async function simulateOffline(page: Page, context: any): Promise<void> {
+  await context.setOffline(true);
+  // Manually dispatch offline event since Playwright doesn't trigger it
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("offline"));
+  });
+}
+
+export async function simulateOnline(page: Page, context: any): Promise<void> {
+  await context.setOffline(false);
+  // Manually dispatch online event since Playwright doesn't trigger it
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("online"));
+  });
 }

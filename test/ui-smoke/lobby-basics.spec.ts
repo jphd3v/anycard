@@ -24,9 +24,7 @@ test.describe("UI Smoke Tests - Lobby Basics", () => {
     await expect(
       page.getByRole("heading", { name: /Available Rooms/i })
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: /Start New Game/i })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Advanced/i })).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Private Room/i })
     ).toBeVisible();
@@ -46,9 +44,7 @@ test.describe("UI Smoke Tests - Lobby Basics", () => {
     const roomId = await readRoomIdFromLobby(page);
 
     await page.getByRole("button", { name: /Back to game selection/i }).click();
-    await expect(
-      page.getByRole("heading", { name: /Start New Game/i })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Advanced/i })).toBeVisible();
 
     const joinSection = page
       .getByRole("heading", { name: /Join by Room ID/i })

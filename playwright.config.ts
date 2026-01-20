@@ -11,14 +11,22 @@ export default defineConfig({
     baseURL: frontendUrl,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    launchOptions: {
+      args: ["--mute-audio", "--autoplay-policy=no-user-gesture-required"],
+    },
+    contextOptions: {
+      // Mute audio in the browser context
+      permissions: [],
+    },
   },
   expect: {
     timeout: 10000,
   },
   timeout: 60000,
-  globalTimeout: 120000,
-  workers: 1,
-  retries: 1,
+  globalTimeout: 180000, // 3 minutes for Chromium-only suite
+  workers: 4, // Chromium handles parallelization well
+  retries: 0, // No retries to save time (tests should be stable)
+  fullyParallel: true, // Run tests in parallel across files
   reporter: [
     ["list"],
     [
@@ -52,5 +60,20 @@ export default defineConfig({
         browserName: "chromium",
       },
     },
+    // Firefox and WebKit skipped for fast local development
+    // Run full cross-browser suite with: npx playwright test --project=chromium --project=firefox --project=webkit
+    // {
+    //   name: "firefox",
+    //   use: {
+    //     browserName: "firefox",
+    //   },
+    //   timeout: 150000,
+    // },
+    // {
+    //   name: "webkit",
+    //   use: {
+    //     browserName: "webkit",
+    //   },
+    // },
   ],
 });

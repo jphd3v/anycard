@@ -22,9 +22,9 @@ test.describe("UI Smoke Tests - Exit to Home Flow", () => {
     await expect(
       page.getByRole("heading", { name: /Room Lobby/i })
     ).toHaveCount(0);
-    await expect(
-      page.getByRole("heading", { name: /Start New Game/i })
-    ).toBeVisible();
+
+    // Verify we're back at home by checking for game cards
+    await expect(page.getByTestId("game:briscola")).toBeVisible();
 
     assertNoConsoleErrors(consoleMessages);
   });
