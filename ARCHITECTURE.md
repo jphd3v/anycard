@@ -502,6 +502,7 @@ Contain the game’s logic, including:
 - `validate(state, intent)` – main rule function.
 - Derived `rulesState`, `actions`, `scoreboards`, `currentPlayer`, `winner`.
 - `listLegalIntentsForPlayer` for AI move enumeration (strongly recommended for AI-ready games; optional if you explicitly do not support AI yet).
+- `listLegalIntentsForView` for human-facing legal-intent enumeration (optional; defaults to `listLegalIntentsForPlayer` when not provided).
 
 Keep rule modules:
 
@@ -894,6 +895,19 @@ For games requiring multi-card operations (forming groups, sets, builds of minim
 ```
 
 This reduces AI decision space by presenting complete groups as single choices rather than requiring the AI to plan sequences of individual moves.
+
+#### 8.9.5.1 Human-facing legal intents vs AI candidates
+
+Human players and AI players can use **different** legal-intent lists without changing the core rules:
+
+- **Humans (UI)**: Use `listLegalIntentsForView` to expose UI-friendly, single-card, or reversible rearrangement intents for drag/click workflows.
+- **AI**: Keep `listLegalIntentsForPlayer` constrained (multi-card macros, minimum group sizes) so the AI does not get stuck in invalid intermediate states.
+- **Validation remains authoritative**: If view intents allow temporary invalid layouts, enforce correctness at commit points (discard/finish/end-turn) or by rejecting invalid moves directly.
+
+Example contrast (illustrative, not prescriptive):
+
+- Some games use multi-card intents for both humans and AI when group creation is straightforward.
+- Other games prefer single-card view intents for humans (to reduce surprises during drag/click), while still offering multi-card AI candidates to keep AI decision space small.
 
 **Applies to any game type:**
 

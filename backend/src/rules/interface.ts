@@ -70,6 +70,17 @@ export interface GameRuleModule {
   ): ClientIntent[];
 
   /**
+   * Optional: return a list of legal intents intended for human UI exposure.
+   *
+   * Use this to simplify or filter UI intents without affecting AI candidates.
+   * Falls back to listLegalIntentsForPlayer when not provided.
+   */
+  listLegalIntentsForView?(
+    state: ValidationState,
+    playerId: string
+  ): ClientIntent[];
+
+  /**
    * Optional: derive scoreboards specifically for the given viewer.
    *
    * Use this when some scoreboard cells depend on private information (e.g. a player's hand).

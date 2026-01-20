@@ -519,7 +519,7 @@ export function GameMenu({
 
                   <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-1 border border-surface-3">
                     <span className="text-xs font-medium text-ink ml-1">
-                      Input
+                      Move Type
                     </span>
                     <div className="flex bg-surface-3 rounded-md p-0.5">
                       <button
@@ -546,7 +546,7 @@ export function GameMenu({
                   </div>
 
                   <MenuToggle
-                    label="Free Drag"
+                    label="Free Move"
                     enabled={freeDragEnabled}
                     onChange={() => setFreeDragEnabled((prev) => !prev)}
                   />

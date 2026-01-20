@@ -29,7 +29,7 @@ import {
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
 import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
 import { buildViewForPlayer } from "./view.js";
-import { listLegalIntentsForPlayer, validateMove } from "./rule-engine.js";
+import { listLegalIntentsForView, validateMove } from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
 import {
   appendAiLogEntry,
@@ -734,7 +734,7 @@ function broadcastState(
 
         const legalIntents =
           info.role === "player"
-            ? listLegalIntentsForPlayer(state.gameId, info.playerId).map(
+            ? listLegalIntentsForView(state.gameId, info.playerId).map(
                 (intent) => {
                   if (intent.type !== "move") return intent;
                   if (intent.cardId !== undefined) {
@@ -1327,7 +1327,7 @@ export function initSocket(io: Server) {
       const viewSalt = getViewSalt(gameId);
       const legalIntents =
         role === "player"
-          ? listLegalIntentsForPlayer(gameId, playerId).map((intent) => {
+          ? listLegalIntentsForView(gameId, playerId).map((intent) => {
               if (intent.type !== "move") return intent;
               if (intent.cardId !== undefined) {
                 return {

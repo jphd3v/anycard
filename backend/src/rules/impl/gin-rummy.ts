@@ -493,21 +493,6 @@ function canAddToMeld(meldCards: SimpleCard[], card: SimpleCard): boolean {
   return rv === min - 1 || rv === max + 1;
 }
 
-function hasExistingSetMeld(
-  state: ValidationState,
-  playerId: string,
-  rank: string
-): boolean {
-  for (const pileId of meldPileIdsForPlayer(playerId)) {
-    const cards = cardsInPile(state, pileId);
-    if (cards.length === 0) continue;
-    if (cards.every((c) => c.rank === rank)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 type MeldInfo = {
   melds: Meld[];
   meldCards: SimpleCard[];
@@ -1364,6 +1349,108 @@ export const ginRules: GameRuleModule = {
     return intents;
   },
 
+  listLegalIntentsForView(
+    state: ValidationState,
+    playerId: string
+  ): ClientIntent[] {
+    const baseIntents = this.listLegalIntentsForPlayer?.(state, playerId) ?? [];
+    const intents: ClientIntent[] = [];
+    const seen = new Set<string>();
+
+    const intentKey = (intent: ClientIntent): string => {
+      if (intent.type === "action") {
+        return `action:${intent.action}`;
+      }
+      const cardId = intent.cardId ?? "";
+      const cardIds = intent.cardIds?.join(",") ?? "";
+      return `move:${intent.fromPileId}:${intent.toPileId}:${cardId}:${cardIds}`;
+    };
+
+    const pushIntent = (intent: ClientIntent) => {
+      const key = intentKey(intent);
+      if (seen.has(key)) return;
+      seen.add(key);
+      intents.push(intent);
+    };
+
+    for (const intent of baseIntents) {
+      if (intent.type === "move" && intent.cardIds !== undefined) continue;
+      pushIntent(intent);
+    }
+
+    const players = Object.keys(state.piles)
+      .filter((id) => id.endsWith("-hand"))
+      .map((id) => id.replace("-hand", ""))
+      .sort();
+    const rulesState = getGinRulesState(state.rulesState, players);
+
+    if (
+      state.winner ||
+      rulesState.phase === "ended" ||
+      rulesState.matchWinner
+    ) {
+      return intents;
+    }
+
+    if (state.currentPlayer && state.currentPlayer !== playerId) {
+      return intents;
+    }
+
+    const canRearrange =
+      (rulesState.phase === "playing" &&
+        rulesState.turnPhase === "must-discard") ||
+      (rulesState.phase === "layoff" &&
+        rulesState.knockType === "knock" &&
+        rulesState.knockPlayer &&
+        getOtherPlayer(rulesState.knockPlayer, players) === playerId);
+
+    if (!canRearrange) {
+      return intents;
+    }
+
+    const gameId = state.gameId;
+    const handPileId = findHandPileIdForPlayer(state, playerId);
+    const handCards = cardsInPile(state, handPileId);
+    const meldPiles = meldPileIdsForPlayer(playerId);
+
+    const maybeAddMove = (
+      fromPileId: string,
+      toPileId: string,
+      cardId: number
+    ) => {
+      const candidate: ClientIntent = {
+        type: "move",
+        gameId,
+        playerId,
+        fromPileId,
+        toPileId,
+        cardId,
+      };
+      if (this.validate(state, candidate).valid) {
+        pushIntent(candidate);
+      }
+    };
+
+    for (const card of handCards) {
+      for (const meldPileId of meldPiles) {
+        maybeAddMove(handPileId, meldPileId, card.id);
+      }
+    }
+
+    for (const fromMeld of meldPiles) {
+      const meldCards = cardsInPile(state, fromMeld);
+      for (const card of meldCards) {
+        maybeAddMove(fromMeld, handPileId, card.id);
+        for (const toMeld of meldPiles) {
+          if (toMeld === fromMeld) continue;
+          maybeAddMove(fromMeld, toMeld, card.id);
+        }
+      }
+    }
+
+    return intents;
+  },
+
   validate(state: ValidationState, intent: ClientIntent): ValidationResult {
     const players = Object.keys(state.piles)
       .filter((id) => id.endsWith("-hand"))
@@ -1668,17 +1755,6 @@ export const ginRules: GameRuleModule = {
               };
             }
 
-            // Check for duplicate rank meld
-            const firstCard = movingCards[0];
-            if (hasExistingSetMeld(state, defender, firstCard.rank)) {
-              return {
-                valid: false,
-                reason:
-                  "You already have a meld of that rank. Add to the existing meld instead.",
-                engineEvents: [],
-              };
-            }
-
             engineEvents.push({
               type: "move-cards",
               fromPileId: handPileId,
@@ -1687,27 +1763,6 @@ export const ginRules: GameRuleModule = {
             });
           } else {
             // Single card or extending existing meld
-            // Prevent single-card melds to empty piles
-            if (meldCards.length === 0) {
-              return {
-                valid: false,
-                reason:
-                  "You must create melds with at least 3 cards. Use multi-card selection to create a new meld.",
-                engineEvents: [],
-              };
-            }
-
-            if (
-              movedCard &&
-              hasExistingSetMeld(state, defender, movedCard.rank)
-            ) {
-              return {
-                valid: false,
-                reason:
-                  "You already have a meld of that rank. Add to the existing meld instead.",
-                engineEvents: [],
-              };
-            }
             if (movedCard && !canAddToMeld(meldCards, movedCard)) {
               return {
                 valid: false,
@@ -1723,30 +1778,7 @@ export const ginRules: GameRuleModule = {
             });
           }
         } else if (isPlayerMeldPile(from, defender) && to === handPileId) {
-          // Validate that remaining cards still form a valid meld (3+ cards)
-          const meldCards = cardsInPile(state, from);
-          const remainingCards = meldCards.filter(
-            (c) => c.id !== intent.cardId
-          );
-          if (remainingCards.length > 0 && remainingCards.length < 3) {
-            return {
-              valid: false,
-              reason:
-                "Cannot remove card from meld. Melds must have at least 3 cards.",
-              engineEvents: [],
-            };
-          }
-          // Also validate that remaining cards still form a valid meld pattern
-          if (remainingCards.length >= 3) {
-            const meldError = validateMeld(remainingCards);
-            if (meldError) {
-              return {
-                valid: false,
-                reason: `Cannot remove card. Remaining cards would not form a valid meld: ${meldError}`,
-                engineEvents: [],
-              };
-            }
-          }
+          // Allow rearranging melds during layoff; validity is enforced on finish.
           engineEvents.push({
             type: "move-cards",
             fromPileId: from,
@@ -1758,15 +1790,6 @@ export const ginRules: GameRuleModule = {
           isPlayerMeldPile(to, defender)
         ) {
           const meldCards = cardsInPile(state, to);
-          // Prevent single-card moves to empty meld piles (prevents breaking up melds)
-          if (meldCards.length === 0) {
-            return {
-              valid: false,
-              reason:
-                "Cannot move single card to empty meld pile. Take the card back to your hand first.",
-              engineEvents: [],
-            };
-          }
           if (!canAddToMeld(meldCards, movedCard!)) {
             return {
               valid: false,
@@ -1936,17 +1959,6 @@ export const ginRules: GameRuleModule = {
               };
             }
 
-            // Check for duplicate rank meld
-            const firstCard = movingCards[0];
-            if (hasExistingSetMeld(state, currentPlayer, firstCard.rank)) {
-              return {
-                valid: false,
-                reason:
-                  "You already have a meld of that rank. Add to the existing meld instead.",
-                engineEvents: [],
-              };
-            }
-
             engineEvents.push({
               type: "move-cards",
               fromPileId: handPileId,
@@ -1956,25 +1968,6 @@ export const ginRules: GameRuleModule = {
           } else {
             // Single card or extending existing meld
             // Engine guarantees movedCard exists (validated earlier in this function)
-
-            // Prevent single-card melds to empty piles
-            if (meldCards.length === 0) {
-              return {
-                valid: false,
-                reason:
-                  "You must create melds with at least 3 cards. Use multi-card selection to create a new meld.",
-                engineEvents: [],
-              };
-            }
-
-            if (hasExistingSetMeld(state, currentPlayer, movedCard.rank)) {
-              return {
-                valid: false,
-                reason:
-                  "You already have a meld of that rank. Add to the existing meld instead.",
-                engineEvents: [],
-              };
-            }
             if (!canAddToMeld(meldCards, movedCard)) {
               return {
                 valid: false,
@@ -1990,30 +1983,7 @@ export const ginRules: GameRuleModule = {
             });
           }
         } else if (isPlayerMeldPile(from, currentPlayer) && to === handPileId) {
-          // Validate that remaining cards still form a valid meld (3+ cards)
-          const meldCards = cardsInPile(state, from);
-          const remainingCards = meldCards.filter(
-            (c) => c.id !== intent.cardId
-          );
-          if (remainingCards.length > 0 && remainingCards.length < 3) {
-            return {
-              valid: false,
-              reason:
-                "Cannot remove card from meld. Melds must have at least 3 cards.",
-              engineEvents: [],
-            };
-          }
-          // Also validate that remaining cards still form a valid meld pattern
-          if (remainingCards.length >= 3) {
-            const meldError = validateMeld(remainingCards);
-            if (meldError) {
-              return {
-                valid: false,
-                reason: `Cannot remove card. Remaining cards would not form a valid meld: ${meldError}`,
-                engineEvents: [],
-              };
-            }
-          }
+          // Allow rearranging melds during a turn; validity is enforced on discard.
           engineEvents.push({
             type: "move-cards",
             fromPileId: from,
@@ -2025,15 +1995,6 @@ export const ginRules: GameRuleModule = {
           isPlayerMeldPile(to, currentPlayer)
         ) {
           const meldCards = cardsInPile(state, to);
-          // Prevent single-card moves to empty meld piles (prevents breaking up melds)
-          if (meldCards.length === 0) {
-            return {
-              valid: false,
-              reason:
-                "Cannot move single card to empty meld pile. Take the card back to your hand first.",
-              engineEvents: [],
-            };
-          }
           if (!canAddToMeld(meldCards, movedCard!)) {
             return {
               valid: false,

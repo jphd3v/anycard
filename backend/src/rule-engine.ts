@@ -17,6 +17,20 @@ if (envRuleEngineModeRaw && envRuleEngineModeRaw !== "code") {
 
 export const RULE_ENGINE_MODE = "code" as const;
 
+function buildValidationStateForPlayer(
+  gameState: GameState,
+  events: GameEvent[],
+  playerId: string
+) {
+  const dummyIntent: ClientIntent = {
+    type: "action",
+    gameId: gameState.gameId,
+    playerId,
+    action: "dummy",
+  };
+  return buildValidationState(gameState, events, dummyIntent);
+}
+
 export async function validateMove(
   state: GameState,
   events: GameEvent[],
@@ -58,18 +72,38 @@ export function listLegalIntentsForPlayer(
   const plugin = GAME_PLUGINS[gameState.rulesId];
   if (!plugin || !plugin.ruleModule.listLegalIntentsForPlayer) return [];
 
-  // Build a validation state for the player (using a dummy intent to populate the state properly)
-  const dummyIntent: ClientIntent = {
-    type: "action",
-    gameId,
-    playerId,
-    action: "dummy",
-  };
-
-  const validationState = buildValidationState(gameState, events, dummyIntent);
+  const validationState = buildValidationStateForPlayer(
+    gameState,
+    events,
+    playerId
+  );
 
   return (
     plugin.ruleModule.listLegalIntentsForPlayer!(validationState, playerId) ??
     []
   );
+}
+
+export function listLegalIntentsForView(
+  gameId: string,
+  playerId: string
+): ClientIntent[] {
+  const gameState = projectState(gameId);
+  if (!gameState) return [];
+
+  const events = getEvents(gameId);
+  const plugin = GAME_PLUGINS[gameState.rulesId];
+  const listForView =
+    plugin?.ruleModule.listLegalIntentsForView ??
+    plugin?.ruleModule.listLegalIntentsForPlayer;
+
+  if (!listForView) return [];
+
+  const validationState = buildValidationStateForPlayer(
+    gameState,
+    events,
+    playerId
+  );
+
+  return listForView.call(plugin.ruleModule, validationState, playerId) ?? [];
 }
