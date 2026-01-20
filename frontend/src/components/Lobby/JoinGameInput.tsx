@@ -97,16 +97,16 @@ export function JoinGameInput({ onJoin }: JoinGameInputProps) {
                   <h3 className="font-bold text-base text-ink leading-tight">
                     {gameInfo.gameName}
                   </h3>
-                  <p className="text-[10px] text-ink-muted font-mono uppercase tracking-widest mt-0.5">
+                  <p className="text-2xs text-ink-muted font-mono uppercase tracking-widest mt-0.5">
                     Room: {gameInfo.gameId}
                   </p>
                 </div>
-                <div className="px-2 py-0.5 bg-primary/10 rounded text-[10px] font-black text-primary uppercase tracking-tighter border border-primary/20">
+                <div className="px-2 py-0.5 bg-primary/10 rounded text-2xs font-black text-primary uppercase tracking-tighter border border-primary/20">
                   {gameInfo.roomType}
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 text-[11px] text-ink-muted mb-5">
+              <div className="flex items-center gap-4 text-xs text-ink-muted mb-5">
                 <div className="flex items-center gap-1">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -172,7 +172,7 @@ export function JoinGameInput({ onJoin }: JoinGameInputProps) {
                   </svg>
                   <span className="font-bold text-sm">Game Not Found</span>
                 </div>
-                <p className="text-[11px] text-red-500/80 text-center max-w-[200px]">
+                <p className="text-2xs text-red-500/80 text-center max-w-[200px]">
                   We couldn't find a game with ID{" "}
                   <span className="font-mono font-bold">"{value.trim()}"</span>.
                   Please check the ID and try again.

@@ -19,10 +19,10 @@ export function LobbyFooter({ onAboutClick }: Props) {
 
   return (
     <footer className="pt-3 pb-2 text-center text-ink-muted opacity-60 relative">
-      <div className="text-xs font-semibold uppercase tracking-widest mb-1">
+      <div className="text-2xs font-semibold uppercase tracking-widest mb-1">
         AnyCard Engine
       </div>
-      <div className="text-[10px] flex flex-col items-center justify-center gap-0.5">
+      <div className="text-2xs flex flex-col items-center justify-center gap-0.5">
         <span>&copy; {year} JPH</span>
         <button
           onClick={handleCopyVersion}
@@ -35,7 +35,7 @@ export function LobbyFooter({ onAboutClick }: Props) {
       {onAboutClick && (
         <button
           onClick={onAboutClick}
-          className="mt-4 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
+          className="mt-4 px-3 py-1.5 text-2xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
         >
           About & License
         </button>

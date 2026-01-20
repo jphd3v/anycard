@@ -2586,7 +2586,7 @@ export default function App() {
 
         {/* LOBBY VIEW */}
         {!gameId && !routeError && (
-          <div className="flex-1 w-full flex flex-col max-w-lg mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
+          <div className="flex-1 w-full flex flex-col max-w-lg landscape:max-w-none landscape:px-12 mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
             <header className="relative pt-12 pb-2 px-6 text-center z-10 shrink-0">
               <TopCornerOrnaments />
               <h1 className="text-5xl md:text-6xl font-serif-display font-black text-ink mb-2 tracking-tight drop-shadow-sm relative z-10">
@@ -2712,7 +2712,7 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <div className="grid grid-cols-1 gap-3 pb-8">
+                <div className="grid grid-cols-1 landscape:grid-cols-2 gap-3 pb-8">
                   {sortedAvailableGames.map((game) => (
                     <GameListItem
                       key={game.id}
@@ -2780,7 +2780,7 @@ export default function App() {
         {showRoomLobby && (
           <FullScreenMessage
             title={roomLobbyTitle}
-            panelClassName={`seat-selection-panel !max-w-[480px] !w-full !p-4 sm:!p-6 max-h-[calc(100dvh_-_1rem)] overflow-y-auto ${!isGameActive ? "!bg-surface-1" : ""}`}
+            panelClassName={`seat-selection-panel !max-w-[480px] !w-full !p-4 sm:!p-6 ${!isGameActive ? "!bg-surface-1" : ""}`}
             descriptionClassName="!text-ink !mb-4 sm:!mb-6"
             translucent={isGameActive}
             canMinimize={isGameActive}
@@ -2797,7 +2797,7 @@ export default function App() {
                   if (effectiveAiPreference !== "off") return null;
 
                   return (
-                    <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
+                    <div className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
                       AI runtime is Off. Enable it from the Home Config to
                       toggle AI seats.
                     </div>
@@ -2805,7 +2805,7 @@ export default function App() {
                 })()}
 
                 {seats.some((seat) => seat.aiRuntime === "frontend") && (
-                  <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
+                  <div className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
                     Warning: Frontend AI runs in a browser and can see hidden
                     info.
                   </div>
@@ -2816,7 +2816,7 @@ export default function App() {
                 <div className="flex flex-col gap-1.5 items-center my-1">
                   <div className="flex gap-2 items-center">
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${isCreator ? "bg-green-100 text-green-700 border border-green-200" : "bg-blue-100 text-blue-700 border border-blue-200"}`}
+                      className={`px-2 py-0.5 rounded text-2xs font-bold uppercase tracking-wider ${isCreator ? "bg-green-100 text-green-700 border border-green-200" : "bg-blue-100 text-blue-700 border border-blue-200"}`}
                     >
                       {isCreator
                         ? "Room Created"
@@ -2826,13 +2826,13 @@ export default function App() {
                     </span>
 
                     {roomTypeLabel && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter bg-primary/10 text-primary border border-primary/20">
+                      <span className="px-2 py-0.5 rounded text-2xs font-black uppercase tracking-tighter bg-primary/10 text-primary border border-primary/20">
                         {roomTypeLabel}
                       </span>
                     )}
 
                     <div className="flex items-center gap-1">
-                      <span className="text-[11px] font-mono text-ink-muted bg-surface-2 px-2 py-0.5 rounded border border-surface-3">
+                      <span className="text-xs font-mono text-ink-muted bg-surface-2 px-2 py-0.5 rounded border border-surface-3">
                         ID: {gameId}
                       </span>
                       <button
@@ -2865,7 +2865,7 @@ export default function App() {
                   </div>
 
                   {lobbySeed && (
-                    <div className="text-[10px] text-ink-muted/70 font-mono italic">
+                    <div className="text-2xs text-ink-muted/70 font-mono italic">
                       Seed: {lobbySeed}
                     </div>
                   )}
@@ -2875,7 +2875,7 @@ export default function App() {
                   {isGameActive ? (
                     <div className="flex flex-col items-center gap-2">
                       {isSpectator ? (
-                        <div className="text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
+                        <div className="text-sm sm:text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
                           <span>
                             You are watching as a{" "}
                             <span className="text-primary font-bold">
@@ -2889,13 +2889,13 @@ export default function App() {
                           </span>
                           <button
                             onClick={handleLeaveSeat}
-                            className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
+                            className="px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
                           >
                             (leave)
                           </button>
                         </div>
                       ) : (
-                        <div className="text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
+                        <div className="text-sm sm:text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
                           <span>
                             You have taken a seat:{" "}
                             <span className="text-primary font-bold">
@@ -2904,23 +2904,23 @@ export default function App() {
                           </span>
                           <button
                             onClick={handleLeaveSeat}
-                            className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
+                            className="px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
                           >
                             (leave)
                           </button>
                         </div>
                       )}
-                      <p className="text-sm text-ink-muted text-center">
+                      <p className="text-xs sm:text-sm text-ink-muted text-center">
                         Waiting for other players to join the room before the
                         game can begin.
                       </p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <div className="text-base font-medium text-center">
+                      <div className="text-sm sm:text-base font-medium text-center">
                         Choose a seat to join this room.
                       </div>
-                      <p className="text-sm text-ink-muted text-center">
+                      <p className="text-xs sm:text-sm text-ink-muted text-center">
                         You can also watch as a spectator if you just want to
                         observe.
                       </p>
@@ -2930,14 +2930,14 @@ export default function App() {
 
                 {seats.length > 0 && (
                   <div className="flex flex-col gap-1.5 items-center w-full max-w-xs">
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">
+                    <div className="text-xs font-bold uppercase tracking-widest text-ink-muted">
                       Seats filled: {seatsFilledCount} / {seats.length}
                     </div>
                   </div>
                 )}
 
                 {seats.length === 0 ? (
-                  <div className="text-[11px] text-ink-muted text-center">
+                  <div className="text-xs text-ink-muted text-center">
                     Loading seats...
                   </div>
                 ) : (
@@ -2988,7 +2988,7 @@ export default function App() {
                             gap: "clamp(8px, 2vw, 12px)",
                           }}
                         >
-                          <div className="w-full font-semibold text-sm sm:text-base text-ink flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center">
+                          <div className="w-full font-semibold text-xs sm:text-sm md:text-base text-ink flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center">
                             <span className="truncate">
                               {seat.name ?? seat.playerId}
                             </span>
@@ -2996,7 +2996,7 @@ export default function App() {
                             {/* AI Status Text */}
 
                             {isAiSeat && (
-                              <span className="text-[9px] text-indigo-600 font-medium bg-indigo-50 rounded px-1 py-0.5">
+                              <span className="text-2xs text-indigo-600 font-medium bg-indigo-50 rounded px-1 py-0.5">
                                 {isBrowserAi ? "AI (browser)" : "AI (server)"}
                               </span>
                             )}
@@ -3010,7 +3010,7 @@ export default function App() {
                               }
                               className="w-full min-h-[36px] flex items-stretch"
                             >
-                              <div className="w-full px-2 py-0.5 bg-surface-3 text-ink-muted text-[10px] font-semibold uppercase tracking-wide rounded-full text-center flex items-center justify-center">
+                              <div className="w-full px-2 py-0.5 bg-surface-3 text-ink-muted text-2xs font-semibold uppercase tracking-wide rounded-full text-center flex items-center justify-center">
                                 {isAiSeat
                                   ? "AI Controlled"
                                   : isSeatMine
@@ -3043,7 +3043,7 @@ export default function App() {
                                 : ""
                             }`}
                           >
-                            <span className="text-[10px] font-medium text-ink-muted">
+                            <span className="text-2xs font-medium text-ink-muted">
                               AI Player
                             </span>
 
@@ -3139,7 +3139,7 @@ export default function App() {
 
                 <button
                   onClick={handleExitToGameSelection}
-                  className="mt-2 px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
+                  className="mt-2 px-3 py-1.5 text-2xs sm:text-xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
                 >
                   Back to game selection
                 </button>
@@ -3284,7 +3284,7 @@ export default function App() {
         {!toastAutoCloseEnabled && activeToasts.length > 0 && (
           <button
             onClick={() => setActiveToasts([])}
-            className="pointer-events-auto button-base button-secondary px-3 py-1.5 text-[10px] uppercase tracking-wider shadow-lg bg-surface-1 border-surface-3 mb-1"
+            className="pointer-events-auto button-base button-secondary px-3 py-1.5 text-2xs uppercase tracking-wider shadow-lg bg-surface-1 border-surface-3 mb-1"
           >
             Clear all
           </button>
@@ -3311,7 +3311,7 @@ export default function App() {
               aria-live={toast.tone === "error" ? "assertive" : "polite"}
             >
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">
+                <span className="text-2xs font-bold uppercase tracking-wider opacity-50">
                   {toast.source}
                 </span>
                 <span className="text-sm font-medium leading-snug">

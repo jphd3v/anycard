@@ -261,7 +261,7 @@ export function GameHUD({
       title={title}
     >
       <span
-        className={`text-[10px] sm:text-xs px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 border w-full landscape:w-auto ${
+        className={`text-2xs sm:text-xs px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 border w-full landscape:w-auto ${
           enabled
             ? "bg-success-surface text-success-ink border-success/30 shadow-sm"
             : "bg-surface-3/50 text-ink-muted border-transparent"
@@ -294,7 +294,7 @@ export function GameHUD({
       className="button-base button-ghost flex items-center justify-center w-full landscape:w-auto px-2 py-2 text-sm text-ink"
       title={title}
     >
-      <span className="text-[10px] sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
+      <span className="text-2xs sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
         <span className="text-ink/50 mr-2 flex-1 text-left landscape:flex-none">
           {label}
         </span>
@@ -387,7 +387,7 @@ export function GameHUD({
           <ScrollShadowWrapper className="w-64 sm:w-auto max-w-[calc(100vw-2rem)] max-h-[95vh] glass-panel rounded-xl shadow-floating bg-surface-1/80 backdrop-blur-md border border-surface-3">
             <div className="p-2 flex flex-col landscape:flex-row landscape:flex-wrap landscape:items-center gap-1 w-fit min-w-full">
               <div className="px-3 py-2 border-b landscape:border-b-0 landscape:border-r border-surface-3 mb-1 landscape:mb-0 flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center">
-                <span className="text-[10px] text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
+                <span className="text-2xs text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
                   Room ID
                 </span>
                 <div className="flex items-center gap-1">
@@ -429,7 +429,7 @@ export function GameHUD({
               </div>
 
               <div className="px-3 py-2 border-b landscape:border-b-0 landscape:border-r border-surface-3 mb-1 landscape:mb-0 flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center">
-                <span className="text-[10px] text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
+                <span className="text-2xs text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
                   Seed
                 </span>
                 <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ export function GameHUD({
                   className="button-base button-ghost flex items-center justify-center w-full landscape:w-auto px-2 py-2 text-sm text-ink"
                   title="View license and credits"
                 >
-                  <span className="text-[10px] sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
+                  <span className="text-2xs sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
                     About
                   </span>
                 </button>
@@ -587,7 +587,7 @@ export function GameHUD({
                   </span>
                   <div className="flex gap-1.5 flex-wrap">
                     <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-[10px] text-ink-muted uppercase font-bold">
+                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
                         Game
                       </span>
                       <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
@@ -597,7 +597,7 @@ export function GameHUD({
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-[10px] text-ink-muted uppercase font-bold">
+                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
                         Room ID
                       </span>
                       <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
@@ -605,7 +605,7 @@ export function GameHUD({
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-[10px] text-ink-muted uppercase font-bold">
+                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
                         Seed
                       </span>
                       <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">

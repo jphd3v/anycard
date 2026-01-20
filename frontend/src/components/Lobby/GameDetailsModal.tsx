@@ -273,13 +273,12 @@ export function GameDetailsModal({
     <Overlay
       translucent
       blurred
-      className="items-center justify-center p-4 sm:p-6"
+      className="items-center landscape:items-start justify-center p-4 sm:p-6 landscape:pt-8 landscape:overflow-y-auto"
       onClick={onClose}
     >
       {/* Modal Content */}
       <div
-        className="relative w-full max-w-[640px] bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[92vh] sm:max-h-[800px] animate-in fade-in zoom-in-95 duration-300 overflow-hidden"
-        role="dialog"
+        className="relative w-full max-w-[640px] landscape:max-w-4xl bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[90vh] landscape:max-h-none sm:max-h-[800px] animate-in fade-in zoom-in-95 duration-300 overflow-hidden landscape:mb-8"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
@@ -292,18 +291,18 @@ export function GameDetailsModal({
           <div className="flex items-baseline gap-2 overflow-hidden mr-2">
             <h2
               id={titleId}
-              className="text-xl sm:text-2xl font-serif-display font-bold text-ink whitespace-nowrap"
+              className="text-lg sm:text-xl md:text-2xl font-serif-display font-bold text-ink whitespace-nowrap"
             >
               {game.name}
             </h2>
             <div className="flex items-center gap-2 flex-wrap">
               {gamesOfThisType.length > 0 && (
-                <span className="text-[9px] sm:text-[10px] font-sans font-bold text-ink-muted uppercase tracking-wider bg-surface-2 px-2 py-0.5 rounded-full whitespace-nowrap">
+                <span className="text-2xs font-sans font-bold text-ink-muted uppercase tracking-wider bg-surface-2 px-2 py-0.5 rounded-full whitespace-nowrap">
                   {gamesOfThisType.length} Active{" "}
                   {gamesOfThisType.length === 1 ? "Room" : "Rooms"}
                 </span>
               )}
-              <span className="text-[8px] font-mono text-ink-muted opacity-40 uppercase tracking-widest whitespace-nowrap">
+              <span className="text-2xs font-mono text-ink-muted opacity-40 uppercase tracking-widest whitespace-nowrap">
                 #{game.id}
               </span>
             </div>
@@ -328,10 +327,10 @@ export function GameDetailsModal({
           </button>
         </div>
         {/* Tabs */}
-        <div className="flex border-b border-surface-2 px-4 sm:px-6 relative z-10">
+        <div className="flex border-b border-surface-2 px-4 sm:px-6 relative z-10 shrink-0">
           <button
             onClick={() => setActiveTab("play")}
-            className={`py-3 mr-6 text-sm font-bold border-b-2 transition-colors ${
+            className={`py-3 mr-6 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
               activeTab === "play"
                 ? "border-primary text-primary"
                 : "border-transparent text-ink-muted hover:text-ink"
@@ -341,7 +340,7 @@ export function GameDetailsModal({
           </button>
           <button
             onClick={() => setActiveTab("rules")}
-            className={`py-3 text-sm font-bold border-b-2 transition-colors ${
+            className={`py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
               activeTab === "rules"
                 ? "border-primary text-primary"
                 : "border-transparent text-ink-muted hover:text-ink"
@@ -352,7 +351,7 @@ export function GameDetailsModal({
         </div>
         {/* Content Area */}
         <ScrollShadowWrapper
-          className="flex-1 relative z-10"
+          className="flex-1 relative z-10 min-h-0"
           innerClassName="scrollbar-hide"
         >
           <div className="p-4 sm:p-6 w-fit min-w-full">
@@ -360,7 +359,7 @@ export function GameDetailsModal({
               <div className="space-y-6">
                 {/* Join by Room ID */}
                 <div className="space-y-2">
-                  <h3 className="text-xs sm:text-sm font-bold text-ink-muted uppercase tracking-wider">
+                  <h3 className="text-2xs sm:text-xs font-bold text-ink-muted uppercase tracking-wider">
                     Join by Room ID
                   </h3>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -373,12 +372,12 @@ export function GameDetailsModal({
                         }
                       }}
                       placeholder="Room ID"
-                      className="flex-1 sm:flex-none sm:w-48 rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none"
+                      className="flex-1 sm:flex-none sm:w-48 rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-xs sm:text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none"
                     />
                     <button
                       onClick={() => onJoin(game.id, trimmedManualGameId)}
                       disabled={!canJoinManual}
-                      className="button-base button-secondary px-4 py-2 text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="button-base button-secondary px-4 py-2 text-xs sm:text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Join Room
                     </button>
@@ -387,7 +386,7 @@ export function GameDetailsModal({
 
                 {/* Unified Room List */}
                 <div className="mt-6">
-                  <h3 className="text-xs sm:text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
+                  <h3 className="text-2xs sm:text-xs font-bold text-ink-muted uppercase tracking-wider mb-3">
                     Available Rooms
                   </h3>
                   {allRooms.length > 0 ? (
@@ -398,7 +397,7 @@ export function GameDetailsModal({
                           className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-surface-2 border border-surface-3"
                         >
                           <div className="flex flex-col min-w-0 pr-2">
-                            <span className="font-mono text-[10px] sm:text-xs text-ink-muted">
+                            <span className="font-mono text-2xs text-ink-muted">
                               Room {room.id}
                             </span>
                             <span className="text-xs sm:text-sm">
@@ -408,7 +407,7 @@ export function GameDetailsModal({
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span
-                              className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${room.badgeClass}`}
+                              className={`text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${room.badgeClass}`}
                             >
                               {room.badge}
                             </span>
@@ -423,7 +422,7 @@ export function GameDetailsModal({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-ink-muted text-sm border-2 border-dashed border-surface-2 rounded-xl">
+                    <div className="text-center py-6 text-ink-muted text-xs sm:text-sm border-2 border-dashed border-surface-2 rounded-xl">
                       No rooms are currently running for {game.name}.<br />
                       Start one below!
                     </div>
@@ -432,13 +431,10 @@ export function GameDetailsModal({
 
                 {/* Main Actions */}
                 <div className="pt-6 border-t border-surface-2 mt-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs sm:text-sm font-bold text-ink-muted uppercase tracking-wider">
-                      Start New Game
-                    </h3>
+                  <div className="flex items-center justify-end mb-3">
                     <button
                       onClick={() => setShowAdvanced(!showAdvanced)}
-                      className="text-[10px] font-bold text-primary hover:text-primary-dark transition-colors uppercase tracking-widest flex items-center gap-1"
+                      className="text-2xs font-bold text-primary hover:text-primary-dark transition-colors uppercase tracking-widest flex items-center gap-1"
                     >
                       {showAdvanced ? "Hide Advanced" : "Advanced"}
                       <svg
@@ -460,16 +456,16 @@ export function GameDetailsModal({
 
                   {showAdvanced && (
                     <div className="mb-4 p-3 bg-surface-2 rounded-xl border border-surface-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <label className="block text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5 ml-1">
+                      <label className="block text-2xs font-bold text-ink-muted uppercase tracking-wider mb-1.5 ml-1">
                         Shuffle Seed (Optional)
                       </label>
                       <input
                         value={customSeed}
                         onChange={(e) => setCustomSeed(e.target.value)}
                         placeholder="e.g. ABCDEF (Leave blank for random)"
-                        className="w-full rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-xs font-mono text-ink placeholder:text-ink-muted/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-2xs font-mono text-ink placeholder:text-ink-muted/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                       />
-                      <p className="mt-2 text-[10px] text-ink-muted/70 leading-relaxed px-1">
+                      <p className="mt-2 text-2xs text-ink-muted/70 leading-relaxed px-1">
                         Use a specific seed to replay a exact card distribution.
                         You can find seeds in the in-game menu of existing
                         matches.
@@ -482,18 +478,18 @@ export function GameDetailsModal({
                       onClick={() =>
                         onStart(game.id, customSeed.trim() || undefined)
                       }
-                      className="button-base button-primary py-2.5 px-6 text-sm font-bold w-fit shadow-lg hover:scale-[1.02]"
+                      className="button-base button-primary py-2.5 px-6 text-xs sm:text-sm font-bold w-fit shadow-lg hover:scale-[1.02]"
                     >
-                      Private Room
+                      Start Private Room
                     </button>
 
                     <button
                       onClick={() =>
                         onStartPublic(game.id, customSeed.trim() || undefined)
                       }
-                      className="button-base button-secondary py-2.5 px-6 text-sm font-bold w-fit shadow-sm hover:scale-[1.01]"
+                      className="button-base button-secondary py-2.5 px-6 text-xs sm:text-sm font-bold w-fit shadow-sm hover:scale-[1.01]"
                     >
-                      Public Room
+                      Start Public Room
                     </button>
                   </div>
                 </div>
@@ -521,7 +517,7 @@ export function GameDetailsModal({
         <div className="p-4 border-t border-surface-2 bg-surface-1/50 flex flex-col items-center relative z-10">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
+            className="px-3 py-1.5 text-2xs sm:text-xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
           >
             Return to Home
           </button>

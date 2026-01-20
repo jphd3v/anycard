@@ -37,6 +37,19 @@
 
   --font-sans: system-ui, sans-serif;
   --font-serif: "Georgia", "Cambria", "Times New Roman", Times, serif;
+
+  /* Fluid Typography Scale (Tailwind v4) */
+  --text-2xs: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
+  --text-xs: clamp(0.6rem, 0.5rem + 0.5vw, 0.75rem);
+  --text-sm: clamp(0.7rem, 0.6rem + 0.5vw, 0.875rem);
+  --text-base: clamp(0.8rem, 0.7rem + 0.5vw, 1rem);
+  --text-lg: clamp(0.9rem, 0.8rem + 0.5vw, 1.125rem);
+  --text-xl: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+  --text-2xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --text-3xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --text-4xl: clamp(2rem, 1.7rem + 1.5vw, 2.5rem);
+  --text-5xl: clamp(2.5rem, 2.1rem + 2vw, 3.5rem);
+  --text-6xl: clamp(3rem, 2.5rem + 2.5vw, 4.5rem);
 }
 
 [data-theme="dark"] {
@@ -313,26 +326,26 @@ header.game-header .header-card-anchor {
 }
 
 .ai-log-modal .ai-log-title {
-  font-size: clamp(0.525rem, 2.4vw, 0.875rem);
+  @apply text-sm;
 }
 
 .ai-log-modal .ai-log-meta-label {
-  font-size: clamp(0.45rem, 1.6vw, 0.625rem);
+  @apply text-2xs;
 }
 
 .ai-log-modal .ai-log-meta-value,
 .ai-log-modal .ai-log-body,
 .ai-log-modal .ai-log-turn-title {
-  font-size: clamp(0.45rem, 1.9vw, 0.75rem);
+  @apply text-xs;
 }
 
 .rules-modal .rules-modal-title,
 .about-modal .about-modal-title {
-  font-size: clamp(0.525rem, 2.6vw, 1rem);
+  @apply text-base;
 }
 
 .rules-modal .rules-modal-meta {
-  font-size: clamp(0.45rem, 1.9vw, 0.75rem);
+  @apply text-xs;
 }
 
 .rules-modal .rules-modal-body,
@@ -341,11 +354,11 @@ header.game-header .header-card-anchor {
 .about-modal .about-modal-body,
 .about-modal .about-modal-body *,
 .about-modal .about-modal-footer {
-  font-size: clamp(0.45rem, 2.2vw, 0.875rem);
+  @apply text-sm;
 }
 
 .about-modal .about-modal-version {
-  font-size: clamp(0.45rem, 1.6vw, 0.625rem);
+  @apply text-2xs;
 }
 
 /* CALCULATION: Width is derived from height */

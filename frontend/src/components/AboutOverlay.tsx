@@ -115,7 +115,7 @@ export function AboutOverlay({ onClose }: Props) {
             <h3 className="font-bold uppercase tracking-wider text-xs text-ink-muted">
               No Warranty
             </h3>
-            <p className="leading-relaxed text-[11px] opacity-80 uppercase font-mono">
+            <p className="leading-relaxed text-2xs opacity-80 uppercase font-mono">
               THERE IS NO WARRANTY FOR THE PROGRAM, SEE THE LICENSE FOR DETAILS.
             </p>
           </section>
@@ -263,7 +263,7 @@ export function AboutOverlay({ onClose }: Props) {
         <div className="p-4 border-t border-surface-2 bg-surface-1/50 flex items-center justify-between">
           <button
             onClick={handleCopyVersion}
-            className="about-modal-version font-mono text-[10px] text-ink-muted opacity-60 truncate px-2 hover:text-ink hover:opacity-100 transition-all cursor-pointer focus:outline-none active:scale-95"
+            className="about-modal-version font-mono text-2xs text-ink-muted opacity-60 truncate px-2 hover:text-ink hover:opacity-100 transition-all cursor-pointer focus:outline-none active:scale-95"
             title="Click to copy version info"
           >
             version #{commitHash} {commitDate}

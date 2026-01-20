@@ -14,9 +14,11 @@ export function AiLogModal() {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-surface-0/80 backdrop-blur-sm">
-      <div className="max-w-2xl w-full mx-4 rounded-2xl border border-surface-3 bg-surface-1 shadow-xl p-4 flex flex-col gap-3">
+      <div className="ai-log-modal max-w-2xl w-full mx-4 rounded-2xl border border-surface-3 bg-surface-1 shadow-xl p-4 flex flex-col gap-3">
         <div className="flex justify-between items-center">
-          <h2 className="text-base font-semibold text-ink">Game log</h2>
+          <h2 className="ai-log-title font-semibold text-ink uppercase tracking-wider">
+            Game log
+          </h2>
           <button
             onClick={() => setVisible(false)}
             className="p-2 -mr-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors flex-shrink-0"
@@ -38,29 +40,31 @@ export function AiLogModal() {
           </button>
         </div>
 
-        <ScrollShadowWrapper className="border border-surface-3 rounded-lg max-h-[60vh] text-xs font-mono">
-          <div className="p-3 w-fit min-w-full space-y-3">
+        <ScrollShadowWrapper className="border border-surface-3 rounded-lg max-h-[60vh] font-mono">
+          <div className="ai-log-body p-3 w-fit min-w-full space-y-3">
             {turns.map(([turnNumber, entries]) => (
               <div key={turnNumber}>
-                <div className="font-semibold mb-1">Turn {turnNumber ?? 0}</div>
+                <div className="ai-log-turn-title font-semibold mb-1 uppercase tracking-tighter">
+                  Turn {turnNumber ?? 0}
+                </div>
                 {entries.map((entry, idx) => (
                   <div key={idx} className="ml-3 mb-1">
                     <div className="flex items-baseline gap-2">
                       <span
-                        className={
+                        className={`ai-log-meta-label flex-shrink-0 ${
                           entry.level === "error"
                             ? "text-red-600"
                             : entry.level === "warn"
                               ? "text-amber-600"
                               : "text-ink-muted"
-                        }
+                        }`}
                       >
                         [{entry.phase}]
                       </span>
-                      <span>{entry.message}</span>
+                      <span className="ai-log-meta-value">{entry.message}</span>
                     </div>
                     {entry.details != null && (
-                      <pre className="ml-5 mt-0.5 whitespace-pre-wrap break-words opacity-80">
+                      <pre className="ai-log-body ml-5 mt-0.5 whitespace-pre-wrap break-words opacity-80">
                         {formatDetails(entry)}
                       </pre>
                     )}

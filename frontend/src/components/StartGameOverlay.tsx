@@ -194,7 +194,7 @@ export function StartGameOverlay({
     <div
       className={`grid grid-cols-1 md:grid-cols-2 gap-x-6 ${
         isShortScreen ? "gap-y-1" : "gap-y-3 md:gap-y-4"
-      } text-left border-t border-ink/10 pt-3 sm:pt-4 text-[11px] md:text-[15px] lg:text-base`}
+      } text-left border-t border-ink/10 pt-3 sm:pt-4 text-xs md:text-sm lg:text-base`}
     >
       <div className="flex flex-col gap-1 md:col-span-2 pb-1 md:pb-2 text-center">
         <p className="leading-relaxed">
@@ -203,21 +203,21 @@ export function StartGameOverlay({
         </p>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="leading-relaxed">
+        <p className="leading-relaxed text-balance">
           The <strong className="text-red-600">MENU</strong> label provides
           additional options like changing card sets, themes, or exiting the
           game.
         </p>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="leading-relaxed">
+        <p className="leading-relaxed text-balance">
           See the <strong className="text-red-600">RULES</strong> label in the
           header to view detailed game rules and card rankings at any time.
         </p>
       </div>
       {hasScoreboards && (
         <div className="flex flex-col gap-1">
-          <p className="leading-relaxed">
+          <p className="leading-relaxed text-balance">
             The <strong className="text-red-600">SCORES</strong> label shows
             current rankings or highlights the scoreboard on the tabletop.
           </p>
@@ -225,14 +225,14 @@ export function StartGameOverlay({
       )}
       {hasActions && (
         <div className="flex flex-col gap-1">
-          <p className="leading-relaxed">
+          <p className="leading-relaxed text-balance">
             The <strong className="text-red-600">ACTIONS</strong> label appears
             when special moves beyond drawing and playing cards are available.
           </p>
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <p className="leading-relaxed">
+        <p className="leading-relaxed text-balance">
           The <strong className="text-red-600">TURN</strong> badge tracks the
           active player. Click it anytime to view the <strong>Game Log</strong>
           —a complete history of moves and the reasoning behind AI decisions.
@@ -282,7 +282,7 @@ export function StartGameOverlay({
           isNextRound ? "Continue to the next round" : "All players have joined"
         }
         position="bottom"
-        titleClassName={`${isShortScreen ? "text-xl mb-0.5" : "text-2xl mb-2"}`}
+        titleClassName={`${isShortScreen ? "text-lg mb-0.5" : "text-xl md:text-2xl mb-2"}`}
         blockInteractionsWhenMinimized={true}
         description={
           <div
@@ -291,7 +291,7 @@ export function StartGameOverlay({
             }`}
           >
             {/* Subtitle - Centered and compact */}
-            <span className="text-center w-full opacity-90 leading-tight block font-medium text-[12px] md:text-base">
+            <span className="text-center w-full opacity-90 leading-tight block font-medium text-xs md:text-sm lg:text-base">
               {mainDescription}
             </span>
 
@@ -307,7 +307,7 @@ export function StartGameOverlay({
           </div>
         }
         translucent
-        panelClassName={`p-3 md:p-10 max-w-[95vw] md:max-w-5xl max-h-[92vh] overflow-y-auto scrollbar-hide`}
+        panelClassName={`p-3 md:p-10 max-w-[95vw] md:max-w-5xl`}
         canMinimize={true}
         action={
           !isSpectator || canSpectatorStart ? (

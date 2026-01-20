@@ -39,12 +39,12 @@ export function GameListItem({
               {game.name}
             </h3>
             {activeCount > 0 && (
-              <span className="text-[10px] font-sans font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
+              <span className="text-2xs font-sans font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
                 {activeCount} In Progress
               </span>
             )}
             {seatedCount > 0 && (
-              <span className="text-[10px] font-sans font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
+              <span className="text-2xs font-sans font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
                 {seatedCount === 1 ? "Seated" : `${seatedCount} Seated`}
               </span>
             )}

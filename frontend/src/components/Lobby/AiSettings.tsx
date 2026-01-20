@@ -39,7 +39,7 @@ export function AiSettings({
   return (
     <div className="flex flex-col gap-3 text-left w-full">
       <div className="flex flex-col gap-2">
-        <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold ml-1">
+        <div className="text-2xs uppercase tracking-wider text-ink-muted font-bold ml-1">
           AI Runtime Environment
         </div>
 
@@ -116,7 +116,7 @@ export function AiSettings({
 
       {preference === "frontend" && (
         <div className="grid gap-2 p-3 bg-surface-2/50 rounded-lg border border-surface-3 animate-in fade-in slide-in-from-top-1 duration-200 mt-1">
-          <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold mb-1">
+          <div className="text-2xs uppercase tracking-wider text-ink-muted font-bold mb-1">
             Local LLM Configuration
           </div>
           <input
@@ -147,7 +147,7 @@ export function AiSettings({
             }
           />
           {aiConfig.apiKey && (
-            <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 leading-tight animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 leading-tight animate-in fade-in slide-in-from-top-1 duration-200">
               <strong>Security Warning:</strong> The API key is held in session
               storage and cleared when the tab closes. However, browser-based AI
               remains a security risk as keys can potentially leak via scripts
@@ -160,7 +160,7 @@ export function AiSettings({
       {!serverAiEnabled &&
         preference !== "frontend" &&
         preference !== "off" && (
-          <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 animate-in fade-in">
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 animate-in fade-in">
             Server AI is currently disabled on this instance.
           </div>
         )}

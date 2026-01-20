@@ -41,7 +41,7 @@ export function FullScreenMessage({
   const descriptionMarginClass = descriptionClassName ? "" : "mb-8 sm:mb-2";
 
   const containerClasses = `
-    w-full max-w-md p-6 sm:p-8 rounded-2xl shadow-floating text-center border transition-all relative
+    w-full max-w-md landscape:max-w-4xl p-6 sm:p-8 rounded-2xl shadow-floating text-center border transition-all relative
     ${panelFill} ${panelBorder} ${panelClassName}
   `;
   const headingSizeClass = titleClassName ? "" : "text-xl sm:text-2xl";
@@ -57,7 +57,7 @@ export function FullScreenMessage({
       }`
     : position === "bottom"
       ? "items-end justify-center pb-4 px-4 sm:px-6"
-      : "items-center justify-center p-4";
+      : "items-center landscape:items-start justify-center p-4 landscape:pt-8 overflow-y-auto";
 
   return (
     <Overlay
@@ -89,7 +89,9 @@ export function FullScreenMessage({
           </svg>
         </button>
       ) : (
-        <div className={`${containerClasses} flex flex-col overflow-hidden`}>
+        <div
+          className={`${containerClasses} flex flex-col h-fit max-h-none landscape:mb-8`}
+        >
           {onClose && (
             <button
               onClick={onClose}
