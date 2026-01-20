@@ -16,24 +16,24 @@ export type CardSetDefinition = {
 };
 
 export const CARD_SETS: CardSetDefinition[] = [
-  { id: "RevK", label: "RevK", supportsJokers: true },
-  { id: "RevK_mobile", label: "RevK (Mobile)", supportsJokers: true },
-  { id: "notpeter", label: "notpeter", supportsJokers: true },
-  {
-    id: "digitaldesignlabs_sm",
-    label: "digitaldesignlabs (SM)",
-    path: "digitaldesignlabs/sm",
-    supportsJokers: true,
-  },
   {
     id: "digitaldesignlabs_xl",
     label: "digitaldesignlabs (XL)",
     path: "digitaldesignlabs/xl",
     supportsJokers: true,
   },
+  { id: "RevK_mobile", label: "RevK (Mobile)", supportsJokers: true },
+  { id: "RevK", label: "RevK", supportsJokers: true },
+  {
+    id: "digitaldesignlabs_sm",
+    label: "digitaldesignlabs (SM)",
+    path: "digitaldesignlabs/sm",
+    supportsJokers: true,
+  },
+  { id: "notpeter", label: "notpeter", supportsJokers: true },
   { id: "htdebeer", label: "htdebeer", supportsJokers: true },
-  { id: "brescia", label: "brescia", supportsJokers: true },
   { id: "atlasnye", label: "atlasnye", supportsJokers: true },
+  { id: "brescia", label: "brescia", supportsJokers: true },
 ];
 
 export const DEFAULT_CARD_SET: CardSetId = "digitaldesignlabs_xl";

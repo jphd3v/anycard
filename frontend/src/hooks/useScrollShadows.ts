@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, RefObject } from "react";
+import { useState, useCallback, useEffect, RefObject, useRef } from "react";
 
 export interface ScrollShadows {
   top: boolean;
@@ -14,6 +14,8 @@ export function useScrollShadows(ref: RefObject<HTMLElement | null>) {
     left: false,
     right: false,
   });
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const checkScroll = useCallback(() => {
     const el = ref.current;
@@ -38,29 +40,41 @@ export function useScrollShadows(ref: RefObject<HTMLElement | null>) {
     });
   }, [ref]);
 
+  const debouncedCheckScroll = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      checkScroll();
+    }, 500);
+  }, [checkScroll]);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
+    // Initial check
     checkScroll();
 
-    // Use ResizeObserver to detect content changes as well
-    const resizeObserver = new ResizeObserver(checkScroll);
-    resizeObserver.observe(el);
-    // If there's an inner wrapper, observe that too for content changes
-    if (el.firstElementChild) {
-      resizeObserver.observe(el.firstElementChild as HTMLElement);
-    }
-
+    // Only respond to actual scroll events - avoid ResizeObserver which causes re-render loops
+    // when images load dynamically (as in GameMenu card previews)
     el.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+
+    // Window resize is needed but debounced to avoid excessive updates
+    window.addEventListener("resize", debouncedCheckScroll);
+
+    // Do one delayed check after mount to catch late-loading content
+    const delayedCheck = setTimeout(checkScroll, 1000);
 
     return () => {
-      resizeObserver.disconnect();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      clearTimeout(delayedCheck);
       el.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      window.removeEventListener("resize", debouncedCheckScroll);
     };
-  }, [ref, checkScroll]);
+  }, [ref, checkScroll, debouncedCheckScroll]);
 
   return shadows;
 }

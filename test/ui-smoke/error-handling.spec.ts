@@ -187,7 +187,18 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
 
     // Exit to lobby via menu
     await page.getByRole("button", { name: /Menu/i }).click();
-    await page.getByRole("button", { name: /^Exit$/i }).click({ force: true });
+    await page.waitForTimeout(500); // Wait for menu to appear
+    // Programmatically click to bypass view transition stability issues
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const quitButton = buttons.find((b) =>
+        b.textContent?.includes("Quit Game")
+      );
+      quitButton?.click();
+    });
+    await page
+      .getByRole("dialog", { name: /Exit to room lobby/i })
+      .waitFor({ state: "visible" });
     await page.getByRole("button", { name: /Exit to Lobby/i }).click();
 
     // Should be back in room lobby
@@ -306,8 +317,8 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
     // Open menu
     await page.getByRole("button", { name: /Menu/i }).click();
 
-    // Seed should be visible
-    const seedButton = page.getByTitle("Copy seed");
+    // Seed should be visible (note: title is "Copy Seed" with capital S)
+    const seedButton = page.getByTitle("Copy Seed");
     await expect(seedButton).toBeVisible();
 
     const seedText = await seedButton.textContent();

@@ -5,6 +5,7 @@ import {
   isScoreboardOpenAtom,
   aiLogVisibleAtom,
 } from "../state";
+import { safeStartViewTransition } from "../utils/viewTransition";
 
 export function useMenuControls() {
   const setIsMenuOpen = useSetAtom(isMenuOpenAtom);
@@ -14,12 +15,14 @@ export function useMenuControls() {
 
   function closeAll(delayMs: number = 0, options?: { skipActions?: boolean }) {
     const close = () => {
-      setIsMenuOpen(false);
-      if (!options?.skipActions) {
-        setIsActionsOpen(false);
-      }
-      setIsScoreboardOpen(false);
-      setIsAiLogVisible(false);
+      safeStartViewTransition(() => {
+        setIsMenuOpen(false);
+        if (!options?.skipActions) {
+          setIsActionsOpen(false);
+        }
+        setIsScoreboardOpen(false);
+        setIsAiLogVisible(false);
+      });
     };
 
     if (delayMs > 0) {

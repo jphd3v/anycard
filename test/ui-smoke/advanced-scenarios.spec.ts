@@ -170,9 +170,10 @@ test.describe("UI Smoke Tests - Advanced Scenarios", () => {
     const consoleMessages = trackConsoleMessages(page);
 
     // Intercept and delay ONLY the active-games API call
+    // Use fallback() instead of continue() to avoid "Route is already handled" errors
     const handler = async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 200));
-      await route.continue();
+      await route.fallback();
     };
     await page.route("**/active-games**", handler);
 

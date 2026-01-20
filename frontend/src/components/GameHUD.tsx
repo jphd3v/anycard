@@ -6,13 +6,10 @@ import {
   gameViewAtom,
   aiLogAtom,
   allSeatsAutomatedAtom,
-  freeDragEnabledAtom,
-  moveTypeAtom,
   toastAutoCloseEnabledAtom,
   soundEnabledAtom,
-  autoRotateSeatAtom,
   statusMessageAtom,
-  selectedCardAtom,
+  isMenuOpenAtom,
 } from "../state";
 import type { AiLogEntry } from "../state";
 
@@ -20,35 +17,26 @@ import { resetGameWithSeed, setGodMode } from "../socket";
 import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { useAiLog } from "../hooks/useAiLog";
 import { sfx } from "../utils/audio";
-import { shareGameInfo } from "../utils/share";
 import { copyToClipboard } from "../utils/clipboard";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
+import { GameMenu } from "./GameMenu";
+import { safeStartViewTransition } from "../utils/viewTransition";
 
 interface GameHUDProps {
   gameId: string;
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
   onExit: () => void;
   onReset: () => void;
-  onChangeTheme: () => void;
-  themeLabel: string;
-  onChangeCardSet: () => void;
-  cardSetLabel: string;
   onAboutClick?: () => void;
+  // Deprecated/Unused props kept for compatibility if needed, or removed if App.tsx is updated
+  // We will update App.tsx to remove these
 }
 
 type ConfirmType = "restartHand" | "exit" | "restartSeed" | null;
 
 export function GameHUD({
   gameId,
-  isOpen,
-  setIsOpen,
   onExit,
   onReset,
-  onChangeTheme,
-  themeLabel,
-  onChangeCardSet,
-  cardSetLabel,
   onAboutClick,
 }: GameHUDProps) {
   const view = useAtomValue(gameViewAtom);
@@ -57,15 +45,10 @@ export function GameHUD({
   const { isAiLogVisible, setAiLogVisible } = useAiLog();
   const aiLog = useAtomValue(aiLogAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
-  const [freeDragEnabled, setFreeDragEnabled] = useAtom(freeDragEnabledAtom);
-  const [moveType, setMoveType] = useAtom(moveTypeAtom);
-  const [toastAutoCloseEnabled, setToastAutoCloseEnabled] = useAtom(
-    toastAutoCloseEnabledAtom
-  );
-  const [soundEnabled, setSoundEnabled] = useAtom(soundEnabledAtom);
-  const [autoRotateSeat, setAutoRotateSeat] = useAtom(autoRotateSeatAtom);
+  const toastAutoCloseEnabled = useAtomValue(toastAutoCloseEnabledAtom);
+  const soundEnabled = useAtomValue(soundEnabledAtom);
   const addStatusMessage = useSetAtom(statusMessageAtom);
-  const setSelectedCard = useSetAtom(selectedCardAtom);
+  const [, setIsMenuOpen] = useAtom(isMenuOpenAtom);
 
   const showToast = useCallback(
     (
@@ -120,7 +103,7 @@ export function GameHUD({
   const roomCloseDelayMinutes = 5;
   const exitNotice = allSeatsAutomated
     ? "AI-only rooms close immediately once the last human leaves."
-    : `Rooms close after ${roomCloseDelayMinutes} minutes once all humans have left.`;
+    : `Rooms close after ${roomCloseDelayMinutes} minutes once all human players have left.`;
 
   const generateSeed = (): string => {
     if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
@@ -145,6 +128,7 @@ export function GameHUD({
     resetGameWithSeed(gameId, nextSeed);
     setPendingSeed(null);
     setConfirmType(null);
+    safeStartViewTransition(() => setIsMenuOpen(false));
   };
 
   const { groupedByTurn, renderedAiLogCount } = useMemo(() => {
@@ -244,74 +228,47 @@ export function GameHUD({
     setGodMode(gameId, !isGodMode);
   };
 
-  const HUDToggle = ({
-    label,
-    enabled,
-    onClick,
-    title,
-  }: {
-    label: string;
-    enabled: boolean;
-    onClick: () => void;
-    title?: string;
-  }) => (
-    <button
-      onClick={onClick}
-      className="button-base button-ghost flex items-center justify-center w-full landscape:w-auto px-2 py-2 text-sm text-ink"
-      title={title}
-    >
-      <span
-        className={`text-2xs sm:text-xs px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 border w-full landscape:w-auto ${
-          enabled
-            ? "bg-success-surface text-success-ink border-success/30 shadow-sm"
-            : "bg-surface-3/50 text-ink-muted border-transparent"
-        }`}
-      >
-        <span className="flex-1 text-left landscape:flex-none">{label}</span>
-        <span
-          className={`w-1.5 h-1.5 rounded-full transition-colors ${
-            enabled ? "bg-success" : "bg-ink-muted/40"
-          }`}
-        />
-        <span className="opacity-70 font-black">{enabled ? "On" : "Off"}</span>
-      </span>
-    </button>
-  );
-
-  const HUDValue = ({
-    label,
-    value,
-    onClick,
-    title,
-  }: {
-    label: string;
-    value: string;
-    onClick: () => void;
-    title?: string;
-  }) => (
-    <button
-      onClick={onClick}
-      className="button-base button-ghost flex items-center justify-center w-full landscape:w-auto px-2 py-2 text-sm text-ink"
-      title={title}
-    >
-      <span className="text-2xs sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
-        <span className="text-ink/50 mr-2 flex-1 text-left landscape:flex-none">
-          {label}
-        </span>
-        <span className="text-ink">{value}</span>
-      </span>
-    </button>
-  );
+  // Close on Escape for AI Log
+  useEffect(() => {
+    if (!isAiLogVisible) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAiLogVisible(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAiLogVisible, setAiLogVisible]);
 
   return (
     <>
+      <GameMenu
+        gameId={gameId}
+        seed={seed}
+        onResetSeed={handleResetSeed}
+        isSpectator={isSpectator}
+        isGodMode={isGodMode}
+        onToggleGodMode={handleToggleGodMode}
+        onRestartHand={() => setConfirmType("restartHand")}
+        onExit={() => setConfirmType("exit")}
+        onAbout={() => {
+          safeStartViewTransition(() => setIsMenuOpen(false));
+          onAboutClick?.();
+        }}
+        displayName={displayName}
+        isBlocked={!!confirmType || isAiLogVisible}
+      />
+
       {confirmType === "restartSeed" && (
         <ConfirmationOverlay
           title="Restart with a new shuffle seed?"
           description="This resets the current hand and deals a fresh shuffle."
           confirmLabel="Restart"
           onConfirm={confirmResetSeed}
-          onCancel={() => setConfirmType(null)}
+          onCancel={() => {
+            setConfirmType(null);
+            setPendingSeed(null);
+          }}
         >
           <div className="grid grid-cols-[auto_auto] items-center gap-x-3 gap-y-2 text-sm">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted text-right">
@@ -350,6 +307,7 @@ export function GameHUD({
           onConfirm={() => {
             onReset();
             setConfirmType(null);
+            safeStartViewTransition(() => setIsMenuOpen(false));
           }}
           onCancel={() => setConfirmType(null)}
         />
@@ -367,208 +325,6 @@ export function GameHUD({
           onCancel={() => setConfirmType(null)}
         />
       )}
-
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 transition-opacity duration-300 pointer-events-auto"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      <div
-        className={`game-hud-wrapper header-protrude fixed top-16 left-2 sm:left-4 z-50 pointer-events-none transition-all duration-300 origin-top-left translate-x-0 translate-y-0 ${
-          isOpen
-            ? "opacity-100 scale-100 visible"
-            : "opacity-0 scale-95 invisible"
-        }`}
-        data-open={isOpen}
-      >
-        <div className="pointer-events-auto hud-menu">
-          <ScrollShadowWrapper className="w-64 sm:w-auto max-w-[calc(100vw-2rem)] max-h-[95vh] glass-panel rounded-xl shadow-floating bg-surface-1/80 backdrop-blur-md border border-surface-3">
-            <div className="p-2 flex flex-col landscape:flex-row landscape:flex-wrap landscape:items-center gap-1 w-fit min-w-full">
-              <div className="px-3 py-2 border-b landscape:border-b-0 landscape:border-r border-surface-3 mb-1 landscape:mb-0 flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center">
-                <span className="text-2xs text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
-                  Room ID
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(gameId, "Room ID")}
-                    className="font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded whitespace-nowrap leading-tight hover:bg-surface-3 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-4"
-                    title="Copy room ID"
-                  >
-                    {gameId}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await shareGameInfo(displayName || undefined);
-                      } catch (err) {
-                        console.error("Failed to share game info", err);
-                      }
-                    }}
-                    className="button-base button-icon button-secondary h-6 w-6"
-                    title="Share game"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                      <polyline points="16,6 12,2 8,6" />
-                      <line x1="12" y1="2" x2="12" y2="15" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div className="px-3 py-2 border-b landscape:border-b-0 landscape:border-r border-surface-3 mb-1 landscape:mb-0 flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center">
-                <span className="text-2xs text-ink-muted uppercase font-bold tracking-wider mb-1 sm:mb-0">
-                  Seed
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(seed, "Seed")}
-                    className="font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-surface-3 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-4"
-                    title="Copy seed"
-                  >
-                    {seed}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetSeed}
-                    className="button-base button-icon button-secondary h-6 w-6"
-                    title="Restart with a new seed"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 12a9 9 0 1 0 3-6.7" />
-                      <path d="M3 4v6h6" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <HUDValue
-                label="Cards"
-                value={cardSetLabel}
-                onClick={onChangeCardSet}
-                title="Change card design"
-              />
-
-              <HUDValue
-                label="Theme"
-                value={themeLabel}
-                onClick={onChangeTheme}
-                title="Change tabletop theme"
-              />
-
-              <HUDValue
-                label="Move type"
-                value={moveType === "click" ? "Click" : "Drag"}
-                onClick={() => {
-                  const next = moveType === "click" ? "drag" : "click";
-                  if (next === "drag") {
-                    setSelectedCard(null);
-                  }
-                  setMoveType(next);
-                }}
-                title="Choose between click-to-move or drag-and-drop"
-              />
-
-              <HUDToggle
-                label="Free move"
-                enabled={freeDragEnabled}
-                onClick={() => {
-                  if (freeDragEnabled) {
-                    setSelectedCard(null);
-                  }
-                  setFreeDragEnabled((prev) => !prev);
-                }}
-                title="Allow dragging any card (debug)"
-              />
-
-              <HUDToggle
-                label="Auto-close"
-                enabled={toastAutoCloseEnabled}
-                onClick={() => setToastAutoCloseEnabled((prev) => !prev)}
-                title="Automatically hide status messages"
-              />
-
-              <HUDToggle
-                label="Sound"
-                enabled={soundEnabled}
-                onClick={() => setSoundEnabled((prev) => !prev)}
-                title="Toggle game sound effects"
-              />
-
-              <HUDToggle
-                label="Auto-rotate"
-                enabled={autoRotateSeat}
-                onClick={() => setAutoRotateSeat((prev) => !prev)}
-                title="Rotate view so you always sit at the bottom"
-              />
-
-              {isSpectator && (
-                <HUDToggle
-                  label="God mode"
-                  enabled={isGodMode}
-                  onClick={handleToggleGodMode}
-                  title="Enable all actions for debugging"
-                />
-              )}
-
-              <div className="h-px w-full landscape:w-px landscape:h-8 bg-surface-3 my-1 landscape:my-0" />
-
-              <button
-                onClick={() => setConfirmType("restartHand")}
-                className="button-base button-danger flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center w-full landscape:w-auto px-4 py-2.5 text-sm font-medium"
-              >
-                <span className="font-medium mb-1 sm:mb-0">
-                  Restart{" "}
-                  <span className="landscape:hidden xl:landscape:inline">
-                    Hand
-                  </span>
-                </span>
-              </button>
-
-              <button
-                onClick={() => setConfirmType("exit")}
-                className="button-base button-secondary flex flex-col sm:flex-row justify-between landscape:justify-start landscape:gap-3 items-start sm:items-center w-full landscape:w-auto px-4 py-2.5 text-sm text-red-600 hover:text-red-700"
-                title="Return to room lobby"
-              >
-                <span className="font-medium mb-1 sm:mb-0">Exit</span>
-              </button>
-
-              {onAboutClick && (
-                <button
-                  onClick={onAboutClick}
-                  className="button-base button-ghost flex items-center justify-center w-full landscape:w-auto px-2 py-2 text-sm text-ink"
-                  title="View license and credits"
-                >
-                  <span className="text-2xs sm:text-xs text-ink-muted bg-surface-3 px-2.5 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex items-center border border-transparent w-full landscape:w-auto">
-                    About
-                  </span>
-                </button>
-              )}
-            </div>
-          </ScrollShadowWrapper>
-        </div>
-      </div>
 
       {/* --- Game Log Modal --- */}
       {isAiLogVisible && (
@@ -636,11 +392,7 @@ export function GameHUD({
                           entry.timestamp ?? ""
                         );
                         const details = parseAiLogDetails(entry.details);
-                        logContent += `${time} ${
-                          details
-                            ? formatAiLogDetailsForCopy(details, entry.message)
-                            : entry.message
-                        }\n`;
+                        logContent += `${time} ${details ? formatAiLogDetailsForCopy(details, entry.message) : entry.message}\n`;
                       }
                       logContent += "\n";
                     }
@@ -1067,7 +819,8 @@ function formatAiLogDetailsForCopy(
         params: details.params,
         responseBody: details.responseBody,
       }
-    )}`;
+    )}
+`;
   }
   if (details.kind === "game-intent") {
     const label =

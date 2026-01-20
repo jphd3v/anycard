@@ -5,9 +5,10 @@ import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 
 interface Props {
   onClose: () => void;
+  showBackArrow?: boolean;
 }
 
-export function AboutOverlay({ onClose }: Props) {
+export function AboutOverlay({ onClose, showBackArrow = false }: Props) {
   const commitHash =
     typeof __COMMIT_HASH__ !== "undefined" ? __COMMIT_HASH__ : "dev";
   const commitDate =
@@ -51,21 +52,37 @@ export function AboutOverlay({ onClose }: Props) {
           <button
             onClick={onClose}
             className="p-2 -mr-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors flex-shrink-0"
-            aria-label="Close"
+            aria-label={showBackArrow ? "Back to Menu" : "Close"}
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            {showBackArrow ? (
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            )}
           </button>
         </div>
 
@@ -272,7 +289,7 @@ export function AboutOverlay({ onClose }: Props) {
             onClick={onClose}
             className="about-modal-footer button-base button-secondary px-4 py-2 text-sm"
           >
-            Close
+            {showBackArrow ? "Back" : "Close"}
           </button>
         </div>
       </div>

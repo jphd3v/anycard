@@ -31,7 +31,25 @@ test.describe("UI Smoke Tests - Join Seat Flow", () => {
     await expect(page.getByTestId("start-game")).toHaveCount(0);
 
     await page.getByRole("button", { name: /Menu/i }).click();
-    await page.getByRole("button", { name: /^Exit$/i }).click({ force: true });
+    await page.waitForTimeout(500); // Wait for menu to appear
+    // Programmatically click to bypass view transition stability issues
+    const clicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const quitButton = buttons.find((b) =>
+        b.textContent?.includes("Quit Game")
+      );
+      if (quitButton) {
+        quitButton.click();
+        return true;
+      }
+      return false;
+    });
+    if (!clicked) {
+      throw new Error("Quit Game button not found - cannot click");
+    }
+    await page
+      .getByRole("dialog", { name: /Exit to room lobby/i })
+      .waitFor({ state: "visible" });
     await expect(
       page.getByRole("dialog", { name: /Exit to room lobby/i })
     ).toBeVisible();

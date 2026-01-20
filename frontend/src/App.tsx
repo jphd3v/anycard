@@ -98,6 +98,7 @@ import {
   BottomCornerOrnaments,
 } from "./components/Lobby/SuitDecorations";
 import { GameListItem } from "./components/Lobby/GameListItem";
+import { safeStartViewTransition } from "./utils/viewTransition";
 import { GameDetailsModal } from "./components/Lobby/GameDetailsModal";
 import { AiSettings } from "./components/Lobby/AiSettings";
 import { JoinGameInput } from "./components/Lobby/JoinGameInput";
@@ -682,6 +683,7 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useAtom(isMenuOpenAtom);
   const [isRulesVisible, setRulesVisible] = useState(false);
   const [isAboutVisible, setAboutVisible] = useState(false);
+  const [isAboutFromMenu, setIsAboutFromMenu] = useState(false);
   const [isActionsOpen, setIsActionsOpen] = useAtom(isActionsOpenAtom);
   const [isScoreboardOpen, setIsScoreboardOpen] = useAtom(isScoreboardOpenAtom);
   const [toastAutoCloseEnabled, setToastAutoCloseEnabled] = useAtom(
@@ -2366,7 +2368,7 @@ export default function App() {
     // It will see playerId is null and keep us in the room lobby.
     setJoinedGameId(null);
 
-    setIsMenuOpen(false);
+    safeStartViewTransition(() => setIsMenuOpen(false));
   }, [
     gameId,
     handleExitToGameSelection,
@@ -2424,19 +2426,6 @@ export default function App() {
     if (fallback) setCardSet(fallback.id);
   }, [allowedCardSets, cardSet, gameMeta?.requiresJokers, setCardSet]);
 
-  const cycleCardSet = () => {
-    const list = allowedCardSets.length > 0 ? allowedCardSets : CARD_SETS;
-    const currentIndex = list.findIndex((set) => set.id === cardSet);
-    const nextSet = list[(currentIndex + 1) % list.length] ?? list[0];
-    if (nextSet) setCardSet(nextSet.id);
-  };
-
-  const cardSetLabel =
-    allowedCardSets.find((set) => set.id === cardSet)?.label ??
-    CARD_SETS.find((set) => set.id === cardSet)?.label ??
-    CARD_SETS.find((set) => set.id === DEFAULT_CARD_SET)?.label ??
-    cardSet;
-
   // Theme handling: default to system, allow manual override
   useEffect(() => {
     const mql = window.matchMedia("(prefers-color-scheme: dark)");
@@ -2481,13 +2470,6 @@ export default function App() {
       prev === "system" ? "light" : prev === "light" ? "dark" : "system"
     );
   };
-
-  const themeLabel =
-    themeSetting === "system"
-      ? `System`
-      : themeSetting === "light"
-        ? "Light"
-        : "Dark";
 
   const isLobbyView = !gameId && !routeError;
   const isGameActive = Boolean(gameId && playerId && view);
@@ -2738,7 +2720,12 @@ export default function App() {
               <div className="relative mt-auto flex flex-col justify-end pt-2 pb-2">
                 <BottomCornerOrnaments />
                 <div className="relative z-10">
-                  <LobbyFooter onAboutClick={() => setAboutVisible(true)} />
+                  <LobbyFooter
+                    onAboutClick={() => {
+                      setIsAboutFromMenu(false);
+                      setAboutVisible(true);
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -3155,7 +3142,9 @@ export default function App() {
               className={isAnyEndOverlayVisible ? "z-[1100]" : "z-50"}
               isOverlayActive={isAnyEndOverlayVisible}
               transitionCards={headerTransitionCards}
-              onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
+              onMenuClick={() =>
+                safeStartViewTransition(() => setIsMenuOpen(!isMenuOpen))
+              }
               isMenuOpen={isMenuOpen}
               onRulesClick={() => setRulesVisible(true)}
               onTurnBadgeClick={openAiLog}
@@ -3205,17 +3194,12 @@ export default function App() {
               />
               <GameHUD
                 gameId={gameId}
-                isOpen={isMenuOpen}
-                setIsOpen={setIsMenuOpen}
                 onExit={handleLeaveSeat}
                 onReset={handleReset}
-                onChangeTheme={cycleTheme}
-                themeLabel={themeLabel}
-                onChangeCardSet={cycleCardSet}
-                cardSetLabel={cardSetLabel}
                 onAboutClick={() => {
+                  setIsAboutFromMenu(true);
                   setAboutVisible(true);
-                  setIsMenuOpen(false);
+                  safeStartViewTransition(() => setIsMenuOpen(false));
                 }}
               />
               <div
@@ -3268,7 +3252,16 @@ export default function App() {
         )}
 
         {isAboutVisible && (
-          <AboutOverlay onClose={() => setAboutVisible(false)} />
+          <AboutOverlay
+            onClose={() => {
+              setAboutVisible(false);
+              if (isAboutFromMenu) {
+                setIsMenuOpen(true);
+                setIsAboutFromMenu(false);
+              }
+            }}
+            showBackArrow={isAboutFromMenu}
+          />
         )}
 
         {gameId && (!view || !playerId) && isInitialGameLoad && (

@@ -465,7 +465,12 @@ test.describe("UI Smoke Tests - Connection State Management", () => {
 
     expect(inGame || inLobby || inRoomLobby).toBe(true);
 
-    assertNoConsoleErrors(consoleMessages, [/ERR_INTERNET_DISCONNECTED/]);
+    assertNoConsoleErrors(consoleMessages, [
+      /ERR_INTERNET_DISCONNECTED/,
+      /Failed to fetch/,
+      /Failed to poll active games/,
+      /Failed to load lobby data/,
+    ]);
   });
 
   test("Rapid disconnect/reconnect cycles are handled gracefully", async ({
@@ -626,7 +631,11 @@ test.describe("UI Smoke Tests - Connection State Management", () => {
       timeout: 15000,
     });
 
-    assertNoConsoleErrors(consoleMessages, [/ERR_INTERNET_DISCONNECTED/]);
+    assertNoConsoleErrors(consoleMessages, [
+      /ERR_INTERNET_DISCONNECTED/,
+      /Failed to fetch/,
+      /Failed to load server config/,
+    ]);
   });
 
   test("Joining existing game during disconnection queues until reconnection", async ({

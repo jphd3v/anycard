@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Overlay } from "./Overlay";
 
 interface ConfirmationOverlayProps {
@@ -19,6 +20,16 @@ export function ConfirmationOverlay({
   onCancel,
   children,
 }: ConfirmationOverlayProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
   const buttonToneClass =
     confirmTone === "danger"
       ? "button-danger"
