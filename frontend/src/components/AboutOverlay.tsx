@@ -122,12 +122,12 @@ export function AboutOverlay({ onClose }: Props) {
 
           <section className="space-y-2">
             <h3 className="font-bold uppercase tracking-wider text-xs text-ink-muted">
-              Card Set Credits
+              Playing Card Sets
             </h3>
 
             <ul className="space-y-1 list-disc list-inside opacity-90">
               <li>
-                <strong>Atlasnye</strong>: CC0 by Dmitry Fomin (
+                <strong>atlasnye</strong>: CC0 1.0 Universal by Dmitry Fomin (
                 <a
                   href="https://commons.wikimedia.org/wiki/Category:SVG_Atlasnye_playing_cards"
                   target="_blank"
@@ -140,7 +140,7 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>Brescia</strong>: CC BY-SA 4.0 by ZZandro (
+                <strong>brescia</strong>: CC BY-SA 4.0 by ZZandro (
                 <a
                   href="https://commons.wikimedia.org/wiki/Category:Brescia_deck"
                   target="_blank"
@@ -153,8 +153,8 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>Digital Design Labs</strong>: LGPL 3.0 / Mike Hall &
-                Chris Aguilar (
+                <strong>digitaldesignlabs</strong>: LGPL 3.0 by Mike Hall,
+                Warren Lockhart, Chris Aguilar, Byron Knoll (
                 <a
                   href="https://github.com/digitaldesignlabs/responsive-playing-cards"
                   target="_blank"
@@ -167,7 +167,7 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>SVG-cards</strong>: LGPL-2.1 by htdebeer (
+                <strong>htdebeer</strong>: LGPL-2.1 by Huub de Beer (htdebeer) (
                 <a
                   href="https://github.com/htdebeer/SVG-cards"
                   target="_blank"
@@ -180,8 +180,8 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>Vector Playing Cards</strong>: Public Domain by Byron
-                Knoll / notpeter (
+                <strong>notpeter</strong>: Public Domain / WTFPL by Peter Tripp
+                (notpeter) and Byron Knoll (
                 <a
                   href="https://github.com/notpeter/Vector-Playing-Cards"
                   target="_blank"
@@ -194,7 +194,7 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>Adrian Kennard</strong>: CC0 (
+                <strong>RevK</strong>: CC0 1.0 Universal by Adrian Kennard (
                 <a
                   href="https://www.me.uk/cards/makeadeck.cgi"
                   target="_blank"
@@ -207,7 +207,8 @@ export function AboutOverlay({ onClose }: Props) {
               </li>
 
               <li>
-                <strong>David Bellot</strong>: LGPL v3 (
+                <strong>Card back and Jokers</strong> used in several sets: GNU
+                LGPL v3.0 by David Bellot (
                 <a
                   href="https://commons.wikimedia.org/wiki/File:Card_back_01.svg"
                   target="_blank"

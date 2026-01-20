@@ -90,16 +90,16 @@ Copyright (C) 2025 JPH.
 
 ### Third-Party Licenses
 
-AnyCard includes several third-party assets with their own licenses. We are grateful to the authors for making these available:
+AnyCard includes several third-party assets with their own licenses. Thanks to the authors for making these available!
 
 - **Playing Card Sets** (located in `frontend/public/cards/`):
-  - **Atlasnye**: CC0 1.0 Universal by Dmitry Fomin.
-  - **Brescia**: CC BY-SA 4.0 by ZZandro.
-  - **Digital Design Labs**: LGPL 3.0 by Mike Hall & Chris Aguilar.
-  - **SVG-cards**: LGPL-2.1 by htdebeer.
-  - **Vector Playing Cards**: Public Domain / WTFPL by Byron Knoll and notpeter.
-  - **Adrian Kennard**: CC0 1.0 Universal.
-  - **David Bellot**: GNU LGPL v3.0 (Card back and Jokers used in several sets).
+  - **atlasnye**: CC0 1.0 Universal by Dmitry Fomin.
+  - **brescia**: CC BY-SA 4.0 by ZZandro.
+  - **digitaldesignlabs**: LGPL 3.0 by Mike Hall, Warren Lockhart, Chris Aguilar, Byron Knoll.
+  - **htdebeer**: LGPL-2.1 by Huub de Beer (htdebeer).
+  - **notpeter**: Public Domain / WTFPL by Peter Tripp (notpeter) and Byron Knoll.
+  - **RevK**: CC0 1.0 Universal by Adrian Kennard.
+  - **Card back and Jokers used in several sets**: GNU LGPL v3.0 by David Bellot.
 
 - **Game Rules**:
   - Many implementations are based on the rules documented at [Pagat.com](https://www.pagat.com), edited by John McLeod.
