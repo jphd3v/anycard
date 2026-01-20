@@ -42,7 +42,7 @@ export function useAiSponsor() {
   const processingRef = useRef(false);
   const lastLogRef = useRef<string | null>(null);
   const lastRunKeyRef = useRef<Map<string, string>>(new Map());
-  const lastDuplicateWarnedKeyRef = useRef<Map<string, string>>(new Map());
+  const pendingRunKeyRef = useRef<Map<string, string>>(new Map());
   const candidateKey = (() => {
     if (!view?.currentSeatId) return "";
     const aiView = view.sponsoredAiViews?.[view.currentSeatId] ?? view;
@@ -50,6 +50,8 @@ export function useAiSponsor() {
   })();
 
   useEffect(() => {
+    const lastRunKeyMap = lastRunKeyRef.current;
+    const pendingRunKeyMap = pendingRunKeyRef.current;
     // Clear stale errors when not actively sponsoring an AI seat.
     if (!view || !view.currentSeatId || view.winner) {
       return;
@@ -59,8 +61,8 @@ export function useAiSponsor() {
         lastLogRef.current = "disabled";
       }
       if (view?.currentSeatId) {
-        lastRunKeyRef.current.delete(view.currentSeatId);
-        lastDuplicateWarnedKeyRef.current.delete(view.currentSeatId);
+        lastRunKeyMap.delete(view.currentSeatId);
+        pendingRunKeyMap.delete(view.currentSeatId);
       }
       return;
     }
@@ -75,8 +77,8 @@ export function useAiSponsor() {
         lastLogRef.current = "not-sponsor";
       }
       if (view?.currentSeatId) {
-        lastRunKeyRef.current.delete(view.currentSeatId);
-        lastDuplicateWarnedKeyRef.current.delete(view.currentSeatId);
+        lastRunKeyMap.delete(view.currentSeatId);
+        pendingRunKeyMap.delete(view.currentSeatId);
       }
       return;
     }
@@ -85,8 +87,8 @@ export function useAiSponsor() {
         lastLogRef.current = "not-frontend";
       }
       if (view?.currentSeatId) {
-        lastRunKeyRef.current.delete(view.currentSeatId);
-        lastDuplicateWarnedKeyRef.current.delete(view.currentSeatId);
+        lastRunKeyMap.delete(view.currentSeatId);
+        pendingRunKeyMap.delete(view.currentSeatId);
       }
       return;
     }
@@ -107,33 +109,26 @@ export function useAiSponsor() {
       String(view.stateVersion ?? 0),
     ].join("|");
 
-    const lastRunKey = lastRunKeyRef.current.get(seat.seatId);
-    if (lastRunKey === runKey) {
-      const lastWarnedKey = lastDuplicateWarnedKeyRef.current.get(seat.seatId);
-      if (lastWarnedKey !== runKey) {
-        lastDuplicateWarnedKeyRef.current.set(seat.seatId, runKey);
-        const id = Date.now() + Math.random();
-        addStatusMessage((prev) => [
-          {
-            id,
-            message: `Possible duplicate AI turn detected for seat ${seat.seatId}. Continuing anyway.`,
-            tone: "warning",
-            source: "app",
-          },
-          ...prev,
-        ]);
-        if (toastAutoCloseEnabled) {
-          setTimeout(() => {
-            addStatusMessage((prev) => prev.filter((m) => m.id !== id));
-          }, 3000);
-        }
+    const lastRunKey = lastRunKeyMap.get(seat.seatId);
+    const pendingRunKey = pendingRunKeyMap.get(seat.seatId);
+    if (lastRunKey === runKey || pendingRunKey === runKey) {
+      if (IS_LOGGING_ENABLED) {
+        console.debug("[AI] Skipping duplicate AI run", {
+          seat: seat.seatId,
+          runKey,
+        });
       }
+      return;
     }
-    lastRunKeyRef.current.set(seat.seatId, runKey);
+    pendingRunKeyMap.set(seat.seatId, runKey);
 
+    let runStarted = false;
     const runAi = async () => {
+      runStarted = true;
       processingRef.current = true;
       const stateVersion = view.stateVersion ?? 0;
+      pendingRunKeyMap.delete(seat.seatId);
+      lastRunKeyMap.set(seat.seatId, runKey);
       try {
         // Fetch pre-built prompt from backend
         const promptPayload = await fetchAiPrompt(
@@ -419,7 +414,12 @@ export function useAiSponsor() {
     };
 
     const timer = setTimeout(runAi, MIN_THINK_TIME_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (!runStarted) {
+        pendingRunKeyMap.delete(seat.seatId);
+      }
+    };
   }, [
     aiConfig.apiKey,
     aiConfig.baseUrl,

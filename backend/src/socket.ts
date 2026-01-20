@@ -414,6 +414,26 @@ function stopWatching(socket: Socket, keepRoomId?: string): void {
   }
 }
 
+function clearSponsoredAiForSocket(gameId: string, socketId: string): boolean {
+  const snapshot = projectState(gameId);
+  if (!snapshot) {
+    return false;
+  }
+
+  let cleared = false;
+  for (const player of snapshot.players) {
+    const aiRuntime =
+      player.aiRuntime ??
+      (player.isAi ? ("backend" as const) : ("none" as const));
+    if (aiRuntime === "frontend" && player.aiSponsorConnectionId === socketId) {
+      setSeatRuntime(gameId, player.id, "none", null);
+      cleared = true;
+    }
+  }
+
+  return cleared;
+}
+
 function buildSeatStatusPayload(
   gameId: string,
   seatAssignments: Map<string, string>
@@ -954,29 +974,21 @@ export function initSocket(io: Server) {
       const info = playerRegistry.get(socket.id);
       if (!info) {
         if (watchedGameId) {
+          const clearedSponsoredAi = clearSponsoredAiForSocket(
+            watchedGameId,
+            socket.id
+          );
+          if (clearedSponsoredAi) {
+            broadcastStateToGame(watchedGameId);
+            broadcastSeatStatus(watchedGameId);
+          }
           maybeCloseAbandonedGame(io, watchedGameId);
         }
         return;
       }
 
       const { gameId, playerId, role } = info;
-      let clearedSponsoredAi = false;
-
-      const snapshot = projectState(gameId);
-      if (snapshot) {
-        for (const player of snapshot.players) {
-          const aiRuntime =
-            player.aiRuntime ??
-            (player.isAi ? ("backend" as const) : ("none" as const));
-          if (
-            aiRuntime === "frontend" &&
-            player.aiSponsorConnectionId === socket.id
-          ) {
-            setSeatRuntime(gameId, player.id, "none", null);
-            clearedSponsoredAi = true;
-          }
-        }
-      }
+      const clearedSponsoredAi = clearSponsoredAiForSocket(gameId, socket.id);
 
       if (role === "player") {
         const key = seatKey(gameId, playerId);

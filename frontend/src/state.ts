@@ -185,6 +185,10 @@ export const aiRuntimePreferenceAtom = atomWithStorage<AiRuntimePreference>(
   "ai-runtime-preference",
   "off"
 );
+export const frontendAiSponsorsAtom = atomWithStorage<Record<string, string[]>>(
+  "frontend-ai-sponsors",
+  {}
+);
 
 export const serverAiEnabledAtom = atom<boolean>(false);
 export const aiShowExceptionsAtom = atom<boolean>(false);

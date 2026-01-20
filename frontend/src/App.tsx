@@ -32,6 +32,7 @@ import {
   isScoreboardOpenAtom,
   toastAutoCloseEnabledAtom,
   aiRuntimePreferenceAtom,
+  frontendAiSponsorsAtom,
   serverAiEnabledAtom,
   aiShowExceptionsAtom,
   localAiConfigAtom,
@@ -580,6 +581,9 @@ export default function App() {
     aiRuntimePreferenceAtom
   );
   const [localAiConfig, setLocalAiConfig] = useAtom(localAiConfigAtom);
+  const [frontendAiSponsors, setFrontendAiSponsors] = useAtom(
+    frontendAiSponsorsAtom
+  );
   const setServerAiEnabled = useSetAtom(serverAiEnabledAtom);
   const setAiShowExceptions = useSetAtom(aiShowExceptionsAtom);
   const serverAiEnabled = useAtomValue(serverAiEnabledAtom);
@@ -624,6 +628,7 @@ export default function App() {
   >([]);
   const pendingDragMove = useAtomValue(pendingDragMoveAtom);
   const pendingDragMoveRef = useRef<PendingDragMove | null>(null);
+  const restoredFrontendAiRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
@@ -2156,6 +2161,46 @@ export default function App() {
     rememberAndJoin(gameId, activeRulesId ?? "", selectedPlayerId, "player");
   };
 
+  const rememberFrontendAiSponsorSeat = useCallback(
+    (targetGameId: string, seatId: string) => {
+      setFrontendAiSponsors((prev) => {
+        const existing = prev[targetGameId] ?? [];
+        if (existing.includes(seatId)) return prev;
+        return { ...prev, [targetGameId]: [...existing, seatId] };
+      });
+    },
+    [setFrontendAiSponsors]
+  );
+
+  const forgetFrontendAiSponsorSeat = useCallback(
+    (targetGameId: string, seatId: string) => {
+      setFrontendAiSponsors((prev) => {
+        const existing = prev[targetGameId];
+        if (!existing || !existing.includes(seatId)) return prev;
+        const nextSeats = existing.filter((id) => id !== seatId);
+        if (nextSeats.length === 0) {
+          const next = { ...prev };
+          delete next[targetGameId];
+          return next;
+        }
+        return { ...prev, [targetGameId]: nextSeats };
+      });
+    },
+    [setFrontendAiSponsors]
+  );
+
+  const clearFrontendAiSponsors = useCallback(
+    (targetGameId: string) => {
+      setFrontendAiSponsors((prev) => {
+        if (!prev[targetGameId]) return prev;
+        const next = { ...prev };
+        delete next[targetGameId];
+        return next;
+      });
+    },
+    [setFrontendAiSponsors]
+  );
+
   const applyAiSettingForSeat = useCallback(
     (seatId: string, enabled: boolean) => {
       if (!gameId) return;
@@ -2171,8 +2216,10 @@ export default function App() {
       if (turnOff) {
         if (isFrontendSeat) {
           disableFrontendSeat();
+          forgetFrontendAiSponsorSeat(gameId, seatId);
           return;
         }
+        forgetFrontendAiSponsorSeat(gameId, seatId);
         setSeatAsAi(gameId, seatId, false);
         return;
       }
@@ -2181,6 +2228,7 @@ export default function App() {
         setLocalAiConfig((prev) => ({ ...prev, enabled: true }));
         setSeatAsAi(gameId, seatId, false);
         setSeatFrontendAi(gameId, seatId, true);
+        rememberFrontendAiSponsorSeat(gameId, seatId);
         return;
       }
 
@@ -2188,9 +2236,17 @@ export default function App() {
       if (isFrontendSeat) {
         disableFrontendSeat();
       }
+      forgetFrontendAiSponsorSeat(gameId, seatId);
       setSeatAsAi(gameId, seatId, true);
     },
-    [effectiveAiPreference, gameId, setLocalAiConfig, view]
+    [
+      effectiveAiPreference,
+      forgetFrontendAiSponsorSeat,
+      gameId,
+      rememberFrontendAiSponsorSeat,
+      setLocalAiConfig,
+      view,
+    ]
   );
 
   const clearSponsoredFrontendSeats = useCallback(() => {
@@ -2201,14 +2257,77 @@ export default function App() {
     for (const seat of view.seats) {
       if (seat.aiRuntime === "frontend" && seat.isAiControlledByYou) {
         setSeatFrontendAi(gameId, seat.seatId, false);
+        forgetFrontendAiSponsorSeat(gameId, seat.seatId);
       }
     }
-  }, [gameId, view]);
+  }, [forgetFrontendAiSponsorSeat, gameId, view]);
 
   useEffect(() => {
     if (aiRuntimePreference === "frontend") return;
     clearSponsoredFrontendSeats();
-  }, [aiRuntimePreference, clearSponsoredFrontendSeats]);
+    if (gameId) {
+      clearFrontendAiSponsors(gameId);
+    }
+  }, [
+    aiRuntimePreference,
+    clearSponsoredFrontendSeats,
+    clearFrontendAiSponsors,
+    gameId,
+  ]);
+
+  useEffect(() => {
+    if (!gameId || aiRuntimePreference !== "frontend") {
+      return;
+    }
+    if (!localAiConfig.enabled) {
+      return;
+    }
+    if (!view && seats.length === 0) {
+      return;
+    }
+    if (restoredFrontendAiRef.current.has(gameId)) {
+      return;
+    }
+
+    const seatIds = frontendAiSponsors[gameId] ?? [];
+    if (seatIds.length === 0) {
+      restoredFrontendAiRef.current.add(gameId);
+      return;
+    }
+
+    for (const seatId of seatIds) {
+      const viewSeat = view?.seats?.find((seat) => seat.seatId === seatId);
+      const statusSeat = seats.find((seat) => seat.playerId === seatId);
+      const runtime =
+        viewSeat?.aiRuntime ??
+        statusSeat?.aiRuntime ??
+        (statusSeat?.isAi ? "backend" : "none");
+
+      if (runtime === "backend") {
+        forgetFrontendAiSponsorSeat(gameId, seatId);
+        continue;
+      }
+      if (statusSeat?.occupied && runtime === "none") {
+        forgetFrontendAiSponsorSeat(gameId, seatId);
+        continue;
+      }
+      if (runtime === "frontend" && viewSeat?.isAiControlledByYou) {
+        continue;
+      }
+
+      setSeatFrontendAi(gameId, seatId, true);
+    }
+
+    restoredFrontendAiRef.current.add(gameId);
+  }, [
+    aiRuntimePreference,
+    forgetFrontendAiSponsorSeat,
+    frontendAiSponsors,
+    gameId,
+    localAiConfig.enabled,
+    seats,
+    view,
+  ]);
 
   const handleJoinAsSpectator = (isGodMode: boolean) => {
     if (!gameId) return;
@@ -2275,6 +2394,7 @@ export default function App() {
   const handleExitToLobby = useCallback(() => {
     if (gameId) {
       clearSponsoredFrontendSeats();
+      clearFrontendAiSponsors(gameId);
       // 1) Clear local game state first
       setGameId("");
       setPlayerId(null);
@@ -2308,6 +2428,7 @@ export default function App() {
       );
   }, [
     clearSponsoredFrontendSeats,
+    clearFrontendAiSponsors,
     closeAll,
     gameId,
     setActiveGames,
