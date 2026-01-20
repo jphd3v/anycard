@@ -58,7 +58,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       process.env.CLIENT_ORIGIN?.split(",")
         .map((s) => s.trim())
         .filter(Boolean) ?? DEFAULT_DEV_ORIGINS,
-    backendAiEnabled: process.env.BACKEND_LLM_ENABLED === "true",
+    backendAiEnabled: parseBooleanEnv(process.env.BACKEND_LLM_ENABLED),
     llmPolicyMode: (process.env.LLM_POLICY_MODE === "firstCandidate"
       ? "firstCandidate"
       : "llm") as "llm" | "firstCandidate",
@@ -164,7 +164,7 @@ export function getEnvironmentVariablesInfo(): Array<{
       key: "BACKEND_LLM_ENABLED",
       value: process.env.BACKEND_LLM_ENABLED || "false",
       defaultValue: "false",
-      isSet: process.env.BACKEND_LLM_ENABLED === "true",
+      isSet: parseBooleanEnv(process.env.BACKEND_LLM_ENABLED),
     },
     {
       key: "LLM_POLICY_MODE",
@@ -183,5 +183,7 @@ export function getEnvironmentVariablesInfo(): Array<{
 
 export function isServerAiEnabled(): boolean {
   const cfg = getEnvironmentConfig();
-  return cfg.backendAiEnabled && Boolean(cfg.llmBaseUrl);
+  // Server AI is enabled if explicitly opted in via BACKEND_LLM_ENABLED.
+  // We don't strictly require llmBaseUrl here because it defaults to official OpenAI.
+  return cfg.backendAiEnabled;
 }

@@ -14,7 +14,7 @@ import {
   createChatModel,
   getPolicyLlmConfig,
 } from "../llm/openaiCompatible.js";
-import { getEnvironmentConfig } from "../config.js";
+import { getEnvironmentConfig, isServerAiEnabled } from "../config.js";
 import { loadRulesForGame } from "../game-config.js";
 import { createRulesMarkdownResolver } from "../../../shared/src/ai/rules-markdown.js";
 import {
@@ -51,10 +51,7 @@ export function getWarmupWarningMessage(): string | null {
 }
 
 export async function warmUpPolicyModel(): Promise<void> {
-  if (!process.env.LLM_API_KEY || !process.env.LLM_MODEL) {
-    console.log(
-      "[warmUpPolicyModel] LLM_API_KEY or LLM_MODEL missing; skipping policy LLM warm-up"
-    );
+  if (!isServerAiEnabled()) {
     return;
   }
 

@@ -121,14 +121,8 @@ server.listen(PORT, () => {
     console.log(`  ${key} ${isSet ? "(set)" : "(default)"}`);
   });
 
-  if (config.backendAiEnabled && !config.llmApiKey) {
-    console.warn(
-      "[Environment] WARNING: BACKEND_LLM_ENABLED is true but LLM_API_KEY is missing. Some providers may require an API key."
-    );
-  }
-
-  // Skip LLM warm-up during tests to avoid unnecessary failures
-  if (!config.isTestEnvironment) {
+  // Skip LLM warm-up during tests or if AI is disabled to avoid unnecessary failures
+  if (!config.isTestEnvironment && isServerAiEnabled()) {
     (async () => {
       console.log("[Startup] Warming up policy LLM once");
       await warmUpPolicyModel().catch((err) => {
@@ -137,7 +131,9 @@ server.listen(PORT, () => {
     })().catch((err) => {
       console.warn("[Startup] Policy LLM warm-up task failed", err);
     });
-  } else {
+  } else if (config.isTestEnvironment) {
     console.log("[Startup] Skipping LLM warm-up in test environment");
+  } else {
+    console.log("[Startup] Skipping LLM warm-up because server AI is disabled");
   }
 });
