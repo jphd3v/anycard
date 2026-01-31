@@ -237,12 +237,8 @@ export function Pile({
     <div className="flex flex-col items-center justify-start group relative pb-5">
       {/* Label with owner hint and optional sort selector */}
       {!hideTitle && (
-        <div
-          className={`w-full flex items-center gap-2 h-5 mb-1 whitespace-nowrap ${
-            showSortControl ? "justify-between" : "justify-center"
-          }`}
-        >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink font-bold leading-none transition-opacity duration-200 opacity-100">
+        <div className="w-full flex flex-wrap items-center justify-center gap-2 min-h-5 mb-1">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink font-bold leading-none transition-opacity duration-200 opacity-100 whitespace-nowrap">
             {!isHandPile && <span>{labelText}</span>}
             {isHandPile && ownerName && (
               <span className="inline-flex items-center gap-1">

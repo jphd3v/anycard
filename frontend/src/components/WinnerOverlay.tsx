@@ -4,6 +4,7 @@ import { Overlay } from "./Overlay";
 
 interface WinnerOverlayProps {
   winnerId: string | null;
+  winnerLabel?: string;
   seats: SeatStatus[];
   onRestart: () => void;
   onExit: () => void;
@@ -11,6 +12,7 @@ interface WinnerOverlayProps {
 
 export function WinnerOverlay({
   winnerId,
+  winnerLabel: winnerLabelProp,
   seats,
   onRestart,
   onExit,
@@ -20,7 +22,8 @@ export function WinnerOverlay({
   if (!winnerId) return null;
 
   const seat = seats.find((s) => s.playerId === winnerId);
-  const winnerLabel = seat?.name || winnerId;
+  const winnerName = seat?.name || winnerId;
+  const label = winnerLabelProp?.trim() ? winnerLabelProp.trim() : "Winner";
 
   return (
     <Overlay
@@ -39,7 +42,7 @@ export function WinnerOverlay({
           className="pointer-events-auto px-4 py-2 rounded-full shadow-floating border border-surface-3 bg-surface-2/80 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
         >
           <span className="text-xs font-bold text-ink">
-            Winner: {winnerLabel}
+            {label}: {winnerName}
           </span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -86,7 +89,7 @@ export function WinnerOverlay({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pr-8 sm:pr-12">
             <div className="text-center sm:text-left">
               <div className="text-sm font-bold text-ink">
-                Winner: {winnerLabel}
+                {label}: {winnerName}
               </div>
               <div className="text-xs text-ink-muted">
                 This hand is finished. What would you like to do next?

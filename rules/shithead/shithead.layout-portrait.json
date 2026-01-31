@@ -1,0 +1,157 @@
+{
+  "rulesId": "shithead",
+  "rows": 5,
+  "cols": 3,
+  "zones": [
+    {
+      "id": "p2",
+      "label": "Player 2",
+      "cell": { "row": 0, "col": 0, "colspan": 3 },
+      "piles": ["P2-hand", "P2-up", "P2-down"],
+      "subgrid": { "rows": 1, "cols": 3 },
+      "pileGrid": {
+        "P2-hand": { "row": 0, "col": 0 },
+        "P2-up": { "row": 0, "col": 1 },
+        "P2-down": { "row": 0, "col": 2 }
+      }
+    },
+    {
+      "id": "p3",
+      "label": "Player 3",
+      "cell": { "row": 1, "col": 0, "rowspan": 3 },
+      "piles": ["P3-hand", "P3-up", "P3-down"],
+      "subgrid": { "rows": 3, "cols": 1 },
+      "pileGrid": {
+        "P3-hand": { "row": 0, "col": 0 },
+        "P3-up": { "row": 1, "col": 0 },
+        "P3-down": { "row": 2, "col": 0 }
+      }
+    },
+    {
+      "id": "actions",
+      "cell": { "row": 2, "col": 1 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "p1",
+      "label": "Player 1",
+      "cell": { "row": 1, "col": 2, "rowspan": 3 },
+      "piles": ["P1-hand", "P1-up", "P1-down"],
+      "subgrid": { "rows": 3, "cols": 1 },
+      "pileGrid": {
+        "P1-hand": { "row": 0, "col": 0 },
+        "P1-up": { "row": 1, "col": 0 },
+        "P1-down": { "row": 2, "col": 0 }
+      }
+    },
+    {
+      "id": "center",
+      "label": "Stock / Discard",
+      "cell": { "row": 4, "col": 0, "colspan": 3 },
+      "piles": ["deck", "discard"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A",
+              "2"
+            ]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A",
+              "2"
+            ]
+          }
+        ]
+      }
+    },
+    "P3-hand": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A",
+              "2"
+            ]
+          }
+        ]
+      }
+    },
+    "P1-up": { "layout": "horizontal" },
+    "P2-up": { "layout": "horizontal" },
+    "P3-up": { "layout": "horizontal" },
+    "P1-down": { "layout": "complete", "showDetails": true },
+    "P2-down": { "layout": "complete", "showDetails": true },
+    "P3-down": { "layout": "complete", "showDetails": true },
+    "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
+    "discard": {
+      "layout": "complete",
+      "label": "Discard",
+      "showTopOnly": true,
+      "showDetails": true
+    }
+  }
+}

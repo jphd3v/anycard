@@ -117,8 +117,68 @@ export function Zone({ zone, renderPile, disabled }: Props) {
       ? "ring-4 ring-target/50 bg-target/10 border-target/50"
       : "border-white/10 bg-black/5"
   } ${isDropTarget ? "cursor-pointer" : ""}`;
-  const contentClass =
-    "w-full h-full flex flex-wrap items-center justify-center overflow-hidden";
+
+  const rotationStyle =
+    zone.rotation !== undefined
+      ? { transform: `rotate(${zone.rotation}deg)` }
+      : undefined;
+
+  // Use subgrid if configured, otherwise use flexbox (backward compatible)
+  if (zone.subgrid && zone.pileGrid) {
+    const gridStyle = {
+      display: "grid",
+      gridTemplateRows: `repeat(${zone.subgrid.rows}, 1fr)`,
+      gridTemplateColumns: `repeat(${zone.subgrid.cols}, 1fr)`,
+      gap: "var(--pile-gap, 8px)",
+      width: "100%",
+      height: "100%",
+    };
+
+    return (
+      <div
+        ref={isSinglePileZone ? setNodeRef : null}
+        className={containerClass}
+        onClick={isClickMoveActive ? handleZoneClick : undefined}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={rotationStyle}
+      >
+        {isDropTarget && (
+          <div className="absolute inset-0 rounded-xl ring-4 ring-target/50 bg-target/10 animate-pulse-slow pointer-events-none z-10" />
+        )}
+        <div style={gridStyle}>
+          {zone.piles.map((pileId) => {
+            const cell = zone.pileGrid![pileId];
+            if (!cell) return null;
+
+            const gridItemStyle = {
+              gridRow: cell.rowspan
+                ? `${cell.row + 1} / span ${cell.rowspan}`
+                : cell.row + 1,
+              gridColumn: cell.colspan
+                ? `${cell.col + 1} / span ${cell.colspan}`
+                : cell.col + 1,
+            };
+
+            return (
+              <div
+                key={pileId}
+                style={gridItemStyle}
+                className="min-w-0 min-h-0 flex items-center justify-center"
+              >
+                {renderPile(pileId, zone)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Default flexbox rendering (backward compatible)
+  const contentClass = `w-full h-full flex ${
+    zone.pileOrientation === "vertical" ? "flex-col" : "flex-wrap"
+  } items-center justify-center overflow-hidden`;
 
   return (
     <div
@@ -127,6 +187,7 @@ export function Zone({ zone, renderPile, disabled }: Props) {
       onClick={isClickMoveActive ? handleZoneClick : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={rotationStyle}
     >
       {isDropTarget && (
         <div className="absolute inset-0 rounded-xl ring-4 ring-target/50 bg-target/10 animate-pulse-slow pointer-events-none z-10" />

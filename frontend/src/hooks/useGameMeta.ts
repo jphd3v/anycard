@@ -10,6 +10,7 @@ type GameMeta = {
   category?: string;
   requiresJokers?: boolean;
   supportsActions?: boolean;
+  winnerLabel?: string;
 };
 
 const metaCache = new Map<string, GameMeta | null>();

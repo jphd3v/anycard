@@ -1,0 +1,41 @@
+{
+  "id": "shithead-swap-setup",
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-up",
+      "cardId": 16
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-up",
+      "toPileId": "P1-hand",
+      "cardId": 31
+    },
+    { "type": "action", "playerId": "P1", "action": "ready" }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "piles": {
+      "P1-hand": { "cardIds": [22, 12, 31] },
+      "P1-up": { "cardIds": [10, 21, 16] }
+    },
+    "rulesState": {
+      "players": ["P1", "P2", "P3"],
+      "hasDealt": true,
+      "dealNumber": 1,
+      "phase": "setup",
+      "dealerIndex": 2,
+      "firstPlayerId": "P3",
+      "ready": { "P1": true, "P2": false, "P3": false },
+      "recap": [],
+      "turnRankPlayed": null
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "rulesId": "shithead",
+  "gameName": "Shithead",
+  "description": "Classic shedding/beating game for three players. Shed cards by matching or beating the pile, clear with 10s and four-of-a-kind, and avoid being the last player holding cards.",
+  "players": 3,
+  "category": "Beating",
+  "supportsActions": true,
+  "winnerLabel": "Loser"
+}

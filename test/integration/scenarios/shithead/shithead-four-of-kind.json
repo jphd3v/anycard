@@ -1,0 +1,31 @@
+{
+  "id": "shithead-four-of-kind",
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P3", "action": "ready" }
+  ],
+  "expect": {
+    "piles": {
+      "deck": { "size": 25 }
+    },
+    "rulesState": {
+      "players": ["P1", "P2", "P3"],
+      "hasDealt": true,
+      "dealNumber": 1,
+      "phase": "play",
+      "dealerIndex": 2,
+      "firstPlayerId": "P3",
+      "ready": {
+        "P1": true,
+        "P2": true,
+        "P3": true
+      },
+      "recap": [],
+      "turnRankPlayed": null
+    }
+  }
+}

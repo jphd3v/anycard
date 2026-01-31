@@ -1,0 +1,24 @@
+{
+  "id": "shithead-no-pickup-after-play",
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-INTEGRATION-53",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P3", "action": "ready" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 1
+    },
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "pick-up",
+      "expectedError": "pick up after playing"
+    }
+  ]
+}

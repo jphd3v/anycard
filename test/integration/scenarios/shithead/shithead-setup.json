@@ -1,0 +1,41 @@
+{
+  "id": "shithead-setup",
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P3", "action": "ready" }
+  ],
+  "expect": {
+    "currentPlayer": "P3",
+    "rulesState": {
+      "players": ["P1", "P2", "P3"],
+      "hasDealt": true,
+      "dealNumber": 1,
+      "phase": "play",
+      "dealerIndex": 2,
+      "firstPlayerId": "P3",
+      "ready": {
+        "P1": true,
+        "P2": true,
+        "P3": true
+      },
+      "turnRankPlayed": null
+    },
+    "piles": {
+      "deck": { "size": 25 },
+      "discard": { "size": 0 },
+      "P1-hand": { "cardIds": [22, 16, 12] },
+      "P1-up": { "cardIds": [31, 10, 21] },
+      "P1-down": { "size": 3 },
+      "P2-hand": { "cardIds": [24, 44, 46] },
+      "P2-up": { "cardIds": [30, 17, 48] },
+      "P2-down": { "size": 3 },
+      "P3-hand": { "cardIds": [9, 50, 41] },
+      "P3-up": { "cardIds": [38, 39, 35] },
+      "P3-down": { "size": 3 }
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { pinnacolaPlugin } from "./impl/pinnacola.js";
 import { briscolaPlugin } from "./impl/briscola.js";
 import { katkoPlugin } from "./impl/katko.js";
 import { durakPlugin } from "./impl/durak.js";
+import { shitheadPlugin } from "./impl/shithead.js";
 
 export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [bridgePlugin.id]: bridgePlugin,
@@ -23,6 +24,7 @@ export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [briscolaPlugin.id]: briscolaPlugin,
   [katkoPlugin.id]: katkoPlugin,
   [durakPlugin.id]: durakPlugin,
+  [shitheadPlugin.id]: shitheadPlugin,
 };
 
 /** Convenience: list of plugins for lobbies or /games endpoint. */

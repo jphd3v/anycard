@@ -14,6 +14,11 @@ export type GameMeta = {
    * When false (default), actions are only visible to the current player.
    */
   showActionsToAll?: boolean;
+  /**
+   * Optional label to display instead of "Winner" in the end-of-game overlay.
+   * Useful for loser-only games like Shithead.
+   */
+  winnerLabel?: string;
 };
 
 const RULES_DIR = resolveRulesDir();
@@ -36,6 +41,7 @@ export function loadGameMeta(rulesId: string): GameMeta {
       players: parsed.players,
       category: parsed.category,
       showActionsToAll: parsed.showActionsToAll,
+      winnerLabel: parsed.winnerLabel,
     };
   } catch (err) {
     console.warn(`[meta] Falling back to defaults for ${rulesId}: ${err}`);

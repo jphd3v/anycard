@@ -3310,6 +3310,7 @@ export default function App() {
               )}
               <WinnerOverlay
                 winnerId={view.winner}
+                winnerLabel={gameMeta?.winnerLabel}
                 seats={seats}
                 onRestart={handleReset}
                 onExit={handleExitToGameSelection}
@@ -3485,6 +3486,7 @@ export default function App() {
         <div data-testid="meta:game-id">{view?.gameId || ""}</div>
         <div data-testid="meta:player-id">{playerId || ""}</div>
         <div data-testid="meta:phase">{view?.metadata?.phase ?? ""}</div>
+        <div data-testid="meta:winner-label">{gameMeta?.winnerLabel ?? ""}</div>
       </div>
     </main>
   );

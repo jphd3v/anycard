@@ -594,6 +594,17 @@ export const LayoutZoneSchema = z.object({
   piles: z.array(z.string()),
   widget: z.enum(["actions", "scoreboards", "none"]).optional(),
   actionOrientation: z.enum(["horizontal", "vertical"]).optional(),
+  pileOrientation: z.enum(["horizontal", "vertical"]).optional(),
+  rotation: z
+    .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+    .optional(),
+  subgrid: z
+    .object({
+      rows: z.number().int().positive(),
+      cols: z.number().int().positive(),
+    })
+    .optional(),
+  pileGrid: z.record(z.string(), GridCellSchema).optional(),
   floatingWidgets: z.array(FloatingWidgetConfigSchema).optional(),
 });
 

@@ -1,0 +1,40 @@
+{
+  "id": "shithead-draw-to-three",
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P3", "action": "ready" },
+    {
+      "type": "move",
+      "playerId": "P3",
+      "fromPileId": "P3-hand",
+      "toPileId": "discard",
+      "cardId": 41
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "piles": {
+      "deck": { "size": 24 },
+      "P3-hand": { "size": 3 }
+    },
+    "rulesState": {
+      "players": ["P1", "P2", "P3"],
+      "hasDealt": true,
+      "dealNumber": 1,
+      "phase": "play",
+      "dealerIndex": 2,
+      "firstPlayerId": "P3",
+      "ready": {
+        "P1": true,
+        "P2": true,
+        "P3": true
+      },
+      "recap": ["P3: played 3"],
+      "turnRankPlayed": null
+    }
+  }
+}
