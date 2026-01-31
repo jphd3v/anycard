@@ -1,0 +1,9 @@
+{
+  "id": "joker-trump-determination",
+  "rulesId": "joker",
+  "seed": "JOKER-TRUMP-1",
+  "intents": [{ "type": "action", "playerId": "N", "action": "start-game" }],
+  "expect": {
+    "currentPlayer": "E"
+  }
+}

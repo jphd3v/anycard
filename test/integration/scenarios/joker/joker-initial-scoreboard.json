@@ -1,0 +1,97 @@
+{
+  "id": "joker-initial-scoreboard",
+  "rulesId": "joker",
+  "seed": "JOKER-TEST-1",
+  "intents": [],
+  "expect": {
+    "scoreboards": [
+      {
+        "id": "scores",
+        "title": "Scores",
+        "rows": 5,
+        "cols": 5,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Bid",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Won",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 3,
+            "text": "Score",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 4,
+            "text": "Total",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "North",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "0", "align": "right" },
+          { "row": 1, "col": 2, "text": "0", "align": "right" },
+          { "row": 1, "col": 3, "text": "0", "align": "right" },
+          { "row": 1, "col": 4, "text": "0", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "East",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "0", "align": "right" },
+          { "row": 2, "col": 2, "text": "0", "align": "right" },
+          { "row": 2, "col": 3, "text": "0", "align": "right" },
+          { "row": 2, "col": 4, "text": "0", "align": "right" },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "South",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 3, "col": 1, "text": "0", "align": "right" },
+          { "row": 3, "col": 2, "text": "0", "align": "right" },
+          { "row": 3, "col": 3, "text": "0", "align": "right" },
+          { "row": 3, "col": 4, "text": "0", "align": "right" },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "West",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 4, "col": 1, "text": "0", "align": "right" },
+          { "row": 4, "col": 2, "text": "0", "align": "right" },
+          { "row": 4, "col": 3, "text": "0", "align": "right" },
+          { "row": 4, "col": 4, "text": "0", "align": "right" }
+        ]
+      }
+    ]
+  }
+}

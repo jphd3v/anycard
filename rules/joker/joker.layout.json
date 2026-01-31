@@ -1,0 +1,144 @@
+{
+  "rulesId": "joker",
+  "rows": 3,
+  "cols": 3,
+  "zones": [
+    {
+      "id": "scoreboard-area",
+      "cell": { "row": 0, "col": 0 },
+      "piles": [],
+      "widget": "scoreboards"
+    },
+    {
+      "id": "north",
+      "label": "North",
+      "cell": { "row": 0, "col": 1 },
+      "piles": ["hand-N"]
+    },
+    {
+      "id": "west",
+      "label": "West",
+      "cell": { "row": 1, "col": 0 },
+      "piles": ["hand-W"]
+    },
+    {
+      "id": "center-table",
+      "cell": { "row": 1, "col": 1 },
+      "piles": ["trick", "deck"]
+    },
+    {
+      "id": "actions-overlay",
+      "cell": { "row": 2, "col": 2 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "east",
+      "label": "East",
+      "cell": { "row": 1, "col": 2 },
+      "piles": ["hand-E"]
+    },
+    {
+      "id": "south",
+      "label": "South",
+      "cell": { "row": 2, "col": 1 },
+      "piles": ["hand-S"]
+    }
+  ],
+  "pileStyles": {
+    "hand-N": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, A..6",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "Joker"]
+          }
+        ]
+      }
+    },
+    "hand-E": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, A..6",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "Joker"]
+          }
+        ]
+      }
+    },
+    "hand-S": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, A..6",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "Joker"]
+          }
+        ]
+      }
+    },
+    "hand-W": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "ascending",
+        "allowViewerToggle": true,
+        "options": [
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
+          {
+            "id": "ascending",
+            "label": "C/D/H/S, A..6",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "Joker"]
+          }
+        ]
+      }
+    },
+    "trick": {
+      "layout": "horizontal"
+    },
+    "deck": {
+      "layout": "stacked"
+    }
+  }
+}

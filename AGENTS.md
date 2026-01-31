@@ -146,6 +146,7 @@ In this mode:
   - add a new rule module under `backend/src/rules/impl/<rulesId>.ts`,
   - create a new folder `rules/<rulesId>/` and files inside it,
   - register your plugin in `backend/src/rules/registry.ts`,
+  - add integration tests under `test/integration/scenarios/<rulesId>/` (required),
   - add optional per-game rules markdown `rules/<rulesId>/<rulesId>.rules.md`.
 
 - ❌ You MUST NOT:
@@ -220,6 +221,7 @@ this order:
 
 4. **Self-check**
    - Run build/lint.
+   - Run `npm run test:integration -- <rulesId>` - all tests must pass.
    - Manually walk a basic playthrough.
    - Check your changes obey the file-scope constraints above.
 

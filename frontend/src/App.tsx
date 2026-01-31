@@ -2392,29 +2392,30 @@ export default function App() {
   };
 
   const handleExitToLobby = useCallback(() => {
-    if (gameId) {
+    const activeGameId = gameId;
+    if (activeGameId) {
       clearSponsoredFrontendSeats();
-      clearFrontendAiSponsors(gameId);
-      // 1) Clear local game state first
-      setGameId("");
-      setPlayerId(null);
-      setSeats([]);
-      setRoomSeed(null);
-      setView(null);
-      setGameType(null);
-      setIsCreator(false);
-      setJoinedGameId(null);
-      lastJoinRef.current = null;
-
+      clearFrontendAiSponsors(activeGameId);
       // 2) Tell server we left this game
       leaveGame();
-
-      // 3) Reset UI state atoms (scoreboard, actions, menus, etc.)
-      closeAll();
-
-      // 4) Clear any pending announcements from previous game
-      setAnnouncementItems([]);
     }
+
+    // 1) Clear local game state first (always reset to avoid stale UI)
+    setGameId("");
+    setPlayerId(null);
+    setSeats([]);
+    setRoomSeed(null);
+    setView(null);
+    setGameType(null);
+    setIsCreator(false);
+    setJoinedGameId(null);
+    lastJoinRef.current = null;
+
+    // 3) Reset UI state atoms (scoreboard, actions, menus, etc.)
+    closeAll();
+
+    // 4) Clear any pending announcements from previous game
+    setAnnouncementItems([]);
 
     // Clear any route errors for clean navigation
     setRouteError(null);

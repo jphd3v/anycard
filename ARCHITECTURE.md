@@ -448,6 +448,11 @@ Games that need an initial deal:
 
 The engine never auto-deals; the rules must do it.
 
+**Important:** The Start Game overlay sends only a single `"start-game"` action.
+Do **not** require a second `"deal"` action immediately after start-game. If you
+expose a manual "Deal" action between hands, still treat `"start-game"` as the
+actual deal whenever `hasDealt` is false.
+
 The `"start-game"` action is reserved for human seats. The AI system never
 sends it, and the backend rejects `"start-game"` from AI seats.
 
@@ -471,6 +476,10 @@ a small `widget: "actions"` zone on the table for clarity (so players do not
 need to toggle the actions panel). For action-heavy games, keep actions in the
 header by default. Scoreboards can still be placed on the table when space
 allows and they are central to gameplay.
+
+If you place `actions` or `scoreboards` widgets in the layout, reserve a
+dedicated empty cell for them. Do not overlap widgets with piles in the same
+cell, or you will get layout artifacts and hit-testing issues.
 
 Deck placement:
 

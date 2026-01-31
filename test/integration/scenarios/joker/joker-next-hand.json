@@ -1,0 +1,151 @@
+{
+  "id": "joker-next-hand",
+  "rulesId": "joker",
+  "seed": "JOKER-TEST-1",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "E", "action": "bid-0" },
+    { "type": "action", "playerId": "S", "action": "bid-0" },
+    { "type": "action", "playerId": "W", "action": "bid-0" },
+    { "type": "action", "playerId": "N", "action": "bid-0" },
+    {
+      "type": "move",
+      "playerId": "E",
+      "fromPileId": "hand-E",
+      "toPileId": "trick",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "S",
+      "fromPileId": "hand-S",
+      "toPileId": "trick",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "W",
+      "fromPileId": "hand-W",
+      "toPileId": "trick",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "N",
+      "fromPileId": "hand-N",
+      "toPileId": "trick",
+      "cardId": 15
+    },
+    { "type": "action", "playerId": "E", "action": "next-hand" }
+  ],
+  "expect": {
+    "currentPlayer": "S",
+    "rulesState": {
+      "phase": "bidding",
+      "hasDealt": true,
+      "currentSet": 1,
+      "currentHandInSet": 2,
+      "cardsThisHand": 2,
+      "dealerSeat": 1,
+      "bids": [],
+      "pendingJokerCardId": null,
+      "currentTrick": [],
+      "leadSuit": null,
+      "trumpSuit": "diamonds",
+      "tricksWon": { "N": 0, "E": 0, "S": 0, "W": 0 },
+      "handScores": {},
+      "setScores": { "N": 50, "E": 50, "S": 50, "W": 10 },
+      "gameScores": { "N": 50, "E": 50, "S": 50, "W": 10 },
+      "setSuccesses": { "N": [50], "E": [50], "S": [50], "W": [] }
+    },
+    "scoreboards": [
+      {
+        "id": "scores",
+        "title": "Scores",
+        "rows": 5,
+        "cols": 5,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Bid",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Won",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 3,
+            "text": "Score",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 4,
+            "text": "Total",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "North",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "0", "align": "right" },
+          { "row": 1, "col": 2, "text": "0", "align": "right" },
+          { "row": 1, "col": 3, "text": "0", "align": "right" },
+          { "row": 1, "col": 4, "text": "50", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "East",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "0", "align": "right" },
+          { "row": 2, "col": 2, "text": "0", "align": "right" },
+          { "row": 2, "col": 3, "text": "0", "align": "right" },
+          { "row": 2, "col": 4, "text": "50", "align": "right" },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "South",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 3, "col": 1, "text": "0", "align": "right" },
+          { "row": 3, "col": 2, "text": "0", "align": "right" },
+          { "row": 3, "col": 3, "text": "0", "align": "right" },
+          { "row": 3, "col": 4, "text": "50", "align": "right" },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "West",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 4, "col": 1, "text": "0", "align": "right" },
+          { "row": 4, "col": 2, "text": "0", "align": "right" },
+          { "row": 4, "col": 3, "text": "0", "align": "right" },
+          { "row": 4, "col": 4, "text": "10", "align": "right" }
+        ]
+      }
+    ]
+  }
+}

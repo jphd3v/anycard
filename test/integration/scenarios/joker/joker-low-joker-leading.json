@@ -1,0 +1,166 @@
+{
+  "id": "joker-low-joker-leading",
+  "rulesId": "joker",
+  "seed": "JOKER-SEED-6",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "E", "action": "bid-0" },
+    { "type": "action", "playerId": "S", "action": "bid-0" },
+    { "type": "action", "playerId": "W", "action": "bid-0" },
+    { "type": "action", "playerId": "N", "action": "bid-0" },
+    {
+      "type": "move",
+      "playerId": "E",
+      "fromPileId": "hand-E",
+      "toPileId": "trick",
+      "cardId": 36
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "joker-low",
+      "expectedError": "Must choose a suit when leading a Joker"
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "joker-low-hearts"
+    },
+    {
+      "type": "move",
+      "playerId": "S",
+      "fromPileId": "hand-S",
+      "toPileId": "trick",
+      "cardId": 27
+    },
+    {
+      "type": "move",
+      "playerId": "W",
+      "fromPileId": "hand-W",
+      "toPileId": "trick",
+      "cardId": 33
+    },
+    {
+      "type": "move",
+      "playerId": "N",
+      "fromPileId": "hand-N",
+      "toPileId": "trick",
+      "cardId": 11
+    }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "rulesState": {
+      "phase": "hand-ended",
+      "hasDealt": true,
+      "currentSet": 1,
+      "currentHandInSet": 1,
+      "cardsThisHand": 1,
+      "dealerSeat": 0,
+      "bids": [
+        { "player": "E", "bid": 0 },
+        { "player": "S", "bid": 0 },
+        { "player": "W", "bid": 0 },
+        { "player": "N", "bid": 0 }
+      ],
+      "pendingJokerCardId": null,
+      "currentTrick": [],
+      "leadSuit": null,
+      "trumpSuit": "hearts",
+      "tricksWon": { "N": 0, "E": 0, "S": 1, "W": 0 },
+      "handScores": { "N": 50, "E": 50, "S": 10, "W": 50 },
+      "setScores": { "N": 50, "E": 50, "S": 10, "W": 50 },
+      "gameScores": { "N": 50, "E": 50, "S": 10, "W": 50 },
+      "setSuccesses": { "N": [50], "E": [50], "S": [], "W": [50] }
+    },
+    "scoreboards": [
+      {
+        "id": "scores",
+        "title": "Hand 1 Complete",
+        "rows": 5,
+        "cols": 5,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Bid",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Won",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 3,
+            "text": "Score",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 4,
+            "text": "Total",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "North",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 1, "col": 1, "text": "0", "align": "right" },
+          { "row": 1, "col": 2, "text": "0", "align": "right" },
+          { "row": 1, "col": 3, "text": "50", "align": "right" },
+          { "row": 1, "col": 4, "text": "50", "align": "right" },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "East",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 2, "col": 1, "text": "0", "align": "right" },
+          { "row": 2, "col": 2, "text": "0", "align": "right" },
+          { "row": 2, "col": 3, "text": "50", "align": "right" },
+          { "row": 2, "col": 4, "text": "50", "align": "right" },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "South",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 3, "col": 1, "text": "0", "align": "right" },
+          { "row": 3, "col": 2, "text": "1", "align": "right" },
+          { "row": 3, "col": 3, "text": "10", "align": "right" },
+          { "row": 3, "col": 4, "text": "10", "align": "right" },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "West",
+            "role": "body",
+            "align": "left"
+          },
+          { "row": 4, "col": 1, "text": "0", "align": "right" },
+          { "row": 4, "col": 2, "text": "0", "align": "right" },
+          { "row": 4, "col": 3, "text": "50", "align": "right" },
+          { "row": 4, "col": 4, "text": "50", "align": "right" }
+        ]
+      }
+    ]
+  }
+}

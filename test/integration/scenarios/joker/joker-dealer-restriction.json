@@ -1,0 +1,17 @@
+{
+  "id": "joker-dealer-restriction",
+  "rulesId": "joker",
+  "seed": "JOKER-DEALER-1",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "E", "action": "bid-0" },
+    { "type": "action", "playerId": "S", "action": "bid-0" },
+    { "type": "action", "playerId": "W", "action": "bid-0" },
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "bid-1",
+      "expectedError": "Dealer cannot bid 1 (total would equal 1)"
+    }
+  ]
+}

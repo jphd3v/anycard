@@ -259,30 +259,28 @@ Use consistent naming for players throughout a game. The naming should be used u
 
 **Convention Guidelines:**
 
-1. **Traditional/game-specific naming (preferred when applicable):**
-   - Partnership card games traditionally use compass directions: `N`, `S`, `E`, `W`
-   - Use this for Bridge, Canasta, and similar 4-player partnership games
-   - Full names: "North", "South", "East", "West"
-   - Short aliases: "N", "S", "E", "W"
-   - Partnerships: "NS" / "EW" or "North-South" / "East-West"
+1. **4-player games (REQUIRED):**
+   - **ALWAYS use compass directions** for 4-player games: `N`, `E`, `S`, `W`
+   - This applies to ALL 4-player games (partnership or independent)
+   - Full names: "North", "East", "South", "West"
+   - Short aliases: "N", "E", "S", "W"
+   - For partnerships: "NS" / "EW" or "North-South" / "East-West"
+   - **Examples:** Bridge, Canasta (partnerships), Joker (independent players)
+   - **Rationale:** Provides consistency, clarity, and matches the visual table layout
 
-2. **4-player games without compass tradition:**
-   - If compass naming doesn't fit, use `N`, `S`, `E`, `W` anyway (it's a reasonable default)
-   - Alternatively, use positional naming: `P1`, `P2`, `P3`, `P4`
-
-3. **2-3 player games:**
+2. **2-3 player games:**
    - Use positional naming: `P1`, `P2`, `P3`
    - Full names: "Player 1", "Player 2", "Player 3"
    - Short aliases: "P1", "P2", "P3"
 
-4. **Short vs. full names:**
+3. **Short vs. full names:**
    - Use short aliases ("P1", "N") in recap messages and constrained UI elements
    - For simple games with spacious scoreboards (e.g., Katko), full names ("Player 1") are fine
 
 **Examples:**
 
 ```jsonc
-// Bridge/Canasta (4-player partnership games)
+// ALL 4-player games (Bridge, Canasta, Joker, etc.)
 "players": [
   { "id": "N", "name": "North" },
   { "id": "E", "name": "East" },
@@ -290,7 +288,7 @@ Use consistent naming for players throughout a game. The naming should be used u
   { "id": "W", "name": "West" }
 ]
 
-// Gin Rummy (2-player game)
+// 2-player games (Gin Rummy, Briscola, etc.)
 "players": [
   { "id": "P1", "name": "Player 1" },
   { "id": "P2", "name": "Player 2" }
@@ -738,6 +736,7 @@ Example:
 
 - Default ordering guideline: for trick/point games, use **ascending rank order left-to-right** (e.g., 2..A or the smallest rank in your deck up to A) unless the game explicitly requires something else.
 - Layout safety guideline: ensure each zone's `cell` (row/col/rowspan/colspan) does not overlap with others. A quick visual check after the first deal helps catch pile/widget collisions early.
+- If you include an `actions` or `scoreboards` widget on the table, reserve a **dedicated empty cell** for it. Do not stack a widget in the same cell as piles (it causes visual artifacts and interaction bugs).
 
 ### 4.6 Pile layout styles guidelines
 
@@ -818,8 +817,10 @@ This file contains **all** game-specific logic.
 
 You MUST export:
 
-- a `GameRuleModule` implementation, and
+- a `GameRuleModule` implementation with **both** `validate` and `listLegalIntentsForPlayer` methods (see section 7 for AI support details), and
 - a `GamePlugin` that references it.
+
+**IMPORTANT:** `listLegalIntentsForPlayer` is MANDATORY for all games in this repository. This is not optional - missing AI support is treated as a bug. See section 7 for full details.
 
 Rough skeleton:
 
@@ -841,6 +842,22 @@ function deriveScoreboards(rulesState: any) {
 }
 
 export const <rulesId>RuleModule: GameRuleModule = {
+  listLegalIntentsForPlayer(state: ValidationState, playerId: string): ClientIntent[] {
+    // REQUIRED: Return all legal intents for this player
+    // See section 7 for full implementation requirements
+    const intents: ClientIntent[] = [];
+
+    // Not this player's turn
+    if (state.currentPlayer && state.currentPlayer !== playerId) {
+      return intents;
+    }
+
+    // Generate candidates and filter using validate()
+    // ... (see section 7 for examples)
+
+    return intents;
+  },
+
   validate(state: ValidationState, intent: ClientIntent) {
     const engineEvents: EngineEvent[] = [];
 
@@ -881,7 +898,7 @@ export const <rulesId>Plugin: GamePlugin = {
 };
 ```
 
-Use existing implementations (`bridge.ts`, etc.) as direct references.
+Use existing implementations (`bridge.ts`, `briscola.ts`, etc.) as direct references.
 
 ### 5.2 Pre-move model (short version)
 
@@ -1059,16 +1076,59 @@ For games that require dealing from a shuffled deck:
 In your rule module:
 
 1. When `hasDealt === false` and `intent.type === "action"` and
-   `intent.actionId === "start-game"`:
+   `intent.action === "start-game"`:
    - emit `move-cards` events to deal from `deck` to hand piles,
    - set `hasDealt: true` and transition phase (`"deal"` → `"play"` or `"bidding"`),
    - set `currentPlayer` appropriately,
    - emit `set-actions` and `set-scoreboards` **immediately after dealing**.
 
+**Important:** The Start Game overlay only sends a single `"start-game"` action.
+Do **not** require a second `"deal"` click immediately after start-game. If you
+want a manual "Deal" button between hands, keep it for _later_ rounds but still
+handle `"start-game"` as the actual deal when `hasDealt` is false.
+
 2. When `hasDealt === false` and any other move arrives:
    - reject with `valid: false` and a clear `reason`.
 
 The AI system never sends `"start-game"`; a human must start the game.
+
+**CRITICAL - Guard Pattern for Initial Phase:**
+
+Use the "guard pattern" to prevent fall-through bugs. Check for invalid actions FIRST and return immediately with a specific error message:
+
+```typescript
+// ✅ CORRECT: Guard pattern with explicit early return
+if (rs.phase === "initial") {
+  if (intent.type !== "action" || intent.action !== "start-game") {
+    return {
+      valid: false,
+      reason: "The game has not been started yet. Use the 'Start Game' action.",
+      engineEvents: [],
+    };
+  }
+  // Handle start-game action
+  // ...
+  return { valid: true, engineEvents: events };
+}
+
+// ❌ WRONG: Nested if without guard - falls through to generic error
+if (rs.phase === "initial") {
+  if (intent.type === "action" && intent.action === "start-game") {
+    // Handle start-game
+    return { valid: true, engineEvents: events };
+  }
+  // BUG: No explicit return here means execution continues!
+}
+// ... other phases ...
+return { valid: false, reason: "Invalid action for current phase" }; // Generic error
+```
+
+The guard pattern:
+
+- Provides specific, helpful error messages (see section 5.13)
+- Prevents silent fall-through to the catch-all error at the end of validate()
+- Makes the code easier to reason about (fail-fast principle)
+- Is the pattern used by briscola, canasta, crazy-eights, gin-rummy, and golf
 
 ### 5.9 Rule module isolation
 
@@ -1628,7 +1688,7 @@ See [test/integration/README.md](../test/integration/README.md) for full documen
 
 Your test suite must cover:
 
-- **Basic gameplay**: Start → Deal → Play turns → Score → End
+- **Basic gameplay**: Start (deals) → Play turns → Score → End
 - **Illegal move rejection**: Wrong suit, wrong phase, dealer restrictions, etc.
 - **Scoring calculation**: Verify points are calculated correctly
 - **Win condition**: Game properly ends when someone wins
@@ -1646,7 +1706,6 @@ Tests the happy path through one complete hand or round.
   "seed": "TEST-SEED-1",
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
-    { "type": "action", "playerId": "P1", "action": "deal" },
     {
       "type": "move",
       "playerId": "P1",
@@ -1905,12 +1964,15 @@ Provide 1-3 bullet points on basic strategy for new players.
 
 ## 7. AI support (required for games in this repo)
 
-All games shipped in this repository are expected to be AI-playable.  
-That means your rule module MUST implement:
+**CRITICAL REQUIREMENT:** All games shipped in this repository MUST be AI-playable. This is not optional.
+
+Your rule module MUST implement:
 
 ```ts
 listLegalIntentsForPlayer(state: ValidationState, playerId: string): ClientIntent[]
 ```
+
+**Missing this function is treated as a bug**, not an intentional AI-disabled mode. If you skip this during development, add it before submitting. The backend will log a warning if this method is missing when AI players are assigned.
 
 There are two layers of AI support:
 
@@ -2379,6 +2441,7 @@ Before calling the new game "done", verify:
   - [ ] any `widget: "actions"` / `widget: "scoreboards"` zones are intentional
         (only add them when you want in-table widgets beyond the header).
 - [ ] Rule module:
+  - [ ] **CRITICAL: implements `listLegalIntentsForPlayer`** - this is MANDATORY for all games in this repository (see section 7). Missing this is a bug, not optional.
   - [ ] uses the pre-move model correctly,
   - [ ] emits `move-cards` for all card movements,
   - [ ] **prefers direct card moves over action buttons** (see section 5.3),

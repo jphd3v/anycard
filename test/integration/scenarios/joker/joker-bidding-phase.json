@@ -1,0 +1,15 @@
+{
+  "id": "joker-bidding-phase",
+  "rulesId": "joker",
+  "seed": "JOKER-BID-TEST",
+  "intents": [
+    { "type": "action", "playerId": "N", "action": "start-game" },
+    { "type": "action", "playerId": "E", "action": "bid-1" },
+    { "type": "action", "playerId": "S", "action": "bid-0" },
+    { "type": "action", "playerId": "W", "action": "bid-1" },
+    { "type": "action", "playerId": "N", "action": "bid-0" }
+  ],
+  "expect": {
+    "currentPlayer": "E"
+  }
+}

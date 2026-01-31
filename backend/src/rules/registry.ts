@@ -12,6 +12,7 @@ import { katkoPlugin } from "./impl/katko.js";
 import { durakPlugin } from "./impl/durak.js";
 import { shitheadPlugin } from "./impl/shithead.js";
 import { crazyEightsPlugin } from "./impl/crazy-eights.js";
+import { gamePlugin as jokerPlugin } from "./impl/joker.js";
 
 export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [bridgePlugin.id]: bridgePlugin,
@@ -27,6 +28,7 @@ export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [durakPlugin.id]: durakPlugin,
   [shitheadPlugin.id]: shitheadPlugin,
   [crazyEightsPlugin.id]: crazyEightsPlugin,
+  [jokerPlugin.id]: jokerPlugin,
 };
 
 /** Convenience: list of plugins for lobbies or /games endpoint. */

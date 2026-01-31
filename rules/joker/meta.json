@@ -1,0 +1,9 @@
+{
+  "rulesId": "joker",
+  "gameName": "Joker",
+  "description": "Exact bid trick-taking game for 4 players with Jokers. Bid exactly how many tricks you'll win across 24 hands and 4 sets.",
+  "players": 4,
+  "category": "Trick-Taking",
+  "supportsActions": true,
+  "showActionsToAll": false
+}
