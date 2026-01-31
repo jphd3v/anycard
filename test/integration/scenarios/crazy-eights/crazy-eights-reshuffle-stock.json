@@ -1,0 +1,383 @@
+{
+  "id": "crazy-eights-reshuffle-stock",
+  "rulesId": "crazy-eights",
+  "seed": "ESC0Q0",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "start-game"
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 29
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 9
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 44
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 8
+    },
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "choose-suit:diamonds"
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 37
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 20
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 19
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 19
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 43
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 33
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 48
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 32
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 12
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 6
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 47
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 36
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 24
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 23
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 24
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 41
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 51
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 47
+    },
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "choose-suit:clubs"
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 38
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 6
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 26
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 5
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 22
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 4
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 40
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 50
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 11
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 34
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 12
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 28
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 45
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 42
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-hand",
+      "cardId": 27
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 49
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "piles": {
+      "deck": {
+        "size": 13
+      },
+      "discard": {
+        "size": 1
+      }
+    }
+  }
+}

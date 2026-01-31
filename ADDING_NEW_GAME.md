@@ -24,14 +24,14 @@ When the task is "add a new game", you MUST obey these constraints:
   - add a new rule module under `backend/src/rules/impl/`
   - add a new game folder under `rules/<game>/`
   - register the game in `backend/src/rules/registry.ts`
-  - add a `meta.json` and optional `*.rules.md` under `rules/<game>/`
+  - add a `meta.json` and `*.rules.md` under `rules/<game>/`
+  - add integration tests under `test/integration/scenarios/<rulesId>/` (required, see Section 6)
 
 - ❌ You MUST NOT:
   - modify backend core engine files (socket handling, state, shuffler, etc.)
   - modify frontend components, layout system, or card renderer
   - add new engine event types or change shared schemas
   - change AI infrastructure or LLM configuration
-  - touch anything under `test/` unless explicitly instructed
   - add new dependencies or env vars
 
 If implementing the requested game seems to require any of the above, **stop
@@ -156,6 +156,11 @@ In the backend, you MUST add:
 
 4. `backend/src/rules/impl/<rulesId>.ts` (rule module + plugin export)
 
+For integration tests, you MUST create:
+
+5. `test/integration/scenarios/<rulesId>/` (test scenarios directory)
+   - Add at least one test file covering basic gameplay (see Section 6)
+
 ### 2.2 Existing files to touch
 
 You MAY touch exactly one shared file:
@@ -175,7 +180,7 @@ This file defines:
 - players,
 - piles (hands, deck(s), table piles, etc.),
 - initial `rulesState`,
-- initial `actions` (should be empty: `{"rows": 0, "cols": 0, "cells": []}`. Do **not** include `"start-game"` here; the UI provides that overlay automatically. Use actions only for operations that cannot be expressed as a direct card move, or when a hidden/random card choice should be made server-side),
+- initial `actions` (should be empty: `{"rows": 0, "cols": 0, "cells": []}`. Do **not** include `"start-game"` here; the UI provides that overlay automatically. Prefer card moves whenever the intent can be represented by moving cards between piles. Use actions only when a required choice cannot be expressed as a card move),
 - initial `scoreboards` (**REQUIRED**: provide at least a placeholder or zeroed scoreboard so the "Scores" button is visible in the UI from the start).
 
 ### 3.1 Minimal required structure
@@ -1613,7 +1618,115 @@ const handScore = calculateScore(projected);
 
 ---
 
-### 6. Verification and Quality Assurance
+## 6. Integration Tests (Required)
+
+All new games must include integration tests in `test/integration/scenarios/<rulesId>/`. These tests serve as executable documentation, regression prevention, and proof that your game is playable end-to-end.
+
+See [test/integration/README.md](../test/integration/README.md) for full documentation on test format, auto mode, and the inspect helper.
+
+### 6.1 Minimum Coverage
+
+Your test suite must cover:
+
+- **Basic gameplay**: Start → Deal → Play turns → Score → End
+- **Illegal move rejection**: Wrong suit, wrong phase, dealer restrictions, etc.
+- **Scoring calculation**: Verify points are calculated correctly
+- **Win condition**: Game properly ends when someone wins
+
+### 6.2 Example Test Scenarios
+
+**Basic gameplay test** (`<rulesId>-basic.json`):
+
+Tests the happy path through one complete hand or round.
+
+```json
+{
+  "id": "myGame-basic",
+  "rulesId": "myGame",
+  "seed": "TEST-SEED-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "deal" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 27
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "rulesState": {
+      "phase": "playing"
+    }
+  }
+}
+```
+
+**Illegal move test** (prefix with `_` to exclude from CI):
+
+Documents that rule violations are properly rejected.
+
+```json
+{
+  "id": "myGame-must-follow-suit",
+  "rulesId": "myGame",
+  "seed": "TEST-SEED-2",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "trick",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "trick",
+      "cardId": 40
+    }
+  ]
+}
+```
+
+Note: You need to derive actual card IDs from the shuffled deck for your seed.
+
+### 6.3 Deriving Card IDs
+
+Use the inspect helper to see what cards are dealt with a given seed:
+
+```bash
+npm run test:integration:inspect -- <rulesId> <SEED> <max-moves>
+```
+
+This prints the game state step-by-step with pile contents and legal intents, making it easy to author deterministic test scenarios.
+
+### 6.4 Running Tests
+
+Run all tests for your game:
+
+```bash
+npm run test:integration -- <rulesId>
+```
+
+Run a specific test file:
+
+```bash
+npm run test:integration -- <rulesId>/<test-file>.json
+```
+
+Tests must pass before your game is considered complete.
 
 ## 7. Registry and metadata
 
@@ -2252,7 +2365,9 @@ Before calling the new game "done", verify:
   - `backend/src/rules/impl/<rulesId>.ts`
   - `backend/src/rules/registry.ts`
   - `rules/<rulesId>/**`
-- [ ] No other backend, frontend, or test files changed.
+  - `test/integration/scenarios/<rulesId>/**`
+- [ ] No other backend or frontend files changed.
+- [ ] **Integration tests** exist under `test/integration/scenarios/<rulesId>/` covering minimum requirements (see Section 6): basic gameplay, illegal move rejection, scoring, and win condition. Tests must pass with `npm run test:integration -- <rulesId>`.
 - [ ] `rules/<rulesId>/<rulesId>.initial-state.json` passes schema validation and:
   - [ ] **Deck size is correct** for your game (e.g., 36 for Durak, 52 for Bridge, 40 for Italian games),
   - [ ] every card id appears in exactly one pile,

@@ -1,0 +1,22 @@
+{
+  "id": "crazy-eights-draw-two-block",
+  "rulesId": "crazy-eights",
+  "seed": "CRAZY8-INTEGRATION-10",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 16,
+      "expectedError": "A Two must be played"
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "piles": {
+      "discard": { "cardIds": [2] }
+    }
+  }
+}

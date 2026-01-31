@@ -1,0 +1,38 @@
+{
+  "id": "crazy-eights-stack-two",
+  "rulesId": "crazy-eights",
+  "seed": "CRAZY8-INTEGRATION-121",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 28
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "playing",
+      "hasDealt": true,
+      "players": ["P1", "P2"],
+      "dealerId": "P2",
+      "currentSuit": "hearts",
+      "pendingSuitPlayer": null,
+      "pendingSuitNextPlayer": null,
+      "lastCardPending": null,
+      "drawPenalty": 4,
+      "drawPenaltySuit": "hearts",
+      "reshuffleCount": 0,
+      "scores": { "P1": 0, "P2": 0 }
+    },
+    "piles": {
+      "deck": { "size": 37 },
+      "discard": { "cardIds": [2, 28] },
+      "P1-hand": { "cardIds": [39, 4, 9, 34, 14, 7] },
+      "P2-hand": { "cardIds": [38, 26, 13, 21, 16, 43, 15] }
+    }
+  }
+}

@@ -94,7 +94,15 @@ These rules apply to **every task**, regardless of mode.
      runs linting, type checking, building, integration tests, and a security scan.
    - Any task is only considered complete once `npm run verify` passes
      successfully.
-   - If you can’t run something, say so and explain what you would have run.
+   - If you can't run something, say so and explain what you would have run.
+   - **CRITICAL: Test execution rules:**
+     - NEVER run Playwright tests with `--headed` flag. Always run headless.
+     - Check for servers on ports 3010 and 5175 before running tests:
+       ```bash
+       lsof -ti:5175 | xargs kill -9 2>/dev/null; lsof -ti:3010 | xargs kill -9 2>/dev/null; sleep 2
+       ```
+     - If tests fail due to "port already in use", kill the servers and retry.
+     - Playwright tests start their own web servers; never run tests against manually started dev servers.
 
 8. **Deterministic Shuffling for Multi-Round Games**
    - In games with multiple deals or rounds, rule modules MUST implement

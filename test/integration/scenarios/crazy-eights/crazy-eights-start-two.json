@@ -1,0 +1,29 @@
+{
+  "id": "crazy-eights-start-two",
+  "rulesId": "crazy-eights",
+  "seed": "CRAZY8-INTEGRATION-10",
+  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "playing",
+      "hasDealt": true,
+      "players": ["P1", "P2"],
+      "dealerId": "P1",
+      "currentSuit": "clubs",
+      "pendingSuitPlayer": null,
+      "pendingSuitNextPlayer": null,
+      "lastCardPending": null,
+      "drawPenalty": 2,
+      "drawPenaltySuit": "clubs",
+      "reshuffleCount": 0,
+      "scores": { "P1": 0, "P2": 0 }
+    },
+    "piles": {
+      "deck": { "size": 37 },
+      "discard": { "cardIds": [2] },
+      "P1-hand": { "cardIds": [27, 45, 9, 7, 20, 52, 43] },
+      "P2-hand": { "cardIds": [16, 14, 51, 38, 31, 33, 30] }
+    }
+  }
+}

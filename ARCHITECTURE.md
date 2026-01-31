@@ -420,13 +420,19 @@ Rule modules can update the mapping with the engine event:
 
 Like `set-actions`, this replaces the full mapping when applied.
 
-Typical drawing pattern:
+Preferred intent pattern:
 
-- Use an `action` intent like `"draw-from-deck"`.
+- **Prefer card moves** whenever a player’s intent can be expressed by moving cards between piles.
+- **Use actions** only when a required choice cannot be represented as a card move
+  (e.g., naming a suit, bidding, declaring, or any non-card verbal choice).
+
+Typical drawing pattern (when drawing is representable as a move):
+
+- Use a `move` intent from `"deck"` to `"<player>-hand"` for the top card.
 - Let the rule module:
-  - read the deck from `ValidationState`,
-  - pick the top card,
-  - emit a `move-cards` event.
+  - verify the move targets the deck’s top card,
+  - emit the `move-cards` event (and any automatic extra draws for penalties).
+- If drawing requires a non-card choice that cannot be expressed as a move, an `action` is acceptable.
 
 Avoid requiring clients to specify `cardId` for hidden piles.
 

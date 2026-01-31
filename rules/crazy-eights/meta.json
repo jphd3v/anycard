@@ -1,0 +1,8 @@
+{
+  "rulesId": "crazy-eights",
+  "gameName": "Crazy Eights",
+  "description": "Get rid of all your cards by matching suit or rank, with eights wild and a called suit.",
+  "players": 2,
+  "category": "Matching",
+  "supportsActions": true
+}

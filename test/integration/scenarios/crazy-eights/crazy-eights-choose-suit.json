@@ -1,0 +1,32 @@
+{
+  "id": "crazy-eights-choose-suit",
+  "rulesId": "crazy-eights",
+  "seed": "CRAZY8-INTEGRATION-5",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P1", "action": "choose-suit:clubs" }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "playing",
+      "hasDealt": true,
+      "players": ["P1", "P2"],
+      "dealerId": "P1",
+      "currentSuit": "clubs",
+      "pendingSuitPlayer": null,
+      "pendingSuitNextPlayer": null,
+      "lastCardPending": null,
+      "drawPenalty": 0,
+      "drawPenaltySuit": null,
+      "reshuffleCount": 0,
+      "scores": { "P1": 0, "P2": 0 }
+    },
+    "piles": {
+      "deck": { "size": 37 },
+      "discard": { "cardIds": [21] },
+      "P1-hand": { "cardIds": [24, 5, 4, 8, 44, 46, 32] },
+      "P2-hand": { "cardIds": [1, 36, 45, 13, 27, 28, 29] }
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "id": "crazy-eights-last-card-penalty",
+  "rulesId": "crazy-eights",
+  "seed": "LAST-CARD-8",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "start-game"
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 16
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 15
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-hand",
+      "cardId": 36
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 34
+    },
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "choose-suit:clubs"
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 3
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 9
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 12
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 38
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "discard",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "discard",
+      "cardId": 47
+    },
+    {
+      "type": "action",
+      "playerId": "P2",
+      "action": "choose-suit:clubs"
+    }
+  ],
+  "expect": {
+    "piles": {
+      "P1-hand": {
+        "size": 3
+      }
+    }
+  }
+}
