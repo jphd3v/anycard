@@ -97,7 +97,7 @@ export type ActionGrid = z.infer<typeof ActionGridSchema>;
 // Scoreboard cell for display
 export const ScoreboardCellSchema = BaseGridCellSchema.extend({
   text: z.string(), // unicode text, may contain suit symbols etc.
-  role: z.enum(["header", "body", "total"]).optional(),
+  role: z.enum(["header", "body", "total", "separator"]).optional(),
   align: z.enum(["left", "center", "right"]).optional(),
 });
 

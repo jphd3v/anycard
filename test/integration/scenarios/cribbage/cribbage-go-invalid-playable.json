@@ -1,0 +1,80 @@
+{
+  "id": "cribbage-go-invalid-playable",
+  "rulesId": "cribbage",
+  "seed": "CRIB-PLAY-59",
+  "description": "Go is rejected when the player has a legal play.",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 22
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 17
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 51
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 29
+    },
+    {
+      "type": "action",
+      "playerId": "P2",
+      "action": "go",
+      "expectedError": "You have a playable card."
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "play",
+      "hasDealt": true,
+      "dealNumber": 0,
+      "dealer": "P1",
+      "scores": {
+        "P1": 0,
+        "P2": 0
+      },
+      "playCount": 2,
+      "playTotal": 8,
+      "lastPlayedBy": "P1",
+      "cannotPlay": [],
+      "starterSuit": "spades",
+      "currentRoundCards": ["31", "29"],
+      "playedCardsByPlayer": {
+        "P1": [29],
+        "P2": [31]
+      }
+    }
+  }
+}

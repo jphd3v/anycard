@@ -1,0 +1,124 @@
+{
+  "id": "cribbage-show-nob",
+  "rulesId": "cribbage",
+  "seed": "CRIB-SEED-10",
+  "description": "Show scoring includes his nob in hand.",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 16
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 41
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 6
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 45
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 43
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 37
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 48
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 28
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 19
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 11
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 32
+    },
+    { "type": "action", "playerId": "P2", "action": "show" }
+  ],
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "initial",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "dealer": "P2",
+      "scores": {
+        "P1": 10,
+        "P2": 4
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": null,
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    },
+    "piles": {
+      "P1-show": { "size": 4 },
+      "P2-show": { "size": 4 },
+      "play": { "size": 0 },
+      "starter": { "size": 1 },
+      "crib": { "size": 4 }
+    }
+  }
+}

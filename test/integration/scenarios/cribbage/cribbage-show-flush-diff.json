@@ -1,0 +1,129 @@
+{
+  "id": "cribbage-show-flush-diff",
+  "rulesId": "cribbage",
+  "seed": "CRIB-SEED-7",
+  "description": "Show scoring with a 4-card hand flush (starter not matching).",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 35
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 3
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 39
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 22
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 11
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 16
+    },
+    { "type": "action", "playerId": "P2", "action": "go" },
+    { "type": "action", "playerId": "P1", "action": "go" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 25
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 26
+    },
+    { "type": "action", "playerId": "P2", "action": "go" },
+    { "type": "action", "playerId": "P1", "action": "go" },
+    { "type": "action", "playerId": "P1", "action": "go" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 12
+    },
+    { "type": "action", "playerId": "P2", "action": "show" }
+  ],
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "initial",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "dealer": "P2",
+      "scores": {
+        "P1": 16,
+        "P2": 10
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": null,
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    },
+    "piles": {
+      "P1-show": { "size": 4 },
+      "P2-show": { "size": 4 },
+      "play": { "size": 0 },
+      "starter": { "size": 1 },
+      "crib": { "size": 4 }
+    }
+  }
+}

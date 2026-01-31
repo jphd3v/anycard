@@ -1,6 +1,13 @@
-# Crazy Eights (standard, 2 players)
+## Overview
 
-Rules are implemented from https://www.pagat.com/eights/crazy8s.html (Basic Game and Special Cards sections).
+Crazy Eights is a fast shedding game where players try to empty their hand by
+matching the top discard’s suit or rank. Eights are wild and let the player
+choose a new suit. Drawing is always allowed, so the pace is a mix of timing
+your clears and managing your suit coverage.
+
+This implementation follows the Pagat “Basic Game” plus the “Special Cards”
+section, with a fixed two‑player table and a single-hand outcome recorded on
+the scoreboard: https://www.pagat.com/eights/crazy8s.html
 
 ## Setup
 

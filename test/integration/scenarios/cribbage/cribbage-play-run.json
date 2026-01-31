@@ -1,0 +1,81 @@
+{
+  "id": "cribbage-play-run",
+  "rulesId": "cribbage",
+  "seed": "CRIB-RUN-26",
+  "description": "Play phase: scoring a run of three.",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 23
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 38
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 36
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 4
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 16
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 18
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P1",
+    "rulesState": {
+      "phase": "play",
+      "hasDealt": true,
+      "dealNumber": 0,
+      "dealer": "P1",
+      "scores": {
+        "P1": 0,
+        "P2": 3
+      },
+      "playCount": 3,
+      "playTotal": 12,
+      "lastPlayedBy": "P2",
+      "cannotPlay": [],
+      "starterSuit": "diamonds",
+      "currentRoundCards": ["4", "16", "18"],
+      "playedCardsByPlayer": {
+        "P1": [16],
+        "P2": [4, 18]
+      }
+    }
+  }
+}

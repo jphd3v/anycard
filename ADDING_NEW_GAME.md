@@ -1082,10 +1082,10 @@ In your rule module:
    - set `currentPlayer` appropriately,
    - emit `set-actions` and `set-scoreboards` **immediately after dealing**.
 
-**Important:** The Start Game overlay only sends a single `"start-game"` action.
-Do **not** require a second `"deal"` click immediately after start-game. If you
-want a manual "Deal" button between hands, keep it for _later_ rounds but still
-handle `"start-game"` as the actual deal when `hasDealt` is false.
+**Important:** The lifecycle overlay sends exactly one action: `"start-game"`.
+Do **not** require a second `"deal"` click immediately after. If you want a
+manual "Deal" button between hands, keep it for _later_ rounds but still handle
+`"start-game"` as the actual deal when `hasDealt` is false.
 
 2. When `hasDealt === false` and any other move arrives:
    - reject with `valid: false` and a clear `reason`.
@@ -1382,20 +1382,19 @@ Never skip this step for multi-round games!
 
 To provide a natural break between rounds where players can review scores, use the following pattern in `rulesState`:
 
-1.  **State Flags**:
-    - `hasDealt: boolean`: Tracks if the current hand's cards are on the table.
-    - `dealNumber: number`: A counter that increments with every full deck deal.
-2.  **Round End**:
-    - When a hand ends, move all cards back to the `deck` pile (explicitly iterating through all non-deck piles; avoid using the unsupported `"any"` pile ID). You can use `gatherAllCards(...)` from `backend/src/rules/util/dealing.ts`; if you already queued events, pass `previousEvents` so the projection is accurate.
-    - Increment `dealNumber`.
-    - Set `hasDealt: false`.
-    - This state automatically triggers the "Continue to next round" overlay in the frontend.
-3.  **Round Start**:
-    - The player clicks "Start next round" (sending a `"start-game"` action).
-    - The rule module's `validate` function catches `"start-game"` when `hasDealt` is false.
-    - **Shuffle**: Use the game `seed` (from `ValidationState`) and the current `dealNumber` to perform a deterministic shuffle of the deck.
-    - **Deal**: Emit `move-cards` events to distribute the _shuffled_ cards.
-    - Set `hasDealt: true`.
+1. **State Flags**:
+   - `hasDealt: boolean`: Tracks if the current hand's cards are on the table.
+   - `dealNumber: number`: A counter that increments with every full deck deal.
+2. **Round End**:
+   - When a hand ends, set `hasDealt: false` and increment `dealNumber`.
+   - This state automatically triggers the "Continue to next round" overlay in the frontend.
+   - You may leave revealed cards on the table while `hasDealt` is false and gather them when `"start-game"` arrives. Use `gatherAllCards(...)` from `backend/src/rules/util/dealing.ts` to move everything back to the deck when you are ready to deal.
+3. **Round Start**:
+   - The player clicks "Start next round" (sending a `"start-game"` action).
+   - The rule module's `validate` function catches `"start-game"` when `hasDealt` is false.
+   - **Shuffle**: Use the game `seed` (from `ValidationState`) and the current `dealNumber` to perform a deterministic shuffle of the deck.
+   - **Deal**: Emit `move-cards` events to distribute the _shuffled_ cards.
+   - Set `hasDealt: true`.
 
 #### Deterministic Shuffling Utility
 
@@ -1684,16 +1683,143 @@ All new games must include integration tests in `test/integration/scenarios/<rul
 
 See [test/integration/README.md](../test/integration/README.md) for full documentation on test format, auto mode, and the inspect helper.
 
-### 6.1 Minimum Coverage
+### 6.1 Testing Philosophy
 
-Your test suite must cover:
+**Philosophy**: If a player can hit a scenario during normal gameplay, it MUST be tested. Do not ship a game where players discover bugs that automated tests could have caught.
+
+Integration tests are not just about proving the game works once—they must comprehensively cover all critical paths, edge cases, and conditional branches that real players will encounter.
+
+### 6.2 What You MUST Test
+
+Your test suite must include ALL of the following:
+
+#### A. Core Gameplay Flow
 
 - **Basic gameplay**: Start (deals) → Play turns → Score → End
-- **Illegal move rejection**: Wrong suit, wrong phase, dealer restrictions, etc.
-- **Scoring calculation**: Verify points are calculated correctly
 - **Win condition**: Game properly ends when someone wins
+- **Multi-round games**: If applicable, test round transitions and score accumulation
 
-### 6.2 Example Test Scenarios
+#### B. Rule Validation
+
+- **Illegal move rejection**: Wrong suit, wrong phase, wrong player, dealer restrictions, etc.
+- **Scoring calculation**: Verify points are calculated correctly in all scenarios
+- **Phase transitions**: Every phase change (deal → bid → play → score → end) works correctly
+
+#### C. Game-Specific Critical Edge Cases
+
+You MUST identify and test ALL critical edge cases for your game's specific mechanics:
+
+**How to identify what to test:**
+
+1. **Review your rule module for ALL conditional branches**:
+   - Every `if` statement handling game state (especially turn changes, scoring, and phase transitions)
+   - Special game mechanics (e.g., "Go" in Cribbage, "Pass" in Bridge, "Knock" in Gin Rummy)
+   - Boundary conditions (e.g., deck empty, hand empty, score limits)
+
+2. **Test ALL paths through multi-branch logic**:
+   - If you have: `if (condition A) { ... } else { ... }`, you MUST test both the A and not-A cases
+   - If you have: `if (A) { ... } else if (B) { ... } else { ... }`, you MUST test A, B, and neither
+   - Nested conditionals require testing ALL combinations that players can encounter
+
+3. **Critical scenarios by game type** (examples to guide you):
+
+   **For games with "Pass" or "Skip" mechanics:**
+   - ✅ Player A passes, Player B continues
+   - ✅ All players pass (if applicable)
+   - ✅ Pass when other actions are also available
+
+   **For games with "cannot play" scenarios (e.g., Cribbage "Go"):**
+   - ✅ Player A says "Go", Player B can still play
+   - ✅ Player A says "Go", Player B also says "Go" (mutual Go)
+   - ✅ After "Go", play resets correctly
+
+   **For games with bidding/auction phases:**
+   - ✅ All players pass (pass-out scenario)
+   - ✅ Bid war (multiple raises)
+   - ✅ Minimum/maximum bid limits
+
+   **For games with melding/laying down cards:**
+   - ✅ Valid meld accepted
+   - ✅ Invalid meld rejected
+   - ✅ Melding with wild cards (if applicable)
+   - ✅ Going out with/without permission
+
+   **For games with deck exhaustion:**
+   - ✅ Deck runs out during play
+   - ✅ Reshuffle mechanics (if applicable)
+   - ✅ Draw from empty deck (if allowed)
+
+   **For games with turn-passing logic:**
+   - ✅ Turn passes correctly after each action
+   - ✅ Turn stays with player when required (e.g., after scoring)
+   - ✅ Turn changes on phase transitions
+
+#### D. Action Button Coverage
+
+Every action button in your game MUST have a test showing:
+
+- The button appears when it should (via `listLegalIntentsForPlayer`)
+- The button works when clicked (intent is accepted by `validate()`)
+- The game state updates correctly after the action
+
+**Example violation**: Implementing a "Go" action button but never testing whether:
+
+- The button appears for the current player
+- The turn switches to the other player after "Go"
+- The other player can still play cards or also say "Go"
+
+This exact scenario was a critical bug in Cribbage that should have been caught by tests.
+
+#### E. Auto-Playthrough Tests
+
+Create `<rulesId>-auto-playthrough.json` with `"auto": <N>` where N is enough moves to exercise your game deeply (20-30+ moves recommended).
+
+Auto mode plays random legal moves, catching:
+
+- Infinite loops
+- Missing turn changes
+- Scoring calculation errors
+- Phase transition bugs
+- Crashes in unexpected game states
+
+This is your "fuzzing" test—it explores paths you might not think to test manually.
+
+### 6.3 Test Coverage Requirements
+
+**Naming convention:**
+
+- `<rulesId>-basic.json` - Happy path gameplay
+- `<rulesId>-auto-playthrough.json` - Auto mode fuzzing
+- `<rulesId>-<scenario>.json` - Edge cases (e.g., `cribbage-go-scenario.json`, `bridge-pass-out.json`)
+
+**How many tests do you need?**
+
+- **Simple games**: 5-7 tests minimum
+- **Typical games**: 8-12 tests
+- **Complex games**: 15+ tests (e.g., Bridge has 10+, Canasta has 15+)
+
+The number depends on your game's complexity, not a fixed target. Cover all critical paths.
+
+**Red flags that your coverage is insufficient:**
+
+- ❌ You only have 1-2 test files total
+- ❌ You never tested action buttons (if your game has them)
+- ❌ You didn't test "pass" or "cannot play" scenarios
+- ❌ You didn't test phase transitions
+- ❌ You didn't test both players/all players in multi-player scenarios
+- ❌ You didn't test boundary conditions (empty deck, empty hand, max score)
+
+**Pre-submission checklist:**
+
+- [ ] Every action button has at least one test showing it works
+- [ ] Every conditional branch in turn-passing logic has a test
+- [ ] Every phase transition has a test
+- [ ] "Cannot play" or "must pass" scenarios are tested (if applicable)
+- [ ] Boundary conditions (empty deck, etc.) are tested
+- [ ] Auto-playthrough test exists and passes for at least 20-30 moves
+- [ ] All tests pass: `npm run test:integration -- <rulesId>`
+
+### 6.4 Example Test Scenarios
 
 **Basic gameplay test** (`<rulesId>-basic.json`):
 
@@ -1761,7 +1887,7 @@ Documents that rule violations are properly rejected.
 
 Note: You need to derive actual card IDs from the shuffled deck for your seed.
 
-### 6.3 Deriving Card IDs
+### 6.5 Deriving Card IDs
 
 Use the inspect helper to see what cards are dealt with a given seed:
 
@@ -1771,7 +1897,7 @@ npm run test:integration:inspect -- <rulesId> <SEED> <max-moves>
 
 This prints the game state step-by-step with pile contents and legal intents, making it easy to author deterministic test scenarios.
 
-### 6.4 Running Tests
+### 6.6 Running Tests
 
 Run all tests for your game:
 
@@ -1787,9 +1913,11 @@ npm run test:integration -- <rulesId>/<test-file>.json
 
 Tests must pass before your game is considered complete.
 
+---
+
 ## 7. Registry and metadata
 
-### 6.1 Register the plugin
+### 7.1 Register the plugin
 
 **File:** `backend/src/rules/registry.ts`
 

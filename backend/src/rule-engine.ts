@@ -84,6 +84,14 @@ export function listLegalIntentsForPlayer(
   );
 }
 
+export function hasListLegalIntentsForPlayer(gameId: string): boolean {
+  const gameState = projectState(gameId);
+  if (!gameState) return false;
+
+  const plugin = GAME_PLUGINS[gameState.rulesId];
+  return typeof plugin?.ruleModule.listLegalIntentsForPlayer === "function";
+}
+
 export function listLegalIntentsForView(
   gameId: string,
   playerId: string

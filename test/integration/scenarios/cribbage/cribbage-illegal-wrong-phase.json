@@ -1,0 +1,17 @@
+{
+  "id": "cribbage-illegal-wrong-phase",
+  "rulesId": "cribbage",
+  "seed": "CRIB-TEST-2",
+  "description": "Tests that playing a card during discard phase is rejected",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 43,
+      "expectedError": "You must discard cards from your hand to the crib."
+    }
+  ]
+}

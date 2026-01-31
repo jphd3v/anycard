@@ -1,10 +1,6 @@
-# Joker
-
-A trick-taking game for 4 players where you must bid exactly how many tricks you'll win.
-
 ## Overview
 
-Joker is played over 24 hands across 4 sets. The unique feature is that players must bid exactly how many tricks they'll win, with a special dealer restriction ensuring at least one player will fail each hand.
+Joker is a trick-taking game for 4 players where you must bid exactly how many tricks you'll win. It is played over 24 hands across 4 sets. The unique feature is that players must bid exactly how many tricks they'll win, with a special dealer restriction ensuring at least one player will fail each hand.
 
 Reference rules: [Pagat.com](https://www.pagat.com/exact/joker.html)
 

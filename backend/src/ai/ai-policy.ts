@@ -11,7 +11,10 @@ import {
   resolveRulesMarkdown,
 } from "./ai-llm-policy.js";
 import { assignCandidateId } from "./ai-candidates.js";
-import { listLegalIntentsForPlayer } from "../rule-engine.js";
+import {
+  hasListLegalIntentsForPlayer,
+  listLegalIntentsForPlayer,
+} from "../rule-engine.js";
 import { appendAiLogEntry, sendGameStatus } from "./ai-log.js";
 import { getHumanTurnNumber } from "../state.js";
 import { getEnvironmentConfig } from "../config.js";
@@ -468,24 +471,25 @@ export function getAiDecisionContext(
   // 1. Try rules-provided legal intents (preferred, game-agnostic)
   const viewSalt = getViewSalt(gameId);
   const viewerKey = playerId;
-  const legalIntents = sortIntents(
-    listLegalIntentsForPlayer(gameId, playerId)
-  ).map((intent) =>
-    intent.type === "move"
-      ? {
-          ...intent,
-          cardId:
-            intent.cardId !== undefined
-              ? toViewCardId(intent.cardId, viewSalt, viewerKey)
-              : undefined,
-          cardIds: intent.cardIds?.map((id) =>
-            toViewCardId(id, viewSalt, viewerKey)
-          ),
-        }
-      : intent
-  );
+  const hasRulesIntents = hasListLegalIntentsForPlayer(gameId);
+  const legalIntents = hasRulesIntents
+    ? sortIntents(listLegalIntentsForPlayer(gameId, playerId)).map((intent) =>
+        intent.type === "move"
+          ? {
+              ...intent,
+              cardId:
+                intent.cardId !== undefined
+                  ? toViewCardId(intent.cardId, viewSalt, viewerKey)
+                  : undefined,
+              cardIds: intent.cardIds?.map((id) =>
+                toViewCardId(id, viewSalt, viewerKey)
+              ),
+            }
+          : intent
+      )
+    : [];
 
-  if (legalIntents.length > 0) {
+  if (hasRulesIntents) {
     rawCandidates = legalIntents.map((intent) => {
       warnIfNonAsciiIdentifiers(intent);
       const id = assignCandidateId(intent, idCounter);

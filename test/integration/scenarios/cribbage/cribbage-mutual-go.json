@@ -1,0 +1,9 @@
+{
+  "id": "cribbage-mutual-go",
+  "comment": "Test scenario where both players say Go and play resets",
+  "rulesId": "cribbage",
+  "seed": "CRIB-MUTUAL-GO",
+  "description": "Tests that when both players say Go, play resets correctly and last card point is awarded",
+  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "auto": 20
+}

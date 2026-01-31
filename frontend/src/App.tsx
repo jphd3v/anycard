@@ -2044,14 +2044,18 @@ export default function App() {
       },
       onSeats: (payload) => {
         const currentGameId = gameIdRef.current;
-        if (
-          payload.gameId === currentGameId ||
-          (currentGameId === "" && payload.gameId !== "")
-        ) {
+        const isLobbyRoute =
+          typeof window !== "undefined" && window.location.pathname === "/";
+        const shouldAdoptGameId =
+          currentGameId === "" &&
+          payload.gameId !== "" &&
+          !isLobbyRoute &&
+          !routeError;
+        if (payload.gameId === currentGameId || shouldAdoptGameId) {
           setSeats(payload.seats);
           setRoomSeed(payload.seed ?? null);
           setIsInitialGameLoad(false);
-          if (currentGameId === "" && payload.gameId !== "") {
+          if (shouldAdoptGameId) {
             setGameId(payload.gameId);
           }
         }

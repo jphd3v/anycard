@@ -1,0 +1,129 @@
+{
+  "id": "cribbage-show-flush-same",
+  "rulesId": "cribbage",
+  "seed": "CRIB-SEED-21",
+  "description": "Show scoring with a 5-card flush (starter matches).",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 48
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 42
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 1
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 31
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 18
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 32
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 38
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 26
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 27
+    },
+    { "type": "action", "playerId": "P2", "action": "show" }
+  ],
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "initial",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "dealer": "P2",
+      "scores": {
+        "P1": 12,
+        "P2": 9
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": null,
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    },
+    "pileProperties": {
+      "crib": {
+        "layout": "horizontal"
+      }
+    },
+    "piles": {
+      "P1-show": { "size": 4 },
+      "P2-show": { "size": 4 },
+      "play": { "size": 0 },
+      "starter": { "size": 1 },
+      "crib": { "size": 4, "visibility": "public" }
+    }
+  }
+}

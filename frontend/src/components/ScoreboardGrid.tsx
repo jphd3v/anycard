@@ -2,6 +2,7 @@ import React from "react";
 import { useAtomValue } from "jotai";
 import type { Scoreboard } from "../../../shared/schemas";
 import { highlightedScoreboardCellsAtom } from "../state";
+import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 
 type Props = {
   scoreboard: Scoreboard;
@@ -14,9 +15,19 @@ export function ScoreboardGrid({ scoreboard }: Props) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
   const [isCondensed, setIsCondensed] = React.useState(false);
-  // Font sizes are defined as CSS variables in index.css with responsive media queries
-  const normalFontSize = "var(--scoreboard-font-normal)";
-  const condensedFontSize = "var(--scoreboard-font-condensed)";
+
+  // For very tall scoreboards (like cribbage), use extra compact styling
+  const isVeryTall = rows > 50;
+
+  // Font sizes: very tall scoreboards need much smaller fonts
+  const normalFontSize = isVeryTall
+    ? "clamp(0.5rem, 1.2vw, 0.65rem)" // Cribbage: smaller
+    : "var(--scoreboard-font-normal)"; // Normal games
+  const condensedFontSize = isVeryTall
+    ? "clamp(0.45rem, 1vw, 0.6rem)" // Cribbage: even smaller when condensed
+    : "var(--scoreboard-font-condensed)"; // Normal games
+
+  const cellPadding = isVeryTall ? "2px 8px" : "4px 12px";
 
   React.useLayoutEffect(() => {
     const container = containerRef.current;
@@ -58,62 +69,68 @@ export function ScoreboardGrid({ scoreboard }: Props) {
         </div>
       )}
 
-      {/* Grid Content */}
-      <div
-        ref={gridRef}
-        className="w-full"
-        style={{
-          display: "grid",
-          gridTemplateRows: `repeat(${rows}, 1fr)`,
-          gridTemplateColumns: `repeat(${cols}, minmax(max-content, 1fr))`,
-        }}
-      >
-        {cells.map((cell, idx) => {
-          const rowSpan = cell.rowspan ?? 1;
-          const colSpan = cell.colspan ?? 1;
+      {/* Grid Content with Scroll Shadows */}
+      <ScrollShadowWrapper className="flex-1">
+        <div
+          ref={gridRef}
+          className="w-full"
+          style={{
+            display: "grid",
+            gridTemplateRows: `repeat(${rows}, auto)`,
+            gridTemplateColumns: `repeat(${cols}, minmax(max-content, 1fr))`,
+          }}
+        >
+          {cells.map((cell, idx) => {
+            const rowSpan = cell.rowspan ?? 1;
+            const colSpan = cell.colspan ?? 1;
 
-          let justifyContent: React.CSSProperties["justifyContent"] =
-            "flex-start";
-          if (cell.align === "center") justifyContent = "center";
-          if (cell.align === "right") justifyContent = "flex-end";
+            let justifyContent: React.CSSProperties["justifyContent"] =
+              "flex-start";
+            if (cell.align === "center") justifyContent = "center";
+            if (cell.align === "right") justifyContent = "flex-end";
 
-          const isHeader = cell.role === "header";
-          const isTotal = cell.role === "total";
+            const isHeader = cell.role === "header";
+            const isTotal = cell.role === "total";
+            const isSeparator = cell.role === "separator";
 
-          const fontWeight = isHeader || isTotal ? 600 : 400;
-          const textColor = isHeader ? "text-ink-muted" : "text-ink";
-          const bgClass = isHeader ? "bg-surface-2/20" : "";
+            const fontWeight = isHeader || isTotal ? 600 : 400;
+            const textColor = isHeader ? "text-ink-muted" : "text-ink";
+            const bgClass = isHeader ? "bg-surface-2/20" : "";
 
-          // Internal borders for table-like feel
-          const borderClass =
-            "border-b border-r border-surface-3/30 last:border-b-0";
+            // Separator cells render as empty space
+            const cellContent = isSeparator ? "" : cell.text;
 
-          return (
-            <div
-              key={`${scoreboard.id}-${cell.row}-${cell.col}-${idx}`}
-              className={`${textColor} ${bgClass} ${borderClass} ${
-                highlighted.has(`${scoreboard.id}:${cell.row}:${cell.col}`)
-                  ? "animate-cell-pop"
-                  : ""
-              }`}
-              style={{
-                gridRow: `${cell.row + 1} / span ${rowSpan}`,
-                gridColumn: `${cell.col + 1} / span ${colSpan}`,
-                padding: "4px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent,
-                fontWeight,
-                fontVariantNumeric: "tabular-nums",
-                fontSize: "var(--scoreboard-font-size)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {cell.text}
-            </div>
-          );
-        })}
-      </div>
+            // Internal borders for table-like feel
+            const borderClass =
+              "border-b border-r border-surface-3/30 last:border-b-0";
+
+            return (
+              <div
+                key={`${scoreboard.id}-${cell.row}-${cell.col}-${idx}`}
+                className={`${textColor} ${bgClass} ${borderClass} ${
+                  highlighted.has(`${scoreboard.id}:${cell.row}:${cell.col}`)
+                    ? "animate-cell-pop"
+                    : ""
+                }`}
+                style={{
+                  gridRow: `${cell.row + 1} / span ${rowSpan}`,
+                  gridColumn: `${cell.col + 1} / span ${colSpan}`,
+                  padding: cellPadding,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent,
+                  fontWeight,
+                  fontVariantNumeric: "tabular-nums",
+                  fontSize: "var(--scoreboard-font-size)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {cellContent}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollShadowWrapper>
     </div>
   );
 }

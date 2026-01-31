@@ -1,0 +1,8 @@
+{
+  "rulesId": "cribbage",
+  "gameName": "Cribbage",
+  "description": "Classic two-player card game where players score points for pairs, runs, and combinations totaling 15 during play and in their hands.",
+  "players": 2,
+  "category": "adding",
+  "supportsActions": true
+}

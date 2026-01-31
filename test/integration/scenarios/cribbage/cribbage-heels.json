@@ -1,0 +1,60 @@
+{
+  "id": "cribbage-heels",
+  "rulesId": "cribbage",
+  "seed": "CRIB-HEELS-7",
+  "description": "Starter is a Jack so the dealer scores his heels.",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 22
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 7
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 8
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 5
+    }
+  ],
+  "expect": {
+    "currentPlayer": "P2",
+    "rulesState": {
+      "phase": "play",
+      "hasDealt": true,
+      "dealNumber": 0,
+      "dealer": "P1",
+      "scores": {
+        "P1": 2,
+        "P2": 0
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": "spades",
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    }
+  }
+}

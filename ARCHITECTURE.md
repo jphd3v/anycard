@@ -448,17 +448,18 @@ Games that need an initial deal:
 
 The engine never auto-deals; the rules must do it.
 
-**Important:** The Start Game overlay sends only a single `"start-game"` action.
-Do **not** require a second `"deal"` action immediately after start-game. If you
-expose a manual "Deal" action between hands, still treat `"start-game"` as the
-actual deal whenever `hasDealt` is false.
+**Important:** The Start Game overlay sends exactly one action: `"start-game"`.
+Do **not** require a second `"deal"` action immediately after. If you expose a
+manual "Deal" action between hands, still treat `"start-game"` as the actual
+deal whenever `hasDealt` is false.
 
 The `"start-game"` action is reserved for human seats. The AI system never
 sends it, and the backend rejects `"start-game"` from AI seats.
 
-For multi-hand games, rules can end a hand by moving all cards back into the
-deck (optionally using a deterministic shuffle), set `hasDealt: false`, and
-wait for the next `"start-game"` action.
+For multi-hand games, rules can end a hand by setting `hasDealt: false` and
+waiting for the next `"start-game"` action. You may leave revealed cards on the
+table while `hasDealt` is false, then gather/shuffle/deal when `"start-game"`
+arrives.
 
 ### 6.2 Layout: `rules/<rulesId>/<rulesId>.layout*.json`
 
@@ -1087,20 +1088,19 @@ Many card games (Bridge, Kasino, Scopa, etc.) are played over multiple hands or 
 
 To provide a natural break between rounds where players can review scores, use the following pattern in `rulesState`:
 
-1.  **State Flags**:
-    - `hasDealt: boolean`: Tracks if the current hand's cards are on the table.
-    - `dealNumber: number`: A counter that increments with every full deck deal.
-2.  **Round End**:
-    - When a hand ends, move all cards back to the `deck` pile (using `move-cards`).
-    - Increment `dealNumber`.
-    - Set `hasDealt: false`.
-    - This state automatically triggers the "Continue to next round" overlay in the frontend.
-3.  **Round Start**:
-    - The player clicks "Start next round" (sending a `"start-game"` action).
-    - The rule module's `validate` function catches `"start-game"` when `hasDealt` is false.
-    - **Shuffle**: Use the game `seed` (from `ValidationState`) and the current `dealNumber` to perform a deterministic shuffle of the deck.
-    - **Deal**: Emit `move-cards` events to distribute the _shuffled_ cards.
-    - Set `hasDealt: true`.
+1. **State Flags**:
+   - `hasDealt: boolean`: Tracks if the current hand's cards are on the table.
+   - `dealNumber: number`: A counter that increments with every full deck deal.
+2. **Round End**:
+   - When a hand ends, set `hasDealt: false` and increment `dealNumber`.
+   - This state automatically triggers the "Continue to next round" overlay in the frontend.
+   - You may leave revealed cards on the table while `hasDealt` is false and gather them when `"start-game"` arrives.
+3. **Round Start**:
+   - The player clicks "Start next round" (sending a `"start-game"` action).
+   - The rule module's `validate` function catches `"start-game"` when `hasDealt` is false.
+   - **Shuffle**: Use the game `seed` (from `ValidationState`) and the current `dealNumber` to perform a deterministic shuffle of the deck.
+   - **Deal**: Emit `move-cards` events to distribute the _shuffled_ cards.
+   - Set `hasDealt: true`.
 
 ### 12.2 Deterministic Shuffling
 

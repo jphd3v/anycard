@@ -1,0 +1,9 @@
+{
+  "id": "cribbage-go-scenario",
+  "comment": "Test scenario where P1 says Go and P2 must be able to continue or also say Go",
+  "rulesId": "cribbage",
+  "seed": "CRIB-GO-TEST",
+  "description": "Tests that after one player says Go, the other player can continue playing cards or also say Go",
+  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "auto": 25
+}

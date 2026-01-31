@@ -22,6 +22,10 @@ type ScenarioExpect = {
   scoreboards?: unknown;
   rulesState?: unknown;
   cardVisuals?: Record<number, { rotationDeg?: number }>;
+  pileProperties?: Record<
+    string,
+    { layout?: string; label?: string; isHand?: boolean }
+  >;
   piles?:
     | Record<
         string,
@@ -199,6 +203,37 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
       expect.cardVisuals,
       "cardVisuals mismatch"
     );
+  }
+
+  if (expect.pileProperties !== undefined) {
+    const pileProperties = state.pileProperties ?? {};
+    for (const [pileId, expectedProps] of Object.entries(
+      expect.pileProperties
+    )) {
+      const actualProps = pileProperties[pileId];
+      assert.ok(actualProps, `pileProperties missing for '${pileId}'`);
+      if (expectedProps.layout !== undefined) {
+        assert.equal(
+          actualProps.layout,
+          expectedProps.layout,
+          `pileProperties '${pileId}' layout mismatch`
+        );
+      }
+      if (expectedProps.label !== undefined) {
+        assert.equal(
+          actualProps.label,
+          expectedProps.label,
+          `pileProperties '${pileId}' label mismatch`
+        );
+      }
+      if (expectedProps.isHand !== undefined) {
+        assert.equal(
+          actualProps.isHand,
+          expectedProps.isHand,
+          `pileProperties '${pileId}' isHand mismatch`
+        );
+      }
+    }
   }
 
   if (expect.piles !== undefined) {

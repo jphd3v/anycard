@@ -1,0 +1,8 @@
+{
+  "id": "cribbage-auto-playthrough",
+  "rulesId": "cribbage",
+  "seed": "CRIB-AUTO-1",
+  "description": "Tests automatic playthrough of cribbage game",
+  "intents": [{ "type": "action", "playerId": "P1", "action": "start-game" }],
+  "auto": 30
+}

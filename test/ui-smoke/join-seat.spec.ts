@@ -31,7 +31,13 @@ test.describe("UI Smoke Tests - Join Seat Flow", () => {
     await expect(page.getByTestId("start-game")).toHaveCount(0);
 
     await page.getByRole("button", { name: /Menu/i }).click();
-    await page.waitForTimeout(500); // Wait for menu to appear
+    const quitButton = page.getByRole("button", { name: /Quit Game/i });
+    try {
+      await quitButton.waitFor({ state: "visible", timeout: 5000 });
+    } catch {
+      await page.getByRole("button", { name: /Menu/i }).click();
+      await quitButton.waitFor({ state: "visible", timeout: 5000 });
+    }
     // Programmatically click to bypass view transition stability issues
     const clicked = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button"));

@@ -124,19 +124,17 @@ export function StartGameOverlay({
   const isSpectator = view.metadata?.role === "spectator";
   const canSpectatorStart = isSpectator && allSeatsAutomated;
 
+  const rulesState =
+    view.rulesState && typeof view.rulesState === "object"
+      ? (view.rulesState as Record<string, unknown>)
+      : null;
   const hasDealt =
-    typeof view.rulesState === "object" &&
-    view.rulesState !== null &&
-    "hasDealt" in view.rulesState &&
-    typeof (view.rulesState as { hasDealt?: boolean }).hasDealt === "boolean"
-      ? (view.rulesState as { hasDealt?: boolean }).hasDealt
+    rulesState &&
+    "hasDealt" in rulesState &&
+    typeof (rulesState as { hasDealt?: boolean }).hasDealt === "boolean"
+      ? (rulesState as { hasDealt?: boolean }).hasDealt
       : false;
-
   const isNextRound = (() => {
-    const rulesState =
-      view.rulesState && typeof view.rulesState === "object"
-        ? (view.rulesState as Record<string, unknown>)
-        : null;
     if (!rulesState) return false;
 
     const isNumber = (value: unknown): value is number =>
@@ -162,7 +160,7 @@ export function StartGameOverlay({
   const showTutorial = !isNextRound;
 
   const shouldShow =
-    !!view.gameId && !!playerId && allSeatsJoined && !hasDealt && !view.winner;
+    !!view.gameId && !!playerId && allSeatsJoined && !view.winner && !hasDealt;
 
   if (!shouldShow) return null;
 

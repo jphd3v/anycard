@@ -1,0 +1,127 @@
+{
+  "id": "cribbage-crib-flush-diff",
+  "rulesId": "cribbage",
+  "seed": "CRIB-SEED-1",
+  "description": "Crib flush does not count when the starter suit does not match.",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 44
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "crib",
+      "cardId": 46
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 42
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "crib",
+      "cardId": 49
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 10
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 30
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 14
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 25
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 29
+    },
+    { "type": "action", "playerId": "P1", "action": "go" },
+    { "type": "action", "playerId": "P2", "action": "go" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-hand",
+      "toPileId": "play",
+      "cardId": 13
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 32
+    },
+    { "type": "action", "playerId": "P2", "action": "go" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 21
+    },
+    { "type": "action", "playerId": "P2", "action": "show" }
+  ],
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "initial",
+      "hasDealt": false,
+      "dealNumber": 1,
+      "dealer": "P2",
+      "scores": {
+        "P1": 9,
+        "P2": 5
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": null,
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    },
+    "piles": {
+      "P1-show": { "size": 4 },
+      "P2-show": { "size": 4 },
+      "play": { "size": 0 },
+      "starter": { "size": 1 },
+      "crib": { "size": 4 }
+    }
+  }
+}

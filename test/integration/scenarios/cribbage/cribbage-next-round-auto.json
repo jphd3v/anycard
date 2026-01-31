@@ -1,0 +1,43 @@
+{
+  "id": "cribbage-next-round-auto",
+  "rulesId": "cribbage",
+  "seed": "CRIB-NEXT-ROUND",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 5000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "currentPlayer": null,
+    "rulesState": {
+      "phase": "initial",
+      "hasDealt": false,
+      "dealNumber": 2,
+      "dealer": "P1",
+      "scores": {
+        "P1": 25,
+        "P2": 19
+      },
+      "playCount": 0,
+      "playTotal": 0,
+      "lastPlayedBy": null,
+      "cannotPlay": [],
+      "starterSuit": null,
+      "currentRoundCards": [],
+      "playedCardsByPlayer": {
+        "P1": [],
+        "P2": []
+      }
+    },
+    "piles": {
+      "P1-show": { "size": 4 },
+      "P2-show": { "size": 4 },
+      "play": { "size": 0 },
+      "starter": { "size": 1 },
+      "crib": { "size": 4 }
+    }
+  }
+}
