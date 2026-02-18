@@ -1413,9 +1413,16 @@ To provide a natural break between rounds where players can review scores, use t
    - When a hand ends, set `hasDealt: false` and increment `dealNumber`.
    - This state automatically triggers the "Continue to next round" overlay in the frontend.
    - You may leave revealed cards on the table while `hasDealt` is false and gather them when `"start-game"` arrives. Use `gatherAllCards(...)` from `backend/src/rules/util/dealing.ts` to move everything back to the deck when you are ready to deal.
+   - Do **not** eagerly gather/reset all piles at hand-end only to reach this
+     state. Keep the table and scoreboard context reviewable until the user
+     confirms the next round.
 3. **Round Start**:
    - The player clicks "Start next round" (sending a `"start-game"` action).
    - The rule module's `validate` function catches `"start-game"` when `hasDealt` is false.
+   - Perform full reset here:
+     - `gatherAllCards(...)`,
+     - reset hand visibilities to `"owner"`,
+     - clear per-hand/per-round fields in `rulesState`.
    - **Shuffle**: Use the game `seed` (from `ValidationState`) and the current `dealNumber` to perform a deterministic shuffle of the deck.
    - **Deal**: Emit `move-cards` events to distribute the _shuffled_ cards.
    - Set `hasDealt: true`.

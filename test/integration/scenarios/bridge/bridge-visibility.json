@@ -14,7 +14,7 @@
     "piles": {
       "N-hand": { "visibility": "owner" },
       "E-hand": { "visibility": "owner" },
-      "S-hand": { "visibility": "owner" },
+      "S-hand": { "visibility": "public" },
       "W-hand": { "visibility": "owner" }
     }
   }

@@ -347,6 +347,68 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
   }
 }
 
+function isBetweenRoundsState(state: GameState): boolean {
+  if (state.winner) return false;
+  if (!state.rulesState || typeof state.rulesState !== "object") return false;
+
+  const rulesState = state.rulesState as Record<string, unknown>;
+  if (rulesState.hasDealt !== false) return false;
+
+  const getFiniteNumber = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const dealNumber = getFiniteNumber(rulesState.dealNumber);
+  const roundNumber = getFiniteNumber(rulesState.roundNumber);
+  const handNumber = getFiniteNumber(rulesState.handNumber);
+  const resultText =
+    typeof rulesState.result === "string" ? rulesState.result.trim() : "";
+
+  const hasProgressed =
+    (dealNumber !== null && dealNumber > 0) ||
+    (roundNumber !== null && roundNumber > 1) ||
+    (handNumber !== null && handNumber > 1) ||
+    resultText.length > 0;
+  return hasProgressed;
+}
+
+function assertNoPrematureRoundGatherOnTransition(
+  label: string,
+  prevState: GameState,
+  nextState: GameState,
+  events: GameEvent[],
+  stepLabel: string
+) {
+  if (!isBetweenRoundsState(nextState)) return;
+  if (prevState.winner || nextState.winner) return;
+
+  const prevRulesState =
+    prevState.rulesState && typeof prevState.rulesState === "object"
+      ? (prevState.rulesState as Record<string, unknown>)
+      : null;
+  if (!prevRulesState || prevRulesState.hasDealt !== true) return;
+
+  const moveToDeckEvents = events.filter(
+    (event): event is Extract<GameEvent, { type: "move-cards" }> =>
+      event.type === "move-cards" && event.toPileId === "deck"
+  );
+  if (moveToDeckEvents.length === 0) return;
+
+  const distinctFromPiles = new Set(
+    moveToDeckEvents.map((event) => event.fromPileId)
+  );
+  const hasLargeNonTrickMove = moveToDeckEvents.some(
+    (event) =>
+      event.cardIds.length >= 20 &&
+      event.fromPileId !== "table" &&
+      event.fromPileId !== "trick"
+  );
+
+  assert.ok(
+    distinctFromPiles.size < 2 && !hasLargeNonTrickMove,
+    `[integration] ${label}: deferred round reset invariant failed. Between-round transition appears to gather cards into deck before start-game. (at ${stepLabel})`
+  );
+}
+
 function initializeScenarioState(scenario: Scenario) {
   let state = loadAndValidateGameConfig(scenario.rulesId, scenario.seed);
   const gameId = scenario.gameId ?? `${scenario.rulesId}-integration`;
@@ -420,7 +482,15 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
       events.push(event);
     }
 
+    const previousState = state;
     state = applyEvents(state, result.engineEvents);
+    assertNoPrematureRoundGatherOnTransition(
+      label,
+      previousState,
+      state,
+      result.engineEvents,
+      `scripted intent ${index}`
+    );
   }
 
   assertExpectations(state, scenario.expect);
@@ -521,7 +591,15 @@ async function runAutoScenario(label: string, scenario: Scenario) {
       events.push(event);
     }
 
+    const previousState = state;
     state = applyEvents(state, result.engineEvents);
+    assertNoPrematureRoundGatherOnTransition(
+      label,
+      previousState,
+      state,
+      result.engineEvents,
+      `auto step ${index}`
+    );
 
     if (stopWhen?.dealNumberAtLeast !== undefined) {
       const rulesState = state.rulesState as { dealNumber?: number } | null;

@@ -17,28 +17,44 @@
       "belowEW": 0,
       "belowNS": 0,
       "bidding": {
-        "highestBid": null,
+        "highestBid": {
+          "bidder": "S",
+          "denomination": "no-trump",
+          "level": 7
+        },
         "history": [],
         "passesInRow": 0
       },
-      "contract": null,
+      "contract": {
+        "declarer": "N",
+        "declarerSide": "NS",
+        "doubled": false,
+        "level": 7,
+        "redoubled": false,
+        "targetTricks": 13,
+        "trumpSuit": "no-trump"
+      },
       "currentTrick": {
         "cards": [],
         "leadSuit": null
       },
-      "currentTrickNumber": 1,
+      "currentTrickNumber": 14,
       "dealNumber": 2,
       "dealerSeat": "E",
       "gamesEW": 0,
       "gamesNS": 0,
       "hasDealt": false,
-      "phase": "bidding",
-      "play": null,
+      "phase": "play",
+      "play": {
+        "dummyRevealed": true,
+        "dummySeat": "S",
+        "turnSeat": "N"
+      },
       "result": null,
       "rubberFinished": false,
       "trickLeader": "E",
-      "tricksEW": 0,
-      "tricksNS": 0
+      "tricksEW": 6,
+      "tricksNS": 7
     }
   }
 }

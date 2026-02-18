@@ -1423,7 +1423,6 @@ function finishRound(
     recap: [...rs.recap.slice(-4), `${summary} ${resultText}`],
   };
 
-  events.push(...gatherAllCards(state, { previousEvents: events }));
   withUiEvents(state, nextState, events, nextDealer);
 }
 
@@ -1682,7 +1681,6 @@ function annulBolshevikDeal(
     lastDealDelta: { N: 0, E: 0, S: 0, W: 0 },
     recap: [...rs.recap.slice(-4), "Bolshevik deal annulled (all passed)."],
   };
-  events.push(...gatherAllCards(state, { previousEvents: events }));
   events.push({
     type: "announce",
     text: "Bolshevik deal annulled (all passed). Next dealer.",

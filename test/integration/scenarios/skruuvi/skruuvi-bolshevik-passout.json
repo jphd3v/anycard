@@ -41,12 +41,12 @@
   "expect": {
     "currentPlayer": "E",
     "piles": {
-      "deck": { "size": 52, "visibility": "hidden" },
+      "deck": { "size": 4, "visibility": "hidden" },
       "table": { "size": 0, "visibility": "public" },
-      "N-hand": { "size": 0, "visibility": "owner" },
-      "E-hand": { "size": 0, "visibility": "owner" },
-      "S-hand": { "size": 0, "visibility": "owner" },
-      "W-hand": { "size": 0, "visibility": "owner" }
+      "N-hand": { "size": 12, "visibility": "owner" },
+      "E-hand": { "size": 12, "visibility": "owner" },
+      "S-hand": { "size": 12, "visibility": "owner" },
+      "W-hand": { "size": 12, "visibility": "owner" }
     },
     "actions": {
       "rows": 1,

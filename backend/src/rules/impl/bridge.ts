@@ -19,7 +19,6 @@ import type {
 import { loadGameMeta } from "../meta.js";
 import { getSuitSymbol } from "../../util/card-notation.js";
 import type { AiView, AiContext } from "../../../../shared/src/ai/types.js";
-import { projectPilesAfterEvents, type ProjectedPiles } from "../util/piles.js";
 import {
   gatherAllCards,
   shuffleAllCards,
@@ -513,58 +512,32 @@ function calculateDealScore(nextState: BridgeRulesState): string {
   )}${c.redoubled ? " redoubled" : c.doubled ? " doubled" : ""}, made ${tricksMade} tricks (${resultText}).`;
 }
 
-function resetForNextDeal(
-  state: ValidationState,
+function markNextDealPending(
   rulesState: BridgeRulesState,
-  projectedPiles?: ProjectedPiles,
   options?: { summary?: string }
 ) {
-  const events: EngineEvent[] = gatherAllCards(state, {
-    projectedPiles,
-  });
-
-  // Reset all hand visibilities to owner-only for the next deal
-  const seats: BridgeSeat[] = ["N", "E", "S", "W"];
-  for (const seat of seats) {
-    events.push({
-      type: "set-pile-visibility",
-      pileId: `${seat}-hand`,
-      visibility: "owner",
-    });
-  }
-
   const nextDealer = NEXT_PLAYER[rulesState.dealerSeat];
   const nextDealNumber = rulesState.dealNumber + 1;
 
-  // Build next recap: optionally collapse previous entries with summary
+  // Keep the finished table state visible; defer clearing/dealing to start-game.
   const nextRecap = options?.summary
-    ? [
-        options.summary,
-        `Hand ${nextDealNumber} started (dealer ${nextDealer}).`,
-      ]
-    : [
-        ...rulesState.recap,
-        `Hand ${nextDealNumber} started (dealer ${nextDealer}).`,
-      ];
+    ? [...rulesState.recap, options.summary]
+    : rulesState.recap;
 
   const nextRulesState: BridgeRulesState = {
     ...rulesState,
     hasDealt: false,
-    phase: "bidding",
     dealNumber: nextDealNumber,
     dealerSeat: nextDealer,
-    bidding: { history: [], highestBid: null, passesInRow: 0 },
-    contract: null,
-    play: null,
-    currentTrick: { cards: [], leadSuit: null },
-    currentTrickNumber: 1,
-    tricksNS: 0,
-    tricksEW: 0,
+    bidding: {
+      ...rulesState.bidding,
+      history: [],
+      passesInRow: 0,
+    },
     result: null,
     recap: nextRecap,
   };
-  events.push({ type: "set-rules-state", rulesState: nextRulesState });
-  return { events, nextRulesState };
+  return nextRulesState;
 }
 
 function handleBidding(
@@ -654,22 +627,30 @@ function handleBidding(
     nextPlayer = openingLeader;
     historyEntry = formatContractSummary(contract);
   } else if (!highestBid && passesInRow >= 4) {
-    const { events: rEvents, nextRulesState: rState } = resetForNextDeal(
-      state,
-      rulesState,
-      undefined,
-      { summary: `Hand ${rulesState.dealNumber} Result: Passed out.` }
-    );
+    const endedState: BridgeRulesState = {
+      ...rulesState,
+      phase,
+      bidding: { history, highestBid, passesInRow },
+      contract,
+      play,
+    };
+    const rState = markNextDealPending(endedState, {
+      summary: `Hand ${rulesState.dealNumber} Result: Passed out.`,
+    });
     return {
       valid: true,
       engineEvents: [
-        ...rEvents,
         {
           type: "announce",
           text: `Hand ${rulesState.dealNumber} Result: Passed out.`,
           anchor: { type: "screen" },
         },
         { type: "set-rules-state", rulesState: rState },
+        {
+          type: "set-actions",
+          actions: deriveActions(rState, rState.dealerSeat),
+        },
+        { type: "set-scoreboards", scoreboards: deriveScoreboards(rState) },
         { type: "set-current-player", player: rState.dealerSeat },
       ],
     };
@@ -848,16 +829,9 @@ function handlePlay(
         });
         nextPlayer = null;
       } else {
-        const projected = projectPilesAfterEvents(state, engineEvents, {
-          includeCards: true,
+        const rState = markNextDealPending(nextState, {
+          summary: dealSummary,
         });
-        const { events: rEvents, nextRulesState: rState } = resetForNextDeal(
-          state,
-          nextState,
-          projected,
-          { summary: dealSummary }
-        );
-        engineEvents.push(...rEvents);
         return {
           valid: true,
           engineEvents: [
@@ -978,6 +952,16 @@ export const bridgeRules: GameRuleModule = {
       if (intent.type === "action" && intent.action === "start-game") {
         const events: EngineEvent[] = gatherAllCards(state);
 
+        // Reset all hand visibilities to owner-only for the new deal.
+        const seats: BridgeSeat[] = ["N", "E", "S", "W"];
+        for (const seat of seats) {
+          events.push({
+            type: "set-pile-visibility",
+            pileId: `${seat}-hand`,
+            visibility: "owner",
+          });
+        }
+
         const nextDealNumber =
           rulesState.dealNumber === 0 ? 1 : rulesState.dealNumber;
 
@@ -995,10 +979,21 @@ export const bridgeRules: GameRuleModule = {
         );
         events.push(...dealEvents);
 
+        const baseRulesState = { ...rulesState };
+        delete (baseRulesState as Partial<BridgeRulesState>).trickLeader;
         const nextRS: BridgeRulesState = {
-          ...rulesState,
+          ...baseRulesState,
           hasDealt: true,
           dealNumber: nextDealNumber,
+          phase: "bidding",
+          bidding: { history: [], highestBid: null, passesInRow: 0 },
+          contract: null,
+          play: null,
+          currentTrick: { cards: [], leadSuit: null },
+          currentTrickNumber: 1,
+          tricksNS: 0,
+          tricksEW: 0,
+          result: null,
         };
         nextRS.recap = [
           ...nextRS.recap,

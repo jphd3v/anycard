@@ -34,7 +34,7 @@
       "hasDealt": false,
       "phase": "bidding",
       "play": null,
-      "recap": ["Hand 1 Result: Passed out.", "Hand 2 started (dealer E)."],
+      "recap": ["Hand 1 started (dealer N).", "Hand 1 Result: Passed out."],
       "result": null,
       "rubberFinished": false,
       "tricksEW": 0,

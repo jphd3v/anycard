@@ -1514,11 +1514,6 @@ export const canastaRules: GameRuleModule = {
           result: `Hand ${rulesState.dealNumber} Result: ${current} went out. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
         };
 
-        // Gather cards back to deck for next round
-        engineEvents.push(
-          ...gatherAllCards(state, { previousEvents: engineEvents })
-        );
-
         engineEvents.push({ type: "set-current-player", player: null });
         if (winner) {
           engineEvents.push({ type: "set-winner", winner });
@@ -1608,11 +1603,6 @@ export const canastaRules: GameRuleModule = {
           cardsPlayedToMeldsThisTurn: [],
           result: `Hand ${rulesState.dealNumber} Result: Stock empty. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
         };
-
-        // Gather cards back to deck for next round
-        engineEvents.push(
-          ...gatherAllCards(state, { previousEvents: engineEvents })
-        );
 
         engineEvents.push({ type: "set-current-player", player: null });
         if (winner) engineEvents.push({ type: "set-winner", winner });
@@ -2062,11 +2052,6 @@ export const canastaRules: GameRuleModule = {
               result: `Hand ${rulesState.dealNumber} Result: ${current} went out. Team A: ${handScore.A}, Team B: ${handScore.B}.`,
               recap: [handSummary], // Collapse to hand summary for new hand
             };
-
-            // Gather cards back to deck for next round
-            engineEvents.push(
-              ...gatherAllCards(state, { previousEvents: engineEvents })
-            );
 
             engineEvents.push({ type: "set-current-player", player: null });
             if (winner) engineEvents.push({ type: "set-winner", winner });

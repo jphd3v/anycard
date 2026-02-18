@@ -461,6 +461,21 @@ waiting for the next `"start-game"` action. You may leave revealed cards on the
 table while `hasDealt` is false, then gather/shuffle/deal when `"start-game"`
 arrives.
 
+**Deferred round reset contract (important):**
+
+- At hand/round end, do **not** perform a full gather/reset just to transition to
+  the overlay state. Set round-end `rulesState` (`hasDealt: false`, scores,
+  summary/result, next dealer/deal markers) and keep the table reviewable.
+- Perform full round reset on `"start-game"`:
+  - `gatherAllCards(...)`,
+  - reset hand visibilities to `"owner"`,
+  - clear per-hand/per-round rule fields,
+  - deterministic shuffle + deal,
+  - set `hasDealt: true`.
+- Exception: some games may move trick/capture cards into `deck` during normal
+  in-round play. That is fine. The key rule is: do not collapse multiple piles
+  into a new round state before the `"start-game"` transition.
+
 #### Frontend dealing overlay + animation sequencing (delicate)
 
 The frontend uses a **Start Game / Next Round overlay** to pace dealing and
