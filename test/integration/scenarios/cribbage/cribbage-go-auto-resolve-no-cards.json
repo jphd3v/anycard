@@ -1,8 +1,8 @@
 {
-  "id": "cribbage-go-keep-turn",
+  "id": "cribbage-go-auto-resolve-no-cards",
   "rulesId": "cribbage",
   "seed": "CRIB-GO-TURN",
-  "description": "After an opponent says Go, the current player can keep playing while they still have legal continuation cards.",
+  "description": "When opponent has already said Go and the acting player cannot continue after their play, resolve the sequence automatically.",
   "intents": [
     { "type": "action", "playerId": "P1", "action": "start-game" },
     {
@@ -68,12 +68,24 @@
       "fromPileId": "P1-hand",
       "toPileId": "play",
       "cardId": 2
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "play",
+      "cardId": 15
     }
   ],
   "expect": {
-    "currentPlayer": "P1",
+    "currentPlayer": "P2",
     "piles": {
-      "play": { "size": 5 }
+      "P1-hand": { "size": 0 },
+      "P2-hand": { "size": 2 },
+      "play": { "size": 6 }
     }
+  },
+  "expectLog": {
+    "contains": ["Last card (1 pt)"]
   }
 }

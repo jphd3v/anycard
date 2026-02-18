@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "jotai";
 import App from "./App";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AppErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -14,9 +14,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <Provider>
-      <ErrorBoundary>
+      <AppErrorBoundary>
         <App />
-      </ErrorBoundary>
+      </AppErrorBoundary>
     </Provider>
   </StrictMode>
 );

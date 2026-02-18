@@ -46,7 +46,11 @@ import {
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
 import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
 import { buildViewForPlayer } from "./view.js";
-import { listLegalIntentsForView, validateMove } from "./rule-engine.js";
+import {
+  listLegalIntentsForPlayer,
+  listLegalIntentsForView,
+  validateMove,
+} from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
 import {
   appendAiLogEntry,
@@ -118,6 +122,9 @@ export type GameSummary = {
 const playerRegistry = new Map<string, PlayerRegistryEntry>();
 const watchRegistry = new Map<string, string>(); // socketId -> gameId
 const seatAssignments = new Map<string, string>(); // key: `${gameId}:${playerId}` -> socketId
+const deadlockAssertStateVersionByGame = new Map<string, number>();
+
+const DEADLOCK_ASSERT_PREFIX = "[DEADLOCK_ASSERT]";
 const gameProcessingChains = new Map<string, Promise<void>>();
 const demoRoomsByRulesId = new Map<string, string>(); // rulesId -> gameId
 const roomTypeByGameId = new Map<string, RoomType>();
@@ -398,6 +405,7 @@ export function closeGameSession(io: Server, gameId: string): boolean {
   roomTypeByGameId.delete(gameId);
   persistenceByGameId.delete(gameId);
   gameProcessingChains.delete(gameId);
+  deadlockAssertStateVersionByGame.delete(gameId);
   closeGame(gameId);
   return true;
 }
@@ -550,6 +558,35 @@ export function broadcastStateToGame(
     return;
   }
 
+  const shouldRunDeadlockCheck = !lastEngineEvents?.some(
+    (event) => event.type === "fatal-error"
+  );
+  if (shouldRunDeadlockCheck) {
+    const maybeDeadlock = detectTurnDeadlock(gameId, state);
+    if (maybeDeadlock) {
+      const stateVersionBeforeFatal = getEvents(gameId).length;
+      const fatalEvent: GameEvent = {
+        id: Date.now(),
+        gameId,
+        playerId: null,
+        type: "fatal-error",
+        message: maybeDeadlock.message,
+        source: "engine",
+      };
+      appendEvent(gameId, fatalEvent);
+      deadlockAssertStateVersionByGame.set(gameId, stateVersionBeforeFatal + 1);
+
+      broadcastState(globalIoServer, playerRegistry, state, [
+        {
+          type: "fatal-error",
+          message: maybeDeadlock.message,
+          source: "engine",
+        },
+      ]);
+      return;
+    }
+  }
+
   broadcastState(
     globalIoServer,
     playerRegistry,
@@ -557,6 +594,78 @@ export function broadcastStateToGame(
     lastEngineEvents,
     lastAction
   );
+}
+
+function detectTurnDeadlock(
+  gameId: string,
+  state: GameState
+): { message: string } | null {
+  const plugin = GAME_PLUGINS[state.rulesId];
+  if (!plugin || !plugin.ruleModule.listLegalIntentsForPlayer) {
+    return null;
+  }
+
+  if (state.winner) {
+    deadlockAssertStateVersionByGame.delete(gameId);
+    return null;
+  }
+
+  const currentPlayer = state.currentPlayer;
+  if (!currentPlayer) {
+    deadlockAssertStateVersionByGame.delete(gameId);
+    return null;
+  }
+
+  const stateVersion = getEvents(gameId).length;
+  if (deadlockAssertStateVersionByGame.get(gameId) === stateVersion) {
+    return null;
+  }
+
+  try {
+    const currentPlayerIntents = listLegalIntentsForPlayer(
+      gameId,
+      currentPlayer
+    );
+    if (currentPlayerIntents.length > 0) {
+      deadlockAssertStateVersionByGame.delete(gameId);
+      return null;
+    }
+
+    const otherPlayersWithIntents = state.players
+      .map((player) => player.id)
+      .filter((playerId) => playerId !== currentPlayer)
+      .map((playerId) => ({
+        playerId,
+        count: listLegalIntentsForPlayer(gameId, playerId).length,
+      }))
+      .filter((entry) => entry.count > 0);
+
+    const rulesState =
+      state.rulesState && typeof state.rulesState === "object"
+        ? (state.rulesState as Record<string, unknown>)
+        : null;
+    const phase =
+      rulesState && typeof rulesState.phase === "string"
+        ? rulesState.phase
+        : "unknown";
+
+    const detail =
+      otherPlayersWithIntents.length > 0
+        ? `current player "${currentPlayer}" has no legal intents while other players do (${otherPlayersWithIntents
+            .map((entry) => `${entry.playerId}:${entry.count}`)
+            .join(", ")})`
+        : `current player "${currentPlayer}" has no legal intents and no other player has legal intents`;
+
+    return {
+      message: `${DEADLOCK_ASSERT_PREFIX} ${detail}. game=${gameId} rules=${state.rulesId} phase=${phase}`,
+    };
+  } catch (error) {
+    console.error("[DEADLOCK_ASSERT] Failed to evaluate deadlock", {
+      gameId,
+      error,
+    });
+    return null;
+  }
 }
 
 function enqueueGameWork(gameId: string, work: () => Promise<void>): void {

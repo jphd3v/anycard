@@ -1,15 +1,90 @@
 import { Component, type ReactNode } from "react";
+import { useAtomValue } from "jotai";
+import type { GameLogEntry } from "../../../shared/schemas";
 import { copyToClipboard } from "../utils/clipboard";
+import {
+  gameIdAtom,
+  gameLogAtom,
+  gameViewAtom,
+  roomSeedAtom,
+  rulesIdAtom,
+} from "../state";
+import { fetchGameLog } from "../socket";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 
 interface Props {
   children: ReactNode;
+  gameId?: string | null;
+  rulesId?: string | null;
+  gameName?: string | null;
+  seed?: string | null;
+  gameLog?: GameLogEntry[];
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
+}
+
+function formatTimestampWithMs(timestamp: string): string {
+  const parsed = new Date(timestamp);
+  if (!Number.isFinite(parsed.getTime())) return "";
+  const base = parsed.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+  return `${base}.${String(parsed.getMilliseconds()).padStart(3, "0")}`;
+}
+
+function formatGameLogForClipboard({
+  gameName,
+  gameId,
+  seed,
+  entries,
+}: {
+  gameName?: string | null;
+  gameId?: string | null;
+  seed?: string | null;
+  entries: GameLogEntry[];
+}): string {
+  const title = gameName?.trim() || "Unknown";
+  const roomId = gameId?.trim() || "unknown";
+  const seedLabel = seed?.trim() || "unknown";
+
+  let output = `Game log: ${title} (room id: ${roomId}, seed ${seedLabel})\n\n`;
+  if (entries.length === 0) {
+    output += "No game log entries available.";
+    return output;
+  }
+
+  const grouped = new Map<number, GameLogEntry[]>();
+  for (const entry of [...entries].sort((a, b) => a.index - b.index)) {
+    if (!grouped.has(entry.turnNumber)) {
+      grouped.set(entry.turnNumber, []);
+    }
+    grouped.get(entry.turnNumber)!.push(entry);
+  }
+
+  for (const [turnNumber, groupEntries] of grouped.entries()) {
+    const actor = groupEntries.find((entry) => entry.actorId)?.actorId;
+    const heading = turnNumber > 0 ? `Turn ${turnNumber}` : "Setup";
+    output += actor ? `${heading} · ${actor}\n` : `${heading}\n`;
+
+    for (const entry of groupEntries) {
+      if (entry.timestamp) {
+        const ts = formatTimestampWithMs(entry.timestamp);
+        output += `${ts} ${entry.message}\n`;
+      } else {
+        output += `${entry.message}\n`;
+      }
+    }
+    output += "\n";
+  }
+
+  return output.trimEnd();
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -50,6 +125,32 @@ export class ErrorBoundary extends Component<Props, State> {
     ].join("\n");
 
     await copyToClipboard(errorText);
+  };
+
+  handleCopyGameLog = async () => {
+    const { gameId, gameName, rulesId, seed } = this.props;
+    let entries = this.props.gameLog ?? [];
+
+    if (gameId) {
+      try {
+        entries = await fetchGameLog(gameId);
+      } catch (error) {
+        console.error(
+          "Failed to fetch latest game log in ErrorBoundary",
+          error
+        );
+      }
+    }
+
+    const gameLabel = gameName ?? rulesId ?? "Unknown";
+    const logText = formatGameLogForClipboard({
+      gameName: gameLabel,
+      gameId,
+      seed,
+      entries,
+    });
+
+    await copyToClipboard(logText);
   };
 
   handleTryContinue = () => {
@@ -108,6 +209,13 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 className="button-secondary px-3 py-1.5 text-sm"
+                onClick={this.handleCopyGameLog}
+              >
+                Copy game log
+              </button>
+              <button
+                type="button"
+                className="button-secondary px-3 py-1.5 text-sm"
                 onClick={this.handleCopyError}
               >
                 Copy error info
@@ -134,4 +242,34 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+interface AppErrorBoundaryProps {
+  children: ReactNode;
+}
+
+export function AppErrorBoundary({ children }: AppErrorBoundaryProps) {
+  const gameId = useAtomValue(gameIdAtom);
+  const rulesId = useAtomValue(rulesIdAtom);
+  const view = useAtomValue(gameViewAtom);
+  const roomSeed = useAtomValue(roomSeedAtom);
+  const gameLog = useAtomValue(gameLogAtom);
+
+  const metadataSeed =
+    view?.metadata && typeof view.metadata.seed === "string"
+      ? view.metadata.seed
+      : null;
+  const effectiveSeed = metadataSeed ?? roomSeed ?? null;
+
+  return (
+    <ErrorBoundary
+      gameId={gameId}
+      rulesId={rulesId}
+      gameName={view?.gameName ?? rulesId ?? null}
+      seed={effectiveSeed}
+      gameLog={gameLog}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }

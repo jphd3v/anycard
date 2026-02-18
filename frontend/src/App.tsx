@@ -119,12 +119,17 @@ type PendingAnnouncement = {
 const MAX_ANNOUNCEMENT_QUEUE_SIZE = 12;
 const ANNOUNCEMENT_BURST_WINDOW_MS = 350;
 const ANNOUNCEMENT_CHAIN_GAP_MS = 140;
+const DEADLOCK_ASSERT_PREFIX = "[DEADLOCK_ASSERT]";
 
 function getAnnouncementAnchorKey(anchor?: AnnounceAnchor): string {
   if (anchor?.type === "pile") {
     return `pile:${anchor.pileId}`;
   }
   return "screen";
+}
+
+function isDeadlockAssertionMessage(message: string): boolean {
+  return message.includes(DEADLOCK_ASSERT_PREFIX);
 }
 
 export default function App() {
@@ -171,7 +176,7 @@ export default function App() {
   const setIsConnected = useSetAtom(isConnectedAtom);
   const setActiveTransitionCardIds = useSetAtom(activeTransitionCardIdsAtom);
   const setPendingDragMove = useSetAtom(pendingDragMoveAtom);
-  const setFatalError = useSetAtom(fatalErrorAtom);
+  const [fatalError, setFatalError] = useAtom(fatalErrorAtom);
   const setAiLog = useSetAtom(aiLogAtom);
   const setAiHistoricalUnavailable = useSetAtom(aiHistoricalUnavailableAtom);
   const setGameLog = useSetAtom(gameLogAtom);
@@ -180,6 +185,8 @@ export default function App() {
   const [joinedGameId, setJoinedGameId] = useState<string | null>(null);
   const [joinAsGodMode, setJoinAsGodMode] = useState(false);
   const [isInitialGameLoad, setIsInitialGameLoad] = useState(true);
+  const [boundaryEscalationError, setBoundaryEscalationError] =
+    useState<Error | null>(null);
 
   const [themeSetting, setThemeSetting] = useAtom(themeSettingAtom);
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
@@ -223,6 +230,21 @@ export default function App() {
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
   }, [pendingDragMove]);
+
+  useEffect(() => {
+    if (!fatalError) return;
+    if (boundaryEscalationError) return;
+    if (!isDeadlockAssertionMessage(fatalError.message)) return;
+
+    setFatalError(null);
+    setBoundaryEscalationError(
+      new Error(`Runtime deadlock assertion failed.\n${fatalError.message}`)
+    );
+  }, [boundaryEscalationError, fatalError, setFatalError]);
+
+  if (boundaryEscalationError) {
+    throw boundaryEscalationError;
+  }
 
   const clearSkipStartGameAnimations = useCallback(() => {
     skipAnimationsRef.current = false;

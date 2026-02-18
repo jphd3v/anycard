@@ -16,6 +16,7 @@ import {
 type LivenessFailure = {
   kind:
     | "no-legal-intents"
+    | "current-player-stuck"
     | "loop-detected"
     | "no-valid-legal-intent"
     | "apply-events-failed"
@@ -140,27 +141,53 @@ function withAiProfile(state: GameState, variant: number): GameState {
   };
 }
 
-function collectCandidates(
+function collectAllCandidates(
   state: GameState,
   events: GameEvent[]
-): { candidates: ClientIntent[]; source: string } {
-  const currentPlayer = state.currentPlayer;
-  if (currentPlayer) {
-    const forCurrent = listLegalIntentsForPlayerLocal(
-      state,
-      events,
-      currentPlayer
-    );
-    if (forCurrent.length > 0) {
-      return { candidates: forCurrent, source: `current:${currentPlayer}` };
-    }
-  }
-
+): ClientIntent[] {
   const all: ClientIntent[] = [];
   for (const player of state.players) {
     all.push(...listLegalIntentsForPlayerLocal(state, events, player.id));
   }
-  return { candidates: all, source: "all-players" };
+  return all;
+}
+
+function collectCandidates(
+  state: GameState,
+  events: GameEvent[]
+): {
+  candidates: ClientIntent[];
+  source: string;
+  currentPlayerCandidates: ClientIntent[];
+} {
+  const currentPlayer = state.currentPlayer;
+  if (currentPlayer) {
+    const currentPlayerCandidates = listLegalIntentsForPlayerLocal(
+      state,
+      events,
+      currentPlayer
+    );
+    if (currentPlayerCandidates.length > 0) {
+      return {
+        candidates: currentPlayerCandidates,
+        source: `current:${currentPlayer}`,
+        currentPlayerCandidates,
+      };
+    }
+
+    return {
+      candidates: [],
+      source: `current:${currentPlayer}`,
+      currentPlayerCandidates,
+    };
+  }
+
+  const allCandidates = collectAllCandidates(state, events);
+  return {
+    candidates: allCandidates,
+    source: "all-players",
+    currentPlayerCandidates: [],
+  };
 }
 
 async function runSingleVariant(
@@ -234,10 +261,12 @@ async function runSingleVariant(
 
     let candidates: ClientIntent[] = [];
     let source = "";
+    let currentPlayerCandidates: ClientIntent[] = [];
     try {
       const collected = collectCandidates(state, events);
       candidates = collected.candidates;
       source = collected.source;
+      currentPlayerCandidates = collected.currentPlayerCandidates;
     } catch (err) {
       return {
         rulesId,
@@ -252,6 +281,25 @@ async function runSingleVariant(
           message: `list legal intents failed: ${String(err)} state=${summarizeState(state)}`,
         },
       };
+    }
+
+    if (state.currentPlayer && currentPlayerCandidates.length === 0) {
+      const allCandidates = collectAllCandidates(state, events);
+      if (allCandidates.length > 0) {
+        return {
+          rulesId,
+          seed,
+          variant,
+          ok: false,
+          winner: state.winner,
+          steps: step,
+          failure: {
+            kind: "current-player-stuck",
+            step,
+            message: `current player ${state.currentPlayer} has no legal intents while other players do (${allCandidates.length}) state=${summarizeState(state)}`,
+          },
+        };
+      }
     }
 
     if (candidates.length === 0) {

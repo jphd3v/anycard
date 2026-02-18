@@ -1067,7 +1067,17 @@ export const cribbageRuleModule: GameRuleModule = {
               currentRoundCards: [],
             };
 
-            const nextPlayer = lastPlayer;
+            const lastPlayerHandSize =
+              state.piles[`${lastPlayer}-hand`]?.size ?? 0;
+            const otherPlayerOfLast = getOtherPlayer(lastPlayer, players);
+            const otherPlayerHandSize =
+              state.piles[`${otherPlayerOfLast}-hand`]?.size ?? 0;
+            const nextPlayer =
+              lastPlayerHandSize > 0
+                ? lastPlayer
+                : otherPlayerHandSize > 0
+                  ? otherPlayerOfLast
+                  : lastPlayer;
             engineEvents.push({ type: "set-rules-state", rulesState: nextRs });
             engineEvents.push({
               type: "set-current-player",
@@ -1236,6 +1246,14 @@ export const cribbageRuleModule: GameRuleModule = {
         (p1HandPile?.size || 0) - (fromPileId === "P1-hand" ? 1 : 0);
       const p2Remaining =
         (p2HandPile?.size || 0) - (fromPileId === "P2-hand" ? 1 : 0);
+      const actingPlayerRemaining =
+        intent.playerId === "P1" ? p1Remaining : p2Remaining;
+      const otherPlayerRemaining =
+        intent.playerId === "P1" ? p2Remaining : p1Remaining;
+      const remainingHandCards = handPile.cards.filter((c) => c.id !== cardId);
+      const actingPlayerCanContinue = remainingHandCards.some(
+        (remainingCard) => newTotal + cardValue(remainingCard) <= 31
+      );
 
       if (p1Remaining === 0 && p2Remaining === 0) {
         // All cards played
@@ -1272,6 +1290,59 @@ export const cribbageRuleModule: GameRuleModule = {
       } else {
         // Continue playing
         const otherPlayer = getOtherPlayer(intent.playerId, players);
+        const otherPlayerAlreadySaidGo = nextCannotPlay.includes(otherPlayer);
+
+        // If opponent already said "Go" and the acting player has no legal
+        // continuation, resolve the sequence immediately without requiring an
+        // extra "Go" click from a player with no playable cards.
+        if (
+          !isThirtyOne &&
+          otherPlayerAlreadySaidGo &&
+          !actingPlayerCanContinue
+        ) {
+          newScores[intent.playerId] = (newScores[intent.playerId] || 0) + 1;
+          engineEvents.push({
+            type: "announce",
+            text: `${intent.playerId}: Last card (1 pt)`,
+            anchor: {
+              type: "pile",
+              pileId: "play",
+            },
+          });
+
+          const resetRs: CribbageRulesState = {
+            ...nextRs,
+            playTotal: 0,
+            cannotPlay: [],
+            lastPlayedBy: null,
+            scores: newScores,
+            currentRoundCards: [],
+          };
+          const nextPlayer =
+            actingPlayerRemaining > 0
+              ? intent.playerId
+              : otherPlayerRemaining > 0
+                ? otherPlayer
+                : intent.playerId;
+
+          engineEvents.push({ type: "set-rules-state", rulesState: resetRs });
+          engineEvents.push({ type: "set-current-player", player: nextPlayer });
+          engineEvents.push({
+            type: "set-actions",
+            actions: deriveActions(state, resetRs, nextPlayer),
+          });
+          engineEvents.push({
+            type: "set-scoreboards",
+            scoreboards: deriveScoreboards(resetRs),
+          });
+
+          if (newScores[intent.playerId]! >= WINNING_SCORE) {
+            engineEvents.push({ type: "set-winner", winner: intent.playerId });
+          }
+
+          return { valid: true, engineEvents };
+        }
+
         const nextPlayer = isThirtyOne
           ? otherPlayer
           : nextCannotPlay.includes(otherPlayer)

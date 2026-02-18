@@ -86,7 +86,6 @@
     },
     { "type": "action", "playerId": "P2", "action": "go" },
     { "type": "action", "playerId": "P1", "action": "go" },
-    { "type": "action", "playerId": "P1", "action": "go" },
     {
       "type": "move",
       "playerId": "P2",

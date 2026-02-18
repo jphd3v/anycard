@@ -105,6 +105,7 @@ Set `COVERAGE_EXPLORE_PROBE_EVERY` (>0) to add periodic invalid-intent probes.
 fails on:
 
 - no legal intents (while winner is not set),
+- current player has no legal intents while a different player does,
 - repeated state loops,
 - max-move stalls,
 - invalid intents returned by legal-intent listing.
