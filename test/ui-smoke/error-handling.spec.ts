@@ -333,12 +333,16 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
     await skipStartGameOverlayIfPresent(page);
     await page.locator(".game-layout").first().waitFor();
 
-    // Open menu
-    await page.getByRole("button", { name: /Menu/i }).click();
+    // Open menu — wait for the button to be enabled first (it is disabled
+    // while end-game overlays are visible and may briefly stay disabled after
+    // the start-game overlay dismissal due to rendering race conditions).
+    const menuBtn = page.getByRole("button", { name: /Menu/i });
+    await expect(menuBtn).toBeEnabled({ timeout: 10000 });
+    await menuBtn.click();
 
     // Seed should be visible (note: title is "Copy Seed" with capital S)
     const seedButton = page.getByTitle("Copy Seed");
-    await expect(seedButton).toBeVisible();
+    await expect(seedButton).toBeVisible({ timeout: 10000 });
 
     const seedText = await seedButton.textContent();
     expect(seedText).toBeTruthy();

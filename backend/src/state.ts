@@ -168,6 +168,10 @@ export function getAllGameIds(): string[] {
   return Array.from(initialStateByGame.keys());
 }
 
+export function isGameFinished(gameId: string): boolean {
+  return finishedAtByGame.has(gameId);
+}
+
 export function initGame(state: GameState) {
   if (getActiveGameCount() >= MAX_ACTIVE_GAMES) {
     throw new Error(

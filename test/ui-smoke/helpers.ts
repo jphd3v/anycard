@@ -68,8 +68,7 @@ export async function goToLobby(page: Page): Promise<void> {
 
 export async function openGameDetails(page: Page): Promise<void> {
   await page.getByTestId(`game:${DEFAULT_RULES_ID}`).click();
-  // Wait for the modal to open by checking for the "Advanced" button or "Start Private Room" button
-  await page.waitForTimeout(500);
+  // Wait for the modal to fully open by checking for the "Advanced" button
   await expect(page.getByRole("button", { name: /Advanced/i })).toBeVisible({
     timeout: 15000,
   });

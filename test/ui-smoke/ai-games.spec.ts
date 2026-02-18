@@ -46,8 +46,8 @@ test.describe("UI Smoke Tests - AI Games", () => {
       timeout: 15000,
     });
 
-    // Wait a moment to ensure AI starts playing
-    await page.waitForTimeout(2000);
+    // Give AI time to play a few moves — we just need to confirm no crash
+    await page.waitForTimeout(3000);
 
     // Verify game is still running (no crash)
     await expect(page.locator(".game-layout").first()).toBeVisible();
@@ -75,20 +75,19 @@ test.describe("UI Smoke Tests - AI Games", () => {
       timeout: 15000,
     });
 
-    // Wait for at least one AI move
-    await page.waitForTimeout(2000);
+    // Wait for AI to make at least one move before checking the log
+    await page.waitForTimeout(3000);
 
-    // Open menu to check game log
-    await page.getByRole("button", { name: /Menu/i }).click();
+    // Open the game log via the "Show game log" button (TurnStatusBadge)
+    await page.getByRole("button", { name: /Show game log/i }).click();
 
-    // Verify game log exists and has content
-    const gameLog = page.locator('[data-testid="game-log"]');
-    if (await gameLog.isVisible().catch(() => false)) {
-      const logText = await gameLog.textContent();
-      // Log should have some moves recorded
-      expect(logText).toBeTruthy();
-      expect(logText!.length).toBeGreaterThan(10);
-    }
+    // Verify the game log dialog opened and has content
+    const gameLogDialog = page.getByRole("dialog", { name: /Game Log/i });
+    await expect(gameLogDialog).toBeVisible({ timeout: 5000 });
+    const logText = await gameLogDialog.textContent();
+    // Log should have some moves recorded
+    expect(logText).toBeTruthy();
+    expect(logText!.length).toBeGreaterThan(10);
 
     assertNoConsoleErrors(consoleMessages);
   });
@@ -178,8 +177,10 @@ test.describe("UI Smoke Tests - AI Games", () => {
       timeout: 15000,
     });
 
-    // Wait for game to be in progress
-    await page.waitForTimeout(1000);
+    // Ensure game state has loaded before simulating disconnect
+    await expect(page.locator("[data-testid^='pile:']").first()).toBeVisible({
+      timeout: 10000,
+    });
 
     // Simulate network disconnect while AI might be thinking
     await context.setOffline(true);
@@ -197,8 +198,10 @@ test.describe("UI Smoke Tests - AI Games", () => {
       timeout: 15000,
     });
 
-    // Game should still be functional
-    await page.waitForTimeout(1000);
+    // Game should still be functional — verify piles are rendered after reconnect
+    await expect(page.locator("[data-testid^='pile:']").first()).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.locator(".game-layout").first()).toBeVisible();
 
     assertNoConsoleErrors(consoleMessages);

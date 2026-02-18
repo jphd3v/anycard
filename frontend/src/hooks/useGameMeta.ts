@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SERVER_URL } from "../socket";
+import { SERVER_URL, fetchWithTimeout } from "../socket";
 
 type GameMeta = {
   rulesId: string;
@@ -35,7 +35,9 @@ export function useGameMeta(
     let mounted = true;
     const fetchMeta = async () => {
       try {
-        const res = await fetch(`${SERVER_URL}/rules/${rulesId}/meta.json`);
+        const res = await fetchWithTimeout(
+          `${SERVER_URL}/rules/${rulesId}/meta.json`
+        );
         if (!res.ok) {
           metaCache.set(rulesId, null);
           if (mounted) setMeta(null);

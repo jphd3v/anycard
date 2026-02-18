@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_CARD_BACK, DEFAULT_CARD_SET } from "../cardSets";
+import { fetchWithTimeout } from "../socket";
 
 const DEFAULT_ASPECT_RATIO = 5 / 7;
 const MIN_ASPECT_RATIO = 0.45;
@@ -60,7 +61,7 @@ export function useCardSetAspectRatio(
     let mounted = true;
     const run = async () => {
       try {
-        const res = await fetch(
+        const res = await fetchWithTimeout(
           `/cards/${effectiveId}/${DEFAULT_CARD_BACK}.svg`
         );
         if (!res.ok) return;

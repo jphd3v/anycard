@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { SERVER_URL } from "../../socket";
+import { SERVER_URL, fetchWithTimeout } from "../../socket";
 import { Overlay } from "../Overlay";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { ScrollShadowWrapper } from "../ScrollShadowWrapper";
@@ -78,7 +78,7 @@ export function GameDetailsModal({
       await Promise.all(
         roomsToCheck.map(async (room) => {
           try {
-            const res = await fetch(
+            const res = await fetchWithTimeout(
               `${SERVER_URL}/active-games/${room.gameId}`
             );
             if (res.ok) {
@@ -247,7 +247,7 @@ export function GameDetailsModal({
   useEffect(() => {
     if (activeTab === "rules" && !rulesText) {
       setLoadingRules(true);
-      fetch(`${SERVER_URL}/rules/${game.id}/${game.id}.rules.md`)
+      fetchWithTimeout(`${SERVER_URL}/rules/${game.id}/${game.id}.rules.md`)
         .then((res) => {
           if (!res.ok) throw new Error("No rules found");
           return res.text();

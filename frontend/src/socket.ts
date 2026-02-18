@@ -104,7 +104,7 @@ export function clearServerUrlOverride(): void {
 /**
  * Fetch with AbortController timeout to prevent indefinite hangs.
  */
-async function fetchWithTimeout(
+export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init?: RequestInit,
   timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS

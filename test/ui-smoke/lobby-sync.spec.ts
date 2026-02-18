@@ -248,7 +248,9 @@ test.describe("UI Smoke Tests - Lobby State Synchronization", () => {
     });
 
     await otherContext.close();
-    assertNoConsoleErrors(consoleMessages);
+    assertNoConsoleErrors(consoleMessages, [
+      /Failed to fetch/i, // fetchWithTimeout may log network errors during context teardown
+    ]);
   });
 
   test("Spectator sees real-time game updates", async ({ page, browser }) => {

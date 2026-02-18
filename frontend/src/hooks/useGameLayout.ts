@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SERVER_URL } from "../socket";
+import { SERVER_URL, fetchWithTimeout } from "../socket";
 import type { GameLayout } from "../../../shared/schemas";
 
 // Cache with TTL to prevent unbounded growth
@@ -78,7 +78,9 @@ export function useGameLayout(rulesId: string): GameLayout | null {
       cleanExpiredCache();
 
       for (const filename of filenames) {
-        const res = await fetch(`${SERVER_URL}/rules/${rulesId}/${filename}`);
+        const res = await fetchWithTimeout(
+          `${SERVER_URL}/rules/${rulesId}/${filename}`
+        );
         if (res.ok) {
           const data = await res.json();
           layoutCache.set(cacheKey, { layout: data, timestamp: Date.now() });
