@@ -273,12 +273,12 @@ export function GameDetailsModal({
     <Overlay
       translucent
       blurred
-      className="items-center landscape:items-start justify-center p-4 sm:p-6 landscape:pt-8 landscape:overflow-y-auto"
+      className="items-stretch justify-stretch p-0 lg:items-center lg:justify-center lg:p-6"
       onClick={onClose}
     >
       {/* Modal Content */}
       <div
-        className="relative w-full max-w-[640px] landscape:max-w-4xl bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[90vh] landscape:max-h-none sm:max-h-[800px] animate-in fade-in zoom-in-95 duration-300 overflow-hidden landscape:mb-8"
+        className="relative w-full min-h-full lg:min-h-0 lg:w-auto lg:h-auto lg:max-w-[640px] lg:landscape:max-w-4xl bg-surface-1 rounded-none lg:rounded-2xl shadow-floating flex flex-col lg:max-h-[90vh] animate-in fade-in zoom-in-95 duration-300 overflow-y-auto lg:overflow-hidden"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
@@ -287,8 +287,27 @@ export function GameDetailsModal({
         ref={modalRef}
       >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-surface-2 flex items-center justify-between bg-surface-1/50 backdrop-blur-md rounded-t-2xl sticky top-0 z-10">
-          <div className="flex items-baseline gap-2 overflow-hidden mr-2">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-surface-2 flex items-center justify-center bg-surface-1/50 backdrop-blur-md lg:rounded-t-2xl lg:sticky lg:top-0 z-10 relative">
+          <button
+            onClick={onClose}
+            className="absolute left-2 sm:left-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors z-20"
+            aria-label="Back"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+          </button>
+          <div className="flex items-baseline gap-2 overflow-hidden">
             <h2
               id={titleId}
               className="text-lg sm:text-xl md:text-2xl font-serif-display font-bold text-ink whitespace-nowrap"
@@ -307,24 +326,6 @@ export function GameDetailsModal({
               </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 -mr-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors relative z-20"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
         </div>
         {/* Tabs */}
         <div className="flex border-b border-surface-2 px-4 sm:px-6 relative z-10 shrink-0">
@@ -351,8 +352,8 @@ export function GameDetailsModal({
         </div>
         {/* Content Area */}
         <ScrollShadowWrapper
-          className="flex-1 relative z-10 min-h-0"
-          innerClassName="scrollbar-hide"
+          className="flex-none lg:flex-1 relative z-10 lg:min-h-0 overflow-visible lg:overflow-hidden"
+          innerClassName="scrollbar-hide overflow-visible lg:overflow-auto"
         >
           <div className="p-4 sm:p-6 w-fit min-w-full">
             {activeTab === "play" && (

@@ -13,6 +13,7 @@ import {
 import { CARD_SETS, findCardSetById } from "../cardSets";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 import { safeStartViewTransition } from "../utils/viewTransition";
+import { Overlay } from "./Overlay";
 
 interface GameMenuProps {
   gameId: string;
@@ -105,12 +106,13 @@ export function GameMenu({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
+    <Overlay
+      blurred
+      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
       onClick={handleBackdropClick}
     >
       <div
-        className="relative w-full max-w-[1280px] h-full max-h-[820px] bg-surface-1 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-surface-3"
+        className="relative w-full max-w-[1280px] h-full sm:max-h-[820px] bg-surface-1 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-surface-3"
         onClick={(e) => e.stopPropagation()}
         style={{ viewTransitionName: "game-menu-content" }}
       >
@@ -581,7 +583,7 @@ export function GameMenu({
           </div>
         </ScrollShadowWrapper>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

@@ -6,6 +6,7 @@ import {
   openGameDetails,
   rejoinAsPlayer,
   seedLocalStorage,
+  skipStartGameOverlayIfPresent,
   startPrivateGame,
   trackConsoleMessages,
 } from "./helpers";
@@ -28,7 +29,7 @@ test.describe("UI Smoke Tests - Join Seat Flow", () => {
     await seatToggle.click();
     await expect(page.getByTestId("start-game")).toBeVisible();
     await page.getByTestId("start-game").click();
-    await expect(page.getByTestId("start-game")).toHaveCount(0);
+    await skipStartGameOverlayIfPresent(page);
 
     await page.getByRole("button", { name: /Menu/i }).click();
     const quitButton = page.getByRole("button", { name: /Quit Game/i });

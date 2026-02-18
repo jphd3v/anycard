@@ -8,6 +8,7 @@ import {
   readRoomIdFromLobby,
   rejoinAsPlayer,
   seedLocalStorage,
+  skipStartGameOverlayIfPresent,
   startPrivateGame,
   trackConsoleMessages,
 } from "./helpers";
@@ -183,19 +184,33 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
     // Start game
     await page.getByTestId("seat-ai-toggle:P2").click();
     await page.getByTestId("start-game").click();
+    await skipStartGameOverlayIfPresent(page);
     await page.locator(".game-layout").first().waitFor();
 
     // Exit to lobby via menu
     await page.getByRole("button", { name: /Menu/i }).click();
-    await page.waitForTimeout(500); // Wait for menu to appear
+    const quitButton = page.getByRole("button", { name: /Quit Game/i });
+    try {
+      await quitButton.waitFor({ state: "visible", timeout: 5000 });
+    } catch {
+      await page.getByRole("button", { name: /Menu/i }).click();
+      await quitButton.waitFor({ state: "visible", timeout: 5000 });
+    }
     // Programmatically click to bypass view transition stability issues
-    await page.evaluate(() => {
+    const clicked = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button"));
       const quitButton = buttons.find((b) =>
         b.textContent?.includes("Quit Game")
       );
-      quitButton?.click();
+      if (quitButton) {
+        quitButton.click();
+        return true;
+      }
+      return false;
     });
+    if (!clicked) {
+      throw new Error("Quit Game button not found - cannot click");
+    }
     await page
       .getByRole("dialog", { name: /Exit to room lobby/i })
       .waitFor({ state: "visible" });
@@ -312,6 +327,7 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
 
     await page.getByTestId("seat-ai-toggle:P2").click();
     await page.getByTestId("start-game").click();
+    await skipStartGameOverlayIfPresent(page);
     await page.locator(".game-layout").first().waitFor();
 
     // Open menu

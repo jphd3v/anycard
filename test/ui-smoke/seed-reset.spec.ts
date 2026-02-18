@@ -5,6 +5,7 @@ import {
   goToLobby,
   openGameDetails,
   rejoinAsPlayer,
+  skipStartGameOverlayIfPresent,
   startPrivateGame,
   trackConsoleMessages,
 } from "./helpers";
@@ -23,7 +24,7 @@ test.describe("UI Smoke Tests - Seed Reset", () => {
     await seatToggle.click();
     await expect(page.getByTestId("start-game")).toBeVisible();
     await page.getByTestId("start-game").click();
-    await expect(page.getByTestId("start-game")).toHaveCount(0);
+    await skipStartGameOverlayIfPresent(page);
 
     await page.locator(".game-layout").first().waitFor();
     await page.getByRole("button", { name: /Menu/i }).click();

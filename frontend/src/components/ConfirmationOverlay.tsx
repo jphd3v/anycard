@@ -41,11 +41,11 @@ export function ConfirmationOverlay({
     <Overlay
       translucent
       blurred
-      className="items-center justify-center p-4"
+      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-2xl border border-surface-3 bg-surface-1 shadow-floating p-5 sm:p-6 flex flex-col gap-4 items-center text-center"
+        className="w-full max-w-sm rounded-2xl border border-surface-3 bg-surface-1 shadow-floating p-5 sm:p-6 flex flex-col gap-4 items-center text-center justify-center"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

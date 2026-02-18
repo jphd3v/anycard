@@ -21,6 +21,7 @@ import { copyToClipboard } from "../utils/clipboard";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 import { GameMenu } from "./GameMenu";
 import { safeStartViewTransition } from "../utils/viewTransition";
+import { Overlay } from "./Overlay";
 
 interface GameHUDProps {
   gameId: string;
@@ -328,13 +329,17 @@ export function GameHUD({
 
       {/* --- Game Log Modal --- */}
       {isAiLogVisible && (
-        <>
+        <Overlay
+          className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+          onClick={() => setAiLogVisible(false)}
+        >
           <div
-            className="fixed inset-0 z-[125] bg-black/60 pointer-events-auto"
-            onClick={() => setAiLogVisible(false)}
-          />
-
-          <div className="ai-log-modal fixed inset-x-4 inset-y-16 z-[130] max-h-[80vh] overflow-hidden rounded-xl bg-surface-1 border border-surface-3 shadow-xl flex flex-col pb-4">
+            className="ai-log-modal w-full max-w-[1280px] h-full sm:max-h-[820px] overflow-hidden rounded-xl bg-surface-1 border border-surface-3 shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Game Log"
+          >
             <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -501,7 +506,7 @@ export function GameHUD({
               </div>
             </ScrollShadowWrapper>
           </div>
-        </>
+        </Overlay>
       )}
     </>
   );

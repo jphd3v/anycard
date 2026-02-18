@@ -108,6 +108,28 @@ body {
   background-size: 20px 20px;
 }
 
+dialog {
+  border: none;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  box-sizing: border-box;
+}
+
+dialog[open] {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+dialog::backdrop {
+  background: transparent;
+}
+
 /* 2. THE CARD ENGINE: Single source of truth */
 :root {
   /* Aspect Ratio of standard cards (2.5 x 3.5 inches -> ~0.714) */
@@ -961,18 +983,6 @@ body,
   .seat-selection-panel {
     transform-origin: top center;
     touch-action: pan-y;
-  }
-
-  @media (max-width: 430px) {
-    .seat-selection-panel {
-      transform: scale(0.96);
-    }
-  }
-
-  @media (max-width: 360px) {
-    .seat-selection-panel {
-      transform: scale(0.9);
-    }
   }
 }
 

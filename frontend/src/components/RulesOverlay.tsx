@@ -43,11 +43,11 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
     <Overlay
       translucent
       blurred
-      className="items-center justify-center p-4 sm:p-6"
+      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
       onClick={onClose}
     >
       <div
-        className="rules-modal relative w-full max-w-lg bg-surface-1 rounded-2xl shadow-floating flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="rules-modal relative w-full max-w-[1280px] bg-surface-1 rounded-2xl shadow-floating flex flex-col h-full sm:max-h-[820px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-label="Game Rules"

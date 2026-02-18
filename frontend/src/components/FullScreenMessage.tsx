@@ -15,6 +15,9 @@ interface Props {
   blockInteractionsWhenMinimized?: boolean;
   onClose?: () => void;
   position?: "center" | "bottom";
+  viewTransitionName?: string;
+  overlayClassName?: string;
+  showBackArrow?: boolean;
 }
 
 export function FullScreenMessage({
@@ -31,6 +34,9 @@ export function FullScreenMessage({
   blockInteractionsWhenMinimized = false,
   onClose,
   position = "center",
+  viewTransitionName,
+  overlayClassName = "",
+  showBackArrow = false,
 }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -57,15 +63,18 @@ export function FullScreenMessage({
       }`
     : position === "bottom"
       ? "items-end justify-center pb-4 px-4 sm:px-6"
-      : "items-center landscape:items-start justify-center p-4 landscape:pt-8 overflow-y-auto";
+      : "items-center justify-center p-4 overflow-y-auto";
+  const overlayClasses = `${overlayLayout} ${overlayClassName}`.trim();
+  const overlayStyle = viewTransitionName ? { viewTransitionName } : undefined;
 
   return (
     <Overlay
       translucent={translucent}
       blurred={blurredOverlay}
       data-testid="fullscreen-message"
-      className={overlayLayout}
+      className={overlayClasses}
       lockScroll={!isMinimized || blockInteractionsWhenMinimized}
+      style={overlayStyle}
     >
       {isMinimized ? (
         <button
@@ -95,22 +104,38 @@ export function FullScreenMessage({
           {onClose && (
             <button
               onClick={onClose}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors z-30"
-              aria-label="Close"
+              className={`absolute top-2 ${showBackArrow ? "left-2 sm:left-4" : "right-2 sm:right-4"} sm:top-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors z-30`}
+              aria-label={showBackArrow ? "Back" : "Close"}
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              {showBackArrow ? (
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              )}
             </button>
           )}
           {canMinimize && (

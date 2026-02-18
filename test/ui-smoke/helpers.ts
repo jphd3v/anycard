@@ -91,6 +91,12 @@ export async function startPrivateGame(
   await expect(privateRoomButton).toBeVisible({ timeout: 5000 });
   await privateRoomButton.click();
 
+  // Wait for loading overlay to disappear if it appears
+  await page
+    .getByLabel("Loading game")
+    .waitFor({ state: "hidden", timeout: 15000 })
+    .catch(() => {});
+
   await expect(page.getByRole("heading", { name: /Room Lobby/i })).toBeVisible({
     timeout: 15000, // Reasonable timeout for Chromium (increased from original 10s for stability)
   });
@@ -136,6 +142,20 @@ export async function waitForGameReady(page: Page): Promise<void> {
     page.getByRole("heading", { name: /Room Lobby/i }).waitFor(),
     page.locator(".game-layout").first().waitFor(),
   ]);
+}
+
+export async function skipStartGameOverlayIfPresent(page: Page): Promise<void> {
+  const dealingButton = page.getByRole("button", { name: /Dealing/i });
+
+  const isDealingVisible = await dealingButton.isVisible().catch(() => false);
+  if (isDealingVisible) {
+    await dealingButton.click();
+  }
+
+  await page
+    .getByTestId("fullscreen-message")
+    .waitFor({ state: "hidden", timeout: 15000 })
+    .catch(() => {});
 }
 
 export async function seedLocalStorage(

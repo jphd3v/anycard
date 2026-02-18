@@ -8,9 +8,13 @@ export function LoadingOverlay({
   message = "Loading game...",
 }: LoadingOverlayProps) {
   return (
-    <Overlay translucent blurred className="items-center justify-center p-4">
+    <Overlay
+      translucent
+      blurred
+      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+    >
       <div
-        className="w-full max-w-sm rounded-2xl border border-surface-3 bg-surface-1 shadow-floating p-6 flex flex-col items-center justify-center gap-4"
+        className="w-full max-w-sm rounded-2xl border border-surface-3 bg-surface-1 shadow-floating p-6 flex flex-col items-center justify-center gap-4 h-full sm:h-auto"
         role="dialog"
         aria-modal="true"
         aria-label="Loading game"

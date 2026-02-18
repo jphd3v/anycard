@@ -45,7 +45,7 @@ export function ScrollShadowWrapper({
   `;
 
   return (
-    <div className={`relative overflow-hidden flex flex-col ${className}`}>
+    <div className={`relative flex flex-col overflow-hidden ${className}`}>
       <div
         id={id}
         ref={scrollRef}

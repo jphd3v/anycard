@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import type { HTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef } from "react";
+import type { DialogHTMLAttributes, ReactNode } from "react";
 
 type OverlayProps = {
   children: ReactNode;
@@ -7,7 +7,7 @@ type OverlayProps = {
   blurred?: boolean;
   className?: string;
   lockScroll?: boolean;
-} & Omit<HTMLAttributes<HTMLDivElement>, "className">;
+} & Omit<DialogHTMLAttributes<HTMLDialogElement>, "className">;
 
 export function Overlay({
   children,
@@ -20,6 +20,7 @@ export function Overlay({
   const overlayFill = translucent ? "bg-black/40" : "bg-black/60";
   const overlayBlur = blurred ? "backdrop-blur-sm" : "";
   const layout = className ?? "items-center justify-center p-4";
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => {
     if (!lockScroll) return;
@@ -32,12 +33,34 @@ export function Overlay({
     };
   }, [lockScroll]);
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (!dialog.open) {
+      try {
+        dialog.showModal();
+      } catch {
+        dialog.setAttribute("open", "");
+      }
+    }
+    return () => {
+      if (dialog.open) {
+        dialog.close();
+      }
+    };
+  }, []);
+
   return (
-    <div
-      className={`fixed inset-0 z-[1000] flex transition-all duration-500 overscroll-contain ${layout} ${overlayFill} ${overlayBlur}`}
+    <dialog
+      ref={dialogRef}
+      className={`fixed inset-0 flex transition-all duration-500 overscroll-contain ${layout} ${overlayFill} ${overlayBlur}`}
+      onCancel={(event) => {
+        event.preventDefault();
+      }}
+      aria-modal="true"
       {...rest}
     >
       {children}
-    </div>
+    </dialog>
   );
 }
