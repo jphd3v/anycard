@@ -11,6 +11,11 @@ interface StartGameOverlayProps {
   view: GameView;
   playerId: string;
   suppress?: boolean;
+  holdOpen?: boolean;
+  isStartGameBusy?: boolean;
+  onStartGame?: (isNextRound: boolean) => void;
+  onSkipAnimations?: () => void;
+  overrideIsNextRound?: boolean | null;
 }
 
 /**
@@ -104,6 +109,11 @@ export function StartGameOverlay({
   view,
   playerId,
   suppress = false,
+  holdOpen = false,
+  isStartGameBusy = false,
+  onStartGame,
+  onSkipAnimations,
+  overrideIsNextRound = null,
 }: StartGameOverlayProps) {
   const allSeatsJoined = useAtomValue(allSeatsJoinedAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
@@ -134,7 +144,7 @@ export function StartGameOverlay({
     typeof (rulesState as { hasDealt?: boolean }).hasDealt === "boolean"
       ? (rulesState as { hasDealt?: boolean }).hasDealt
       : false;
-  const isNextRound = (() => {
+  const derivedIsNextRound = (() => {
     if (!rulesState) return false;
 
     const isNumber = (value: unknown): value is number =>
@@ -156,15 +166,28 @@ export function StartGameOverlay({
       hasNonZeroNumbers(rulesState.lastHandScore)
     );
   })();
+  const isNextRound =
+    typeof overrideIsNextRound === "boolean"
+      ? overrideIsNextRound
+      : derivedIsNextRound;
 
-  const showTutorial = !isNextRound;
+  const showTutorial = !isNextRound && !isStartGameBusy;
 
   const shouldShow =
-    !!view.gameId && !!playerId && allSeatsJoined && !view.winner && !hasDealt;
+    !!view.gameId &&
+    !!playerId &&
+    allSeatsJoined &&
+    !view.winner &&
+    (!hasDealt || holdOpen);
 
   if (!shouldShow) return null;
 
   const handleClick = () => {
+    if (isStartGameBusy) {
+      onSkipAnimations?.();
+      return;
+    }
+    onStartGame?.(isNextRound);
     // Convention: most games treat this as "deal & start"
     sendActionIntent(view.gameId, playerId, "start-game");
     closeAll(500, { skipActions: true });
@@ -172,6 +195,9 @@ export function StartGameOverlay({
 
   const startLabel = isNextRound ? "next round" : "game";
   const continuationLabel = isNextRound ? "continue" : "begin";
+  const startButtonTestId = isStartGameBusy ? undefined : "start-game";
+  const busyPrimaryLabel = isNextRound ? "Dealing next round..." : "Dealing...";
+  const busySecondaryLabel = "Tap to skip animations";
 
   const mainDescription = (() => {
     if (isSpectator && !canSpectatorStart) {
@@ -312,15 +338,35 @@ export function StartGameOverlay({
             <div className={isShortScreen ? "" : "mt-4 md:mt-6"}>
               <button
                 type="button"
-                data-testid="start-game"
+                data-testid={startButtonTestId}
                 className={`button-base button-primary px-6 ${
                   isShortScreen
                     ? "py-1.5 text-[11px] mt-2"
                     : "py-3 text-sm md:text-base"
-                }`}
+                } ${isStartGameBusy ? "opacity-90" : ""}`}
                 onClick={handleClick}
+                aria-busy={isStartGameBusy}
               >
-                {isNextRound ? "Start next round" : "Start game"}
+                {isStartGameBusy ? (
+                  <span className="inline-flex flex-col items-center gap-0.5 leading-tight">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className={`spinner h-4 w-4 ${isShortScreen ? "border-2" : "border-2"}`}
+                        aria-hidden="true"
+                      />
+                      {busyPrimaryLabel}
+                    </span>
+                    <span
+                      className={`uppercase tracking-wide opacity-80 ${isShortScreen ? "text-[9px]" : "text-[10px]"}`}
+                    >
+                      {busySecondaryLabel}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-2">
+                    {isNextRound ? "Start next round" : "Start game"}
+                  </span>
+                )}
               </button>
             </div>
           ) : null

@@ -461,6 +461,49 @@ waiting for the next `"start-game"` action. You may leave revealed cards on the
 table while `hasDealt` is false, then gather/shuffle/deal when `"start-game"`
 arrives.
 
+#### Frontend dealing overlay + animation sequencing (delicate)
+
+The frontend uses a **Start Game / Next Round overlay** to pace dealing and
+make the transition readable for players:
+
+- When `rulesState.hasDealt === false`, the overlay appears (this includes
+  initial game reset as well as end-of-round).
+- Clicking the overlay sends **exactly one** `"start-game"` action.
+- While the dealing `move-cards` events are animating, the overlay **stays
+  open** and the button switches to a “Dealing… tap to skip animations” state.
+  The button acts as a **skip** (not a second start), collapsing queued
+  animations to the final view.
+- Once the dealing animation sequence finishes (all `lastViewEvents` applied),
+  the overlay closes and normal gameplay resumes.
+
+This flow is intentionally conservative: it slows the player just long enough
+to see the end-of-round state, and then guarantees they can see the new deal
+before taking their next action. Avoid shortcuts that remove the dealing
+animation entirely; it is one of the main cues that a new round has begun.
+
+#### Card move animations, reveal timing, and flip pause
+
+Card moves are animated by **replaying `lastViewEvents` on top of the previous
+view** using View Transitions. The behavior is subtle but important:
+
+- For a `move-cards` event, cards **travel while keeping their pre-move face**
+  (face-down stays face-down; face-up stays face-up).
+- After the move settles, the frontend applies **reveal updates** using
+  `event.cardViews` (preferred) or the authoritative final view as a fallback.
+- If a reveal changes `faceDown`, a flip animation plays, and the frontend
+  **pauses for one flip duration** (`--card-flip-duration`, default `320ms`)
+  before proceeding to subsequent move events.
+- That flip pause applies whenever animations are enabled, even when multiple
+  `move-cards` events occur in the same payload (e.g., play to trick → immediate
+  sweep to a won pile). This ensures the human eye can actually see the reveal.
+- If animations are skipped (user taps “skip” during dealing or the duration is
+  forced to `0`), the frontend applies the final view immediately.
+
+**Pitfall:** Duplicate card ids in the DOM (the same card appearing in two piles
+at once) break View Transitions and cause fallback fades. The client defensively
+dedupes during animation, but rule modules should treat `move-cards.cardIds` as a
+set and avoid emitting duplicate cards in piles.
+
 ### 6.2 Layout: `rules/<rulesId>/<rulesId>.layout*.json`
 
 Defines table layout.

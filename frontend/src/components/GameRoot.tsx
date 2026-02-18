@@ -55,6 +55,11 @@ interface Props {
   showDetails?: boolean;
   disabled?: boolean;
   suppressStartOverlay?: boolean;
+  holdStartOverlay?: boolean;
+  isStartGameBusy?: boolean;
+  onStartGame?: (isNextRound: boolean) => void;
+  onSkipStartGameAnimations?: () => void;
+  overrideStartOverlayIsNextRound?: boolean | null;
   highlightedWidget?: "actions" | "scoreboards" | null;
 }
 
@@ -64,6 +69,11 @@ export function GameRoot({
   showDetails = false,
   disabled = false,
   suppressStartOverlay = false,
+  holdStartOverlay = false,
+  isStartGameBusy = false,
+  onStartGame,
+  onSkipStartGameAnimations,
+  overrideStartOverlayIsNextRound = null,
   highlightedWidget = null,
 }: Props) {
   useAiSponsor();
@@ -637,6 +647,11 @@ export function GameRoot({
           view={view}
           playerId={playerId}
           suppress={suppressStartOverlay}
+          holdOpen={holdStartOverlay}
+          isStartGameBusy={isStartGameBusy}
+          onStartGame={onStartGame}
+          onSkipAnimations={onSkipStartGameAnimations}
+          overrideIsNextRound={overrideStartOverlayIsNextRound}
         />
         <FloatingActionOverlay
           actions={floatingActions}

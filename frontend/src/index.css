@@ -774,6 +774,7 @@ body,
 ::view-transition-new(game-menu-content) {
   animation-duration: 300ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto; /* Allow clicks during menu transition */
 }
 
 ::view-transition-new(game-menu-content):only-child {

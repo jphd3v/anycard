@@ -142,21 +142,41 @@ function applyViewEventToView(
         event.cardViews?.map((card) => [card.id, card]) ?? []
       );
 
-      // 1. Capture cards from the source pile in the previous view,
-      //    preserving source order.
-      const fromPile = prev.piles.find((p) => p.id === fromPileId);
-      let movedCards =
-        fromPile?.cards.filter((card) => idSet.has(card.id)) ?? [];
-
-      // 2. Build a lookup of the final card views from the authoritative view.
+      // 1. Build a lookup of the final card views from the authoritative view.
       //    This is where orientation (faceDown) is correct for the target pile.
-      const finalCardById = new Map<number, (typeof movedCards)[number]>();
+      const finalCardById = new Map<number, CardView>();
       for (const pile of finalView.piles) {
         for (const card of pile.cards) {
           if (idSet.has(card.id)) {
             finalCardById.set(card.id, card);
           }
         }
+      }
+
+      // 2. Capture cards from the source pile in the previous view,
+      //    preserving source order. If the move was optimistic, fall back to
+      //    the destination pile or final view so we don't drop the card.
+      const fromPile = prev.piles.find((p) => p.id === fromPileId);
+      const toPile = prev.piles.find((p) => p.id === toPileId);
+      let movedCards =
+        fromPile?.cards.filter((card) => idSet.has(card.id)) ?? [];
+      if (movedCards.length === 0) {
+        movedCards = toPile?.cards.filter((card) => idSet.has(card.id)) ?? [];
+      }
+      if (movedCards.length === 0) {
+        movedCards = cardIds
+          .map(
+            (cardId) => eventCardById.get(cardId) ?? finalCardById.get(cardId)
+          )
+          .filter((card): card is CardView => !!card);
+      }
+      if (movedCards.length > 1) {
+        const seenIds = new Set<number>();
+        movedCards = movedCards.filter((card) => {
+          if (seenIds.has(card.id)) return false;
+          seenIds.add(card.id);
+          return true;
+        });
       }
 
       // 3. Replace movedCards with their final representation when available.
@@ -188,19 +208,26 @@ function applyViewEventToView(
       }
 
       const piles = prev.piles.map((pile) => {
-        if (pile.id === fromPileId) {
-          // Remove moved cards from source
-          return {
-            ...pile,
-            cards: pile.cards.filter((card) => !idSet.has(card.id)),
-          };
-        }
         if (pile.id === toPileId) {
           // Append moved cards to destination using their final orientation
+          const nextCards = [
+            ...pile.cards.filter((card) => !idSet.has(card.id)),
+            ...movedCards,
+          ];
+          const seenIds = new Set<number>();
           return {
             ...pile,
-            cards: [...pile.cards, ...movedCards],
+            cards: nextCards.filter((card) => {
+              if (seenIds.has(card.id)) return false;
+              seenIds.add(card.id);
+              return true;
+            }),
           };
+        }
+
+        const filteredCards = pile.cards.filter((card) => !idSet.has(card.id));
+        if (filteredCards.length !== pile.cards.length) {
+          return { ...pile, cards: filteredCards };
         }
         return pile;
       });
@@ -300,13 +327,29 @@ function applyOptimisticDragMove(
 
 function applyMoveRevealToView(
   prev: GameView,
-  event: ViewEventPayload
+  event: ViewEventPayload,
+  finalView?: GameView
 ): GameView {
-  if (event.type !== "move-cards" || !event.cardViews?.length) {
+  if (event.type !== "move-cards") {
     return prev;
   }
 
-  const revealById = new Map(event.cardViews.map((card) => [card.id, card]));
+  const revealById = new Map<number, CardView>();
+  for (const card of event.cardViews ?? []) {
+    revealById.set(card.id, card);
+  }
+  if (finalView) {
+    const finalCards = getCardViewsForIds(finalView, event.cardIds);
+    for (const card of finalCards) {
+      if (!revealById.has(card.id)) {
+        revealById.set(card.id, card);
+      }
+    }
+  }
+
+  if (revealById.size === 0) {
+    return prev;
+  }
   let changed = false;
 
   const piles = prev.piles.map((pile) => {
@@ -368,6 +411,38 @@ function getCardViewsForIds(view: GameView, cardIds: number[]): CardView[] {
   }
 
   return ordered;
+}
+
+function collectDuplicateCardIds(
+  view: GameView,
+  extraCards: CardView[] = [],
+  visiblePileIds?: Set<string>
+): Set<number> {
+  const seen = new Set<number>();
+  const duplicates = new Set<number>();
+
+  for (const pile of view.piles) {
+    if (visiblePileIds && !visiblePileIds.has(pile.id)) {
+      continue;
+    }
+    for (const card of pile.cards) {
+      if (seen.has(card.id)) {
+        duplicates.add(card.id);
+      } else {
+        seen.add(card.id);
+      }
+    }
+  }
+
+  for (const card of extraCards) {
+    if (seen.has(card.id)) {
+      duplicates.add(card.id);
+    } else {
+      seen.add(card.id);
+    }
+  }
+
+  return duplicates;
 }
 
 function normalizePileLayout(val?: string): PileLayout | undefined {
@@ -552,13 +627,6 @@ function getCardFlipDurationMs(): number {
   return parseDurationMs(cssValue, DEFAULT_CARD_FLIP_MS);
 }
 
-function waitMs(durationMs: number): Promise<void> {
-  if (durationMs <= 0) return Promise.resolve();
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, durationMs);
-  });
-}
-
 const DEFAULT_LOBBY_SEED = "ESC0Q0";
 const CARD_SET_STORAGE_KEY = "card-set-preference";
 const MAX_RECENT_GAMES = 10;
@@ -617,6 +685,11 @@ export default function App() {
   const [themeSetting, setThemeSetting] = useAtom(themeSettingAtom);
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
   const [autoStartPending, setAutoStartPending] = useState(false);
+  const [isStartGamePending, setIsStartGamePending] = useState(false);
+  const [isStartGameAnimating, setIsStartGameAnimating] = useState(false);
+  const [startGamePendingKind, setStartGamePendingKind] = useState<
+    "first" | "next" | null
+  >(null);
   const [highlightedWidget, setHighlightedWidget] = useState<
     "actions" | "scoreboards" | null
   >(null);
@@ -628,11 +701,104 @@ export default function App() {
   >([]);
   const pendingDragMove = useAtomValue(pendingDragMoveAtom);
   const pendingDragMoveRef = useRef<PendingDragMove | null>(null);
+  const startGameActionIdRef = useRef<string | null>(null);
+  const startGamePendingTimeoutRef = useRef<number | null>(null);
+  const skipAnimationsRef = useRef(false);
+  const skipAnimationWaitersRef = useRef<Set<() => void>>(new Set());
+  const activeViewTransitionRef = useRef<{
+    skipTransition?: () => void;
+  } | null>(null);
   const restoredFrontendAiRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
   }, [pendingDragMove]);
+
+  const clearSkipStartGameAnimations = useCallback(() => {
+    skipAnimationsRef.current = false;
+    skipAnimationWaitersRef.current.clear();
+    activeViewTransitionRef.current = null;
+  }, []);
+
+  const requestSkipStartGameAnimations = useCallback(() => {
+    skipAnimationsRef.current = true;
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty(
+        "--transition-duration",
+        "0ms"
+      );
+    }
+    if (stateQueueRef.current.length > 1) {
+      stateQueueRef.current = [
+        stateQueueRef.current[stateQueueRef.current.length - 1],
+      ];
+    }
+    for (const cancel of skipAnimationWaitersRef.current) {
+      cancel();
+    }
+    skipAnimationWaitersRef.current.clear();
+    activeViewTransitionRef.current?.skipTransition?.();
+  }, []);
+
+  const waitMsOrSkip = useCallback((durationMs: number): Promise<void> => {
+    if (durationMs <= 0 || skipAnimationsRef.current) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      let timeoutId = 0;
+      const cancel = () => {
+        window.clearTimeout(timeoutId);
+        skipAnimationWaitersRef.current.delete(cancel);
+        resolve();
+      };
+      timeoutId = window.setTimeout(() => {
+        skipAnimationWaitersRef.current.delete(cancel);
+        resolve();
+      }, durationMs);
+      skipAnimationWaitersRef.current.add(cancel);
+    });
+  }, []);
+
+  const clearStartGamePending = useCallback(
+    (options?: { keepKind?: boolean }) => {
+      if (startGamePendingTimeoutRef.current) {
+        window.clearTimeout(startGamePendingTimeoutRef.current);
+        startGamePendingTimeoutRef.current = null;
+      }
+      setIsStartGamePending(false);
+      if (!options?.keepKind) {
+        setStartGamePendingKind(null);
+      }
+    },
+    []
+  );
+
+  const markStartGamePending = useCallback(() => {
+    setIsStartGamePending(true);
+    if (startGamePendingTimeoutRef.current) {
+      window.clearTimeout(startGamePendingTimeoutRef.current);
+    }
+    startGamePendingTimeoutRef.current = window.setTimeout(() => {
+      setIsStartGamePending(false);
+      startGamePendingTimeoutRef.current = null;
+    }, 10000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearStartGamePending();
+    };
+  }, [clearStartGamePending]);
+
+  useEffect(() => {
+    if (!gameId) {
+      clearStartGamePending();
+      clearSkipStartGameAnimations();
+      setIsStartGameAnimating(false);
+      startGameActionIdRef.current = null;
+      setStartGamePendingKind(null);
+    }
+  }, [clearSkipStartGameAnimations, clearStartGamePending, gameId]);
 
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
@@ -749,11 +915,21 @@ export default function App() {
     );
   }, [view?.rulesState]);
 
+  const startGameBusy = isStartGamePending || isStartGameAnimating;
+  const holdStartOverlay = isStartGameAnimating;
+  const startOverlayIsNextRoundOverride = startGameBusy
+    ? startGamePendingKind === "next"
+      ? true
+      : startGamePendingKind === "first"
+        ? false
+        : null
+    : null;
+
   const isNextRoundOverlayVisible =
     !!view?.gameId &&
     !!playerId &&
     allSeatsJoined &&
-    !hasGameDealt(view) &&
+    (!hasGameDealt(view) || holdStartOverlay) &&
     isNextRound &&
     !view?.winner;
 
@@ -898,7 +1074,7 @@ export default function App() {
   const isCurrentPlayerSeated =
     !!playerId &&
     seats.some((seat) => seat.playerId === playerId && seat.occupied);
-  const suppressStartOverlay = autoStartPending;
+  const suppressStartOverlay = false;
 
   // Determine if the game has started based on whether cards have been dealt
   const hasGameStarted = hasGameDealt(view);
@@ -1560,6 +1736,23 @@ export default function App() {
         );
       }
       const lastAction = payload.lastAction;
+      const isStartGameAction = lastAction?.action === "start-game";
+      const finishStartGameAnimation = () => {
+        if (
+          isStartGameAction &&
+          startGameActionIdRef.current === lastAction?.id
+        ) {
+          setIsStartGameAnimating(false);
+          setStartGamePendingKind(null);
+          clearSkipStartGameAnimations();
+        }
+      };
+
+      if (isStartGameAction) {
+        clearStartGamePending({ keepKind: true });
+        setIsStartGameAnimating(true);
+        startGameActionIdRef.current = lastAction?.id ?? null;
+      }
 
       const fatalErrors = payload.lastFatalErrors ?? [];
       if (fatalErrors.length > 0) {
@@ -1651,8 +1844,43 @@ export default function App() {
         }
       }
 
+      const applyImmediateView = (
+        eventsToQueue: ViewEventPayload[] = animationEvents
+      ) => {
+        if (pendingScoreboardHighlights) {
+          setHighlightedScoreboardCells((prev) => ({
+            ...prev,
+            ...pendingScoreboardHighlights,
+          }));
+        }
+        scheduleClearHighlights();
+        lastAuthoritativeViewRef.current = nextView;
+        setView(nextView);
+        setActiveTransitionCardIds(null);
+        setHeaderTransitionCards([]);
+        activeViewTransitionRef.current = null;
+        if (eventsToQueue.length > 0) {
+          queueAnnouncements(eventsToQueue);
+        }
+        finishStartGameAnimation();
+        if (skipAnimationsRef.current) {
+          clearSkipStartGameAnimations();
+        }
+      };
+
+      const skipToFinal = (fromIndex: number) => {
+        applyImmediateView(animationEvents.slice(fromIndex));
+      };
+
+      if (skipAnimationsRef.current) {
+        applyImmediateView();
+        return;
+      }
+
       const canAnimate =
-        !!startViewTransition && document.visibilityState === "visible";
+        !!startViewTransition &&
+        document.visibilityState === "visible" &&
+        !skipAnimationsRef.current;
 
       const hasCardMoveEvent = animationEvents.some(
         (event) => event.type === "move-cards"
@@ -1670,28 +1898,13 @@ export default function App() {
         duration === 0 ||
         !hasCardMoveEvent
       ) {
-        if (pendingScoreboardHighlights) {
-          setHighlightedScoreboardCells((prev) => ({
-            ...prev,
-            ...pendingScoreboardHighlights,
-          }));
-        }
-        scheduleClearHighlights();
-        lastAuthoritativeViewRef.current = nextView;
-        setView(nextView);
-        setActiveTransitionCardIds(null);
-        setHeaderTransitionCards([]);
-        queueAnnouncements(animationEvents);
+        applyImmediateView();
         return;
       }
 
-      // Avoid animating during setup/deal phases
-      if (!hasGameDealt(prevView)) {
-        lastAuthoritativeViewRef.current = nextView;
-        setView(nextView);
-        setActiveTransitionCardIds(null);
-        setHeaderTransitionCards([]);
-        queueAnnouncements(animationEvents);
+      // Avoid animating during setup/deal phases unless we just started dealing
+      if (!hasGameDealt(prevView) && !isStartGameAction) {
+        applyImmediateView();
         return;
       }
 
@@ -1699,8 +1912,7 @@ export default function App() {
       // Each state change runs inside a view transition so CSS View Transitions
       // can animate DOM diffs between steps.
       let workingView = prevView;
-      const flipPauseMs =
-        duration > 0 && remainingInQueue === 0 ? getCardFlipDurationMs() : 0;
+      const flipPauseMs = duration > 0 ? getCardFlipDurationMs() : 0;
       const lastMoveIndex = animationEvents.reduce((last, event, index) => {
         if (event.type === "move-cards" && event.cardIds.length > 0) {
           return index;
@@ -1726,6 +1938,10 @@ export default function App() {
       }
 
       for (let index = 0; index < animationEvents.length; index += 1) {
+        if (skipAnimationsRef.current) {
+          skipToFinal(index);
+          return;
+        }
         const event = animationEvents[index];
         if (event.type !== "move-cards" || event.cardIds.length === 0) {
           const beforeView = workingView;
@@ -1773,7 +1989,8 @@ export default function App() {
           continue;
         }
 
-        const movingIds = new Set<number>(event.cardIds);
+        const uniqueCardIds = Array.from(new Set(event.cardIds));
+        const movingIds = new Set<number>(uniqueCardIds);
         const nextWorkingViewRaw = applyViewEventToView(
           workingView,
           event,
@@ -1794,11 +2011,11 @@ export default function App() {
         const toVisible = visiblePileIds.has(event.toPileId);
         const entryCardsRaw =
           !fromVisible && toVisible
-            ? getCardViewsForIds(nextWorkingView, event.cardIds)
+            ? getCardViewsForIds(nextWorkingView, uniqueCardIds)
             : [];
         const exitCardsRaw =
           fromVisible && !toVisible
-            ? getCardViewsForIds(nextWorkingView, event.cardIds)
+            ? getCardViewsForIds(nextWorkingView, uniqueCardIds)
             : [];
         const entryCards =
           entryCardsRaw.length > MAX_HEADER_TRANSITION_CARDS
@@ -1807,9 +2024,24 @@ export default function App() {
         const exitCards =
           exitCardsRaw.length > MAX_HEADER_TRANSITION_CARDS ? [] : exitCardsRaw;
         const hasHeaderAnchors = entryCards.length > 0 || exitCards.length > 0;
+        const duplicateTransitionIds = new Set<number>();
+        for (const id of collectDuplicateCardIds(
+          workingView,
+          entryCards,
+          visiblePileIds
+        )) {
+          duplicateTransitionIds.add(id);
+        }
+        for (const id of collectDuplicateCardIds(
+          nextWorkingView,
+          exitCards,
+          visiblePileIds
+        )) {
+          duplicateTransitionIds.add(id);
+        }
 
         flushSync(() => {
-          const transitionIds = new Set<number>(movingIds);
+          let transitionIds = new Set<number>(movingIds);
           const addPileCards = (pileId: string) => {
             if (!visiblePileIds.has(pileId)) {
               return;
@@ -1847,6 +2079,15 @@ export default function App() {
               }
             }
           }
+          if (duplicateTransitionIds.size > 0) {
+            const filtered = new Set<number>();
+            for (const id of transitionIds) {
+              if (!duplicateTransitionIds.has(id)) {
+                filtered.add(id);
+              }
+            }
+            transitionIds = filtered;
+          }
 
           setActiveTransitionCardIds(transitionIds);
           setHeaderTransitionCards(entryCards);
@@ -1874,14 +2115,39 @@ export default function App() {
           continue;
         }
 
+        activeViewTransitionRef.current =
+          transition &&
+          typeof (transition as { skipTransition?: () => void })
+            .skipTransition === "function"
+            ? (transition as { skipTransition?: () => void })
+            : null;
+
         // Chain transitions if the browser provides a finished promise
         try {
           await (transition as { finished?: Promise<void> })?.finished;
         } catch {
           // Ignore transition errors; continue to next step
         }
+        activeViewTransitionRef.current = null;
+        if (skipAnimationsRef.current) {
+          skipToFinal(index + 1);
+          return;
+        }
 
-        const revealViewRaw = applyMoveRevealToView(workingView, event);
+        flushSync(() => {
+          setActiveTransitionCardIds(null);
+        });
+        await waitMsOrSkip(0);
+        if (skipAnimationsRef.current) {
+          skipToFinal(index + 1);
+          return;
+        }
+
+        const revealViewRaw = applyMoveRevealToView(
+          workingView,
+          event,
+          nextView
+        );
         const revealView = sortViewPiles(
           revealViewRaw,
           gameLayoutRef.current,
@@ -1914,7 +2180,11 @@ export default function App() {
         }
         if (hasFlip && flipPauseMs > 0) {
           if (index < lastMoveIndex) {
-            await waitMs(flipPauseMs);
+            await waitMsOrSkip(flipPauseMs);
+            if (skipAnimationsRef.current) {
+              skipToFinal(index + 1);
+              return;
+            }
           } else {
             pendingFlipPause = true;
           }
@@ -1923,7 +2193,15 @@ export default function App() {
 
       // Final sanity step: ensure we end up at the authoritative server view
       if (pendingFlipPause && flipPauseMs > 0) {
-        await waitMs(flipPauseMs);
+        await waitMsOrSkip(flipPauseMs);
+        if (skipAnimationsRef.current) {
+          applyImmediateView([]);
+          return;
+        }
+      }
+      if (skipAnimationsRef.current) {
+        applyImmediateView([]);
+        return;
       }
       try {
         const finalTransition = startViewTransition(() => {
@@ -1941,11 +2219,19 @@ export default function App() {
           });
         });
 
+        activeViewTransitionRef.current =
+          finalTransition &&
+          typeof (finalTransition as { skipTransition?: () => void })
+            .skipTransition === "function"
+            ? (finalTransition as { skipTransition?: () => void })
+            : null;
+
         try {
           await (finalTransition as { finished?: Promise<void> })?.finished;
         } catch {
           // Ignore
         }
+        activeViewTransitionRef.current = null;
       } catch {
         // If a transition cannot start, just apply the final state immediately
         flushSync(() => {
@@ -1963,6 +2249,7 @@ export default function App() {
       }
 
       scheduleClearHighlights();
+      finishStartGameAnimation();
     };
 
     const processQueue = async () => {
@@ -1978,7 +2265,11 @@ export default function App() {
         const becomesMyTurn = nextPayload.currentPlayer === playerId;
 
         // Calculate speed based on backlog and whether it's my turn
-        const duration = getDynamicDuration(remainingInQueue, becomesMyTurn);
+        const baseDuration = getDynamicDuration(
+          remainingInQueue,
+          becomesMyTurn
+        );
+        const duration = skipAnimationsRef.current ? 0 : baseDuration;
 
         // Apply speed
         document.documentElement.style.setProperty(
@@ -2011,6 +2302,8 @@ export default function App() {
       },
       onStatus: (message) => {
         if (message.tone === "error") {
+          clearStartGamePending();
+          clearSkipStartGameAnimations();
           setStartingGameType(null);
           if (message.message === "You are not joined to any game") {
             attemptRejoin();
@@ -2156,6 +2449,9 @@ export default function App() {
     setHighlightedActionLabel,
     setHighlightedScoreboardCells,
     queueAnnouncement,
+    clearStartGamePending,
+    clearSkipStartGameAnimations,
+    waitMsOrSkip,
     store,
   ]); // Removed gameId from dependencies to prevent listener teardown race
 
@@ -2379,6 +2675,8 @@ export default function App() {
 
     if (isCurrentPlayerSeated || canSpectatorAutoStart) {
       setAutoStartPending(true);
+      markStartGamePending();
+      setStartGamePendingKind("first");
       if (playerId) {
         // Fire start-game shortly after reset; clear suppression later when hasDealt turns true or timeout hits.
         setTimeout(() => {
@@ -3299,6 +3597,16 @@ export default function App() {
                 playerId={playerId}
                 disabled={!isConnected}
                 suppressStartOverlay={suppressStartOverlay}
+                holdStartOverlay={holdStartOverlay}
+                isStartGameBusy={startGameBusy}
+                onStartGame={(isNextRound) => {
+                  markStartGamePending();
+                  setStartGamePendingKind(isNextRound ? "next" : "first");
+                }}
+                onSkipStartGameAnimations={requestSkipStartGameAnimations}
+                overrideStartOverlayIsNextRound={
+                  startOverlayIsNextRoundOverride
+                }
                 highlightedWidget={highlightedWidget}
               />
               <FloatingActionOverlay
