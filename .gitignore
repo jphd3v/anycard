@@ -31,3 +31,4 @@ pnpm-debug.log*
 # E2E artifacts
 .test-artifacts/
 test-artifacts/
+supabase/.temp/

@@ -92,6 +92,40 @@ const humanTurnByGame = new Map<
   { currentPlayerId: string | null; turnNumber: number }
 >();
 
+export type PersistenceChangeType = "upsert" | "delete";
+type PersistenceChangeListener = (
+  gameId: string,
+  changeType: PersistenceChangeType
+) => void;
+
+const persistenceChangeListeners = new Set<PersistenceChangeListener>();
+
+function notifyPersistenceChange(
+  gameId: string,
+  changeType: PersistenceChangeType
+): void {
+  for (const listener of persistenceChangeListeners) {
+    try {
+      listener(gameId, changeType);
+    } catch (error) {
+      console.warn("[state] persistence change listener failed", {
+        gameId,
+        changeType,
+        error,
+      });
+    }
+  }
+}
+
+export function registerPersistenceChangeListener(
+  listener: PersistenceChangeListener
+): () => void {
+  persistenceChangeListeners.add(listener);
+  return () => {
+    persistenceChangeListeners.delete(listener);
+  };
+}
+
 function deriveHumanTurnFromHistory(
   initialState: GameState,
   events: GameEvent[]
@@ -149,6 +183,7 @@ export function initGame(state: GameState) {
   executedIntentsByGame.set(state.gameId, []);
   importedEventCountByGame.set(state.gameId, 0);
   importedExecutedIntentCountByGame.set(state.gameId, 0);
+  notifyPersistenceChange(state.gameId, "upsert");
 }
 
 export function getInitialState(gameId: string): GameState | null {
@@ -175,6 +210,7 @@ export function appendEvent(gameId: string, event: GameEvent) {
   if (event.type === "set-winner") {
     finishedAtByGame.set(gameId, Date.now());
   }
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function appendExecutedIntent(
@@ -184,6 +220,7 @@ export function appendExecutedIntent(
   const intents = executedIntentsByGame.get(gameId) ?? [];
   intents.push(intent);
   executedIntentsByGame.set(gameId, intents);
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function appendExecutedIntentFromClientIntent(
@@ -247,6 +284,7 @@ export function setExecutedIntents(
   intents: PersistedExecutedIntent[]
 ): void {
   executedIntentsByGame.set(gameId, [...intents]);
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function getImportedEventCount(gameId: string): number {
@@ -258,6 +296,7 @@ export function setImportedEventCount(gameId: string, count: number): void {
     ? Math.max(0, Math.trunc(count))
     : 0;
   importedEventCountByGame.set(gameId, normalized);
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function getImportedExecutedIntentCount(gameId: string): number {
@@ -272,6 +311,7 @@ export function setImportedExecutedIntentCount(
     ? Math.max(0, Math.trunc(count))
     : 0;
   importedExecutedIntentCountByGame.set(gameId, normalized);
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function resetGame(gameId: string) {
@@ -284,6 +324,7 @@ export function resetGame(gameId: string) {
   importedExecutedIntentCountByGame.set(gameId, 0);
   clearAiLogForGame(gameId, { preserveHistoricalUnavailable: true });
   humanTurnByGame.delete(gameId);
+  notifyPersistenceChange(gameId, "upsert");
 }
 
 export function resetGameWithSeed(gameId: string, seed: string): boolean {
@@ -302,6 +343,7 @@ export function resetGameWithSeed(gameId: string, seed: string): boolean {
   finishedAtByGame.delete(gameId);
   clearAiLogForGame(gameId, { preserveHistoricalUnavailable: true });
   humanTurnByGame.delete(gameId);
+  notifyPersistenceChange(gameId, "upsert");
   return true;
 }
 
@@ -319,6 +361,7 @@ export function closeGame(gameId: string): boolean {
   viewSaltByGameId.delete(gameId);
   humanTurnByGame.delete(gameId);
   clearAiLogForGame(gameId);
+  notifyPersistenceChange(gameId, "delete");
   return true;
 }
 
@@ -336,6 +379,7 @@ export function trimFinishedGamesNow() {
       viewSaltByGameId.delete(gameId);
       humanTurnByGame.delete(gameId);
       clearAiLogForGame(gameId);
+      notifyPersistenceChange(gameId, "delete");
     }
   }
 }
@@ -463,6 +507,7 @@ export function setSeatRuntime(
   player.aiRuntime = aiRuntime;
   player.aiSponsorConnectionId = aiSponsorConnectionId;
   player.isAi = aiRuntime !== "none";
+  notifyPersistenceChange(gameId, "upsert");
   return true;
 }
 

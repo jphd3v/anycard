@@ -118,6 +118,25 @@ export function GameHUD({
     (view?.metadata && typeof view.metadata.seed === "string"
       ? view.metadata.seed
       : null) || "Unknown";
+  const saveStorage =
+    view?.metadata?.saveStorage === "supabase" ? "supabase" : null;
+  const saveHydratedFrom =
+    view?.metadata?.saveHydratedFrom === "supabase" ? "supabase" : null;
+  const savePersistedAt =
+    typeof view?.metadata?.savePersistedAt === "string"
+      ? view.metadata.savePersistedAt
+      : null;
+  const savePersistedAtLabel = (() => {
+    if (!savePersistedAt) return null;
+    const parsed = new Date(savePersistedAt);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return parsed.toLocaleTimeString([], {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  })();
   const isSpectator = view?.metadata?.role === "spectator";
   const isGodMode = view?.metadata?.isGodMode === "true";
   const roomCloseDelayMinutes = 5;
@@ -575,6 +594,36 @@ export function GameHUD({
                           {seed}
                         </span>
                       </div>
+                      {saveStorage && (
+                        <div className="flex items-center gap-1">
+                          <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                            Save
+                          </span>
+                          <span className="ai-log-meta-value font-mono text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                            Supabase
+                          </span>
+                        </div>
+                      )}
+                      {saveHydratedFrom && (
+                        <div className="flex items-center gap-1">
+                          <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                            Restored
+                          </span>
+                          <span className="ai-log-meta-value font-mono text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                            Supabase
+                          </span>
+                        </div>
+                      )}
+                      {savePersistedAtLabel && (
+                        <div className="flex items-center gap-1">
+                          <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                            Saved At
+                          </span>
+                          <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                            {savePersistedAtLabel}
+                          </span>
+                        </div>
+                      )}
                       <label className="flex items-center gap-2 pl-2">
                         <input
                           type="checkbox"

@@ -13,7 +13,7 @@ import { getViewSalt } from "./state.js";
 import { toViewCardId } from "./view-ids.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 import { GAME_PLUGINS } from "./rules/registry.js";
-import { getRoomType } from "./socket.js";
+import { getGamePersistenceMetadata, getRoomType } from "./socket.js";
 import { loadGameMeta } from "./rules/meta.js";
 
 export function buildViewForPlayer(
@@ -275,6 +275,10 @@ export function buildViewForPlayer(
       metadata.role = isSpectator ? "spectator" : "player";
       metadata.isGodMode = isGodMode ? "true" : "false";
       metadata.roomType = getRoomType(state.gameId);
+      const persistenceMetadata = getGamePersistenceMetadata(state.gameId);
+      if (persistenceMetadata) {
+        Object.assign(metadata, persistenceMetadata);
+      }
 
       if (typeof state.seed === "string") {
         metadata.seed = state.seed;

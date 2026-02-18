@@ -583,7 +583,17 @@ export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
       hasWinner?: unknown;
       roomType?: unknown;
       status?: unknown;
+      persistence?: unknown;
     };
+    const persistence =
+      game.persistence && typeof game.persistence === "object"
+        ? (game.persistence as {
+            storage?: unknown;
+            persistedAt?: unknown;
+            hydratedFrom?: unknown;
+            hydratedAt?: unknown;
+          })
+        : null;
     return {
       gameId: String(game.gameId ?? ""),
       rulesId: String(game.rulesId ?? ""),
@@ -592,7 +602,9 @@ export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
       numSpectators: Number(game.numSpectators ?? 0),
       hasWinner: Boolean(game.hasWinner),
       roomType:
-        game.roomType === "demo" || game.roomType === "public"
+        game.roomType === "demo" ||
+        game.roomType === "public" ||
+        game.roomType === "private"
           ? game.roomType
           : "public",
       status:
@@ -601,6 +613,21 @@ export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
         game.status === "waiting"
           ? game.status
           : "waiting",
+      persistence:
+        persistence && persistence.storage === "supabase"
+          ? {
+              storage: "supabase",
+              ...(typeof persistence.persistedAt === "string"
+                ? { persistedAt: persistence.persistedAt }
+                : {}),
+              ...(persistence.hydratedFrom === "supabase"
+                ? { hydratedFrom: "supabase" as const }
+                : {}),
+              ...(typeof persistence.hydratedAt === "string"
+                ? { hydratedAt: persistence.hydratedAt }
+                : {}),
+            }
+          : undefined,
     };
   });
 }

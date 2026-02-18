@@ -8,6 +8,10 @@ import {
   getActiveGameSummaries,
   getGameSummary,
   closeGameSession,
+  getRoomType,
+  notePersistedSnapshot,
+  noteDeletedSnapshot,
+  restorePersistedGames,
 } from "./socket.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +26,11 @@ import {
   isServerAiEnabled,
 } from "./config.js";
 import { getBackendBuildInfo } from "./build-info.js";
+import {
+  assertSupabaseAutosaveSchemaOrThrow,
+  fetchPersistedGamesFromSupabase,
+  initSupabaseAutosave,
+} from "./persistence/supabase-autosave.js";
 
 dotenv.config();
 
@@ -112,40 +121,72 @@ const io = new Server(server, {
   transports: ["websocket"],
 });
 
-initSocket(io);
+async function startServer(): Promise<void> {
+  initSocket(io);
 
-server.listen(PORT, "0.0.0.0", () => {
-  const buildInfo = getBackendBuildInfo();
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`[Startup] Rule engine mode: ${RULE_ENGINE_MODE}`);
-  console.log(
-    `[Startup] Backend build: ${buildInfo.commitHash} ${
-      buildInfo.commitUnixTs != null
-        ? `@ ${buildInfo.commitUnixTs}`
-        : "(ts n/a)"
-    }`
-  );
+  await assertSupabaseAutosaveSchemaOrThrow();
 
-  // Log environment variables
-  console.log(`[Environment] Configuration:`);
-  const envVarsInfo = getEnvironmentVariablesInfo();
-  envVarsInfo.forEach(({ key, isSet }) => {
-    console.log(`  ${key} ${isSet ? "(set)" : "(default)"}`);
+  const persistedGames = await fetchPersistedGamesFromSupabase();
+  if (persistedGames.length > 0) {
+    const restored = restorePersistedGames(persistedGames);
+    console.log(
+      `[Autosave] Restore complete restored=${restored.restored} skipped=${restored.skipped} failed=${restored.failed}`
+    );
+  } else {
+    console.log("[Autosave] No persisted games to restore.");
+  }
+
+  await initSupabaseAutosave({
+    resolveRoomType: (gameId) => getRoomType(gameId),
+    onSnapshotPersisted: (payload) =>
+      notePersistedSnapshot({
+        gameId: payload.gameId,
+        roomType: payload.roomType,
+        persistedAt: payload.persistedAt,
+      }),
+    onSnapshotDeleted: ({ gameId }) => noteDeletedSnapshot({ gameId }),
   });
 
-  // Skip LLM warm-up during tests or if AI is disabled to avoid unnecessary failures
-  if (!config.isTestEnvironment && isServerAiEnabled()) {
-    (async () => {
-      console.log("[Startup] Warming up policy LLM once");
-      await warmUpPolicyModel().catch((err) => {
-        console.warn("[Startup] Policy LLM warm-up failed", err);
-      });
-    })().catch((err) => {
-      console.warn("[Startup] Policy LLM warm-up task failed", err);
+  server.listen(PORT, "0.0.0.0", () => {
+    const buildInfo = getBackendBuildInfo();
+    console.log(`Server listening on port ${PORT}`);
+    console.log(`[Startup] Rule engine mode: ${RULE_ENGINE_MODE}`);
+    console.log(
+      `[Startup] Backend build: ${buildInfo.commitHash} ${
+        buildInfo.commitUnixTs != null
+          ? `@ ${buildInfo.commitUnixTs}`
+          : "(ts n/a)"
+      }`
+    );
+
+    // Log environment variables
+    console.log(`[Environment] Configuration:`);
+    const envVarsInfo = getEnvironmentVariablesInfo();
+    envVarsInfo.forEach(({ key, isSet }) => {
+      console.log(`  ${key} ${isSet ? "(set)" : "(default)"}`);
     });
-  } else if (config.isTestEnvironment) {
-    console.log("[Startup] Skipping LLM warm-up in test environment");
-  } else {
-    console.log("[Startup] Skipping LLM warm-up because server AI is disabled");
-  }
+
+    // Skip LLM warm-up during tests or if AI is disabled to avoid unnecessary failures
+    if (!config.isTestEnvironment && isServerAiEnabled()) {
+      (async () => {
+        console.log("[Startup] Warming up policy LLM once");
+        await warmUpPolicyModel().catch((err) => {
+          console.warn("[Startup] Policy LLM warm-up failed", err);
+        });
+      })().catch((err) => {
+        console.warn("[Startup] Policy LLM warm-up task failed", err);
+      });
+    } else if (config.isTestEnvironment) {
+      console.log("[Startup] Skipping LLM warm-up in test environment");
+    } else {
+      console.log(
+        "[Startup] Skipping LLM warm-up because server AI is disabled"
+      );
+    }
+  });
+}
+
+startServer().catch((error) => {
+  console.error("[Startup] Failed to start server", error);
+  process.exit(1);
 });

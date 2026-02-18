@@ -21,6 +21,10 @@ export interface EnvironmentConfig {
   llmPolicyMode: "llm" | "firstCandidate";
   llmShowExceptionsInFrontend: boolean;
   isTestEnvironment: boolean;
+  supabaseAutosaveEnabled: boolean;
+  supabaseUrl?: string;
+  supabaseServiceRoleKey?: string;
+  supabaseAutosaveTable: string;
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {
@@ -95,6 +99,13 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       Boolean(process.env.PLAYWRIGHT_TEST_BASE_URL) ||
       process.env.PORT === "3010" ||
       process.env.PORT === "3011", // Playwright default test ports
+    supabaseAutosaveEnabled: parseBooleanEnv(
+      process.env.SUPABASE_AUTOSAVE_ENABLED
+    ),
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseAutosaveTable:
+      process.env.SUPABASE_AUTOSAVE_TABLE?.trim() || "game_snapshots",
   };
 }
 
@@ -207,6 +218,30 @@ export function getEnvironmentVariablesInfo(): Array<{
       value: process.env.LLM_SHOW_EXCEPTIONS_IN_FRONTEND || "false",
       defaultValue: "false",
       isSet: Boolean(process.env.LLM_SHOW_EXCEPTIONS_IN_FRONTEND),
+    },
+    {
+      key: "SUPABASE_AUTOSAVE_ENABLED",
+      value: process.env.SUPABASE_AUTOSAVE_ENABLED || "false",
+      defaultValue: "false",
+      isSet: Boolean(process.env.SUPABASE_AUTOSAVE_ENABLED),
+    },
+    {
+      key: "SUPABASE_URL",
+      value: process.env.SUPABASE_URL ? "[SET]" : "[NOT SET]",
+      defaultValue: "[OPTIONAL]",
+      isSet: Boolean(process.env.SUPABASE_URL),
+    },
+    {
+      key: "SUPABASE_SERVICE_ROLE_KEY",
+      value: process.env.SUPABASE_SERVICE_ROLE_KEY ? "[SET]" : "[NOT SET]",
+      defaultValue: "[OPTIONAL]",
+      isSet: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    },
+    {
+      key: "SUPABASE_AUTOSAVE_TABLE",
+      value: process.env.SUPABASE_AUTOSAVE_TABLE || "game_snapshots",
+      defaultValue: "game_snapshots",
+      isSet: Boolean(process.env.SUPABASE_AUTOSAVE_TABLE),
     },
   ];
 }

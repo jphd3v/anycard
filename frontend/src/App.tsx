@@ -1755,6 +1755,24 @@ export default function App() {
     view?.metadata?.roomType ??
     activeGames.find((entry) => entry.gameId === gameId)?.roomType ??
     null;
+  const activeGameSummary =
+    activeGames.find((entry) => entry.gameId === gameId) ?? null;
+  const saveStorage =
+    (view?.metadata?.saveStorage ??
+      activeGameSummary?.persistence?.storage ??
+      null) === "supabase"
+      ? "supabase"
+      : null;
+  const savePersistedAt =
+    view?.metadata?.savePersistedAt ??
+    activeGameSummary?.persistence?.persistedAt ??
+    null;
+  const saveHydratedFrom =
+    (view?.metadata?.saveHydratedFrom ??
+      activeGameSummary?.persistence?.hydratedFrom ??
+      null) === "supabase"
+      ? "supabase"
+      : null;
   const lobbySeed = view?.metadata?.seed ?? roomSeed ?? null;
   const roomLobbyTitle = gameTitle ? `${gameTitle} Room Lobby` : "Room Lobby";
   const showRoomLobby =
@@ -1977,6 +1995,9 @@ export default function App() {
             gameId={gameId ?? ""}
             lobbySeed={lobbySeed}
             roomTypeLabel={roomTypeLabel}
+            saveStorage={saveStorage}
+            savePersistedAt={savePersistedAt}
+            saveHydratedFrom={saveHydratedFrom}
             isCreator={isCreator}
             isGameActive={isGameActive}
             allSeatsJoined={allSeatsJoined}

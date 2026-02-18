@@ -21,8 +21,14 @@ export type ActiveGameSummary = {
   numOccupiedSeats: number;
   numSpectators: number;
   hasWinner: boolean;
-  roomType: "demo" | "public";
+  roomType: "demo" | "public" | "private";
   status: "waiting" | "playing" | "finished";
+  persistence?: {
+    storage: "supabase";
+    persistedAt?: string;
+    hydratedFrom?: "supabase";
+    hydratedAt?: string;
+  };
 };
 
 export type GameSummary = {
@@ -37,6 +43,12 @@ export type GameSummary = {
   players: { id: string; name?: string; occupied: boolean }[];
   seed?: string;
   status: "waiting" | "playing" | "finished";
+  persistence?: {
+    storage: "supabase";
+    persistedAt?: string;
+    hydratedFrom?: "supabase";
+    hydratedAt?: string;
+  };
 };
 
 export type RecentGameEntry = {

@@ -30,6 +30,14 @@ To get the project up and running locally, follow these steps:
 4.  **Play the game:**
     Open your browser and navigate to `http://localhost:5173`.
 
+## Optional Supabase Autosave
+
+Backend autosave to Supabase is available as an optional feature. It is disabled
+by default and only activates when explicitly enabled with backend environment
+variables and valid Supabase credentials.
+
+Setup guide: `supabase/SUPABASE_AUTOSAVE_SETUP.md`
+
 ## Note on View Transitions
 
 The engine leverages the **browser's native CSS View Transition API** to animate card movements and state changes. These transitions are not merely "eye candy"—they are **essential for gameplay**.

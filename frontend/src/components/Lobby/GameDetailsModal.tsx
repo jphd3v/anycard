@@ -118,8 +118,42 @@ export function GameDetailsModal({
   }, [game.id, recentRooms, activeById]);
 
   // Prepare unified list
-  // 1. Private rooms (known by user, not currently in active list)
-  const privateRooms = recentRooms
+  // 1. Active private rooms (currently exposed intentionally)
+  const activePrivateRooms = gamesOfThisType
+    .filter((g) => g.roomType === "private")
+    .map((g) => {
+      const status =
+        g.status === "waiting"
+          ? "Waiting"
+          : g.status === "playing"
+            ? "In Progress"
+            : g.status === "finished"
+              ? "Finished"
+              : "Unknown";
+      const persistenceBits = [
+        g.persistence?.storage ? "Saved" : null,
+        g.persistence?.hydratedFrom ? "Restored" : null,
+      ].filter(Boolean);
+      const persistenceText =
+        persistenceBits.length > 0 ? ` • ${persistenceBits.join(" · ")}` : "";
+      return {
+        type: "private" as const,
+        id: g.gameId,
+        details: `${status} • ${g.numOccupiedSeats} / ${g.numSeats} Players${persistenceText}`,
+        spectators:
+          g.numSpectators > 0
+            ? ` • ${g.numSpectators} Spectator${
+                g.numSpectators === 1 ? "" : "s"
+              }`
+            : "",
+        badge: "Private Room",
+        badgeClass: "text-slate-700 bg-slate-100",
+        sortKey: 0,
+      };
+    });
+
+  // 2. Known private rooms not currently active
+  const stalePrivateRooms = recentRooms
     .filter((room) => !activeById.has(room.gameId))
     .map((room) => {
       const info = privateRoomStatuses[room.gameId];
@@ -145,7 +179,7 @@ export function GameDetailsModal({
       };
     });
 
-  // 2. Active Public Rooms
+  // 3. Active public rooms
   const publicRooms = gamesOfThisType
     .filter((g) => g.roomType === "public")
     .map((g) => {
@@ -173,7 +207,7 @@ export function GameDetailsModal({
       };
     });
 
-  // 3. Demo Rooms
+  // 4. Demo rooms
   const demoRooms = gamesOfThisType
     .filter((g) => g.roomType === "demo")
     .map((g) => {
@@ -201,7 +235,12 @@ export function GameDetailsModal({
       };
     });
 
-  const allRooms = [...privateRooms, ...publicRooms, ...demoRooms];
+  const allRooms = [
+    ...activePrivateRooms,
+    ...stalePrivateRooms,
+    ...publicRooms,
+    ...demoRooms,
+  ];
   const trimmedManualGameId = manualGameId.trim();
   const canJoinManual = trimmedManualGameId.length > 0;
 

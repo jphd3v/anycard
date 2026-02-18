@@ -7,6 +7,9 @@ type RoomLobbyOverlayProps = {
   gameId: string;
   lobbySeed: string | null;
   roomTypeLabel: string | null;
+  saveStorage: "supabase" | null;
+  savePersistedAt: string | null;
+  saveHydratedFrom: "supabase" | null;
   isCreator: boolean;
   isGameActive: boolean;
   allSeatsJoined: boolean;
@@ -31,6 +34,9 @@ export function RoomLobbyOverlay({
   gameId,
   lobbySeed,
   roomTypeLabel,
+  saveStorage,
+  savePersistedAt,
+  saveHydratedFrom,
   isCreator,
   isGameActive,
   allSeatsJoined,
@@ -53,6 +59,19 @@ export function RoomLobbyOverlay({
     const runtime = seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
     return seat.occupied || runtime !== "none";
   }).length;
+
+  const formatIsoTime = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (!Number.isFinite(date.getTime())) return null;
+    return date.toLocaleTimeString([], {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+  const savePersistedTime = formatIsoTime(savePersistedAt);
 
   return (
     <FullScreenMessage
@@ -132,11 +151,29 @@ export function RoomLobbyOverlay({
                   </svg>
                 </button>
               </div>
+
+              {saveStorage && (
+                <span className="px-2 py-0.5 rounded text-2xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  Saved
+                </span>
+              )}
+
+              {saveHydratedFrom && (
+                <span className="px-2 py-0.5 rounded text-2xs font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
+                  Restored
+                </span>
+              )}
             </div>
 
             {lobbySeed && (
               <div className="text-2xs text-ink-muted/70 font-mono italic">
                 Seed: {lobbySeed}
+              </div>
+            )}
+
+            {savePersistedTime && (
+              <div className="text-2xs text-ink-muted/70 font-mono italic">
+                Last save: {savePersistedTime}
               </div>
             )}
           </div>

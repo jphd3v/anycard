@@ -6,10 +6,9 @@ import type {
   GameLogFetchAck,
   GameSaveExportAck,
   GameSaveImportAck,
+  GameSaveSnapshot,
   GameState,
   LastAction,
-  PersistedExecutedIntent,
-  PersistedGameEvent,
   SeatStatus,
 } from "../../shared/schemas.js";
 import {
@@ -62,11 +61,14 @@ import { resolveEngineCardId, toViewCardId } from "./view-ids.js";
 import { applyLegalActionsToView } from "./util/actions.js";
 import { getSuitSymbol } from "./util/card-notation.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
-import { getBackendBuildInfo } from "./build-info.js";
-import { buildGameSaveFormat } from "./save-fingerprint.js";
 import { parseSaveSnapshotForImport } from "./save-import.js";
 import { buildDeterministicGameLog } from "./game-log.js";
 import { resolveEventAttribution } from "./event-attribution.js";
+import { buildGameSaveSnapshot } from "./save-snapshot.js";
+import type {
+  PersistedRoomType,
+  SupabasePersistedGameRecord,
+} from "./persistence/supabase-autosave.js";
 
 // Module-scoped state
 type PlayerRole = "player" | "spectator";
@@ -78,6 +80,14 @@ type PlayerRegistryEntry = {
   isGodMode?: boolean;
 };
 
+type PersistedStorage = "supabase";
+type GamePersistenceSummary = {
+  storage: PersistedStorage;
+  persistedAt?: string;
+  hydratedFrom?: PersistedStorage;
+  hydratedAt?: string;
+};
+
 export type ActiveGameSummary = {
   gameId: string;
   rulesId: string;
@@ -85,8 +95,9 @@ export type ActiveGameSummary = {
   numOccupiedSeats: number;
   numSpectators: number;
   hasWinner: boolean;
-  roomType: "demo" | "public";
+  roomType: RoomType;
   status: "waiting" | "playing" | "finished";
+  persistence?: GamePersistenceSummary;
 };
 
 export type GameSummary = {
@@ -101,6 +112,7 @@ export type GameSummary = {
   players: { id: string; name?: string; occupied: boolean }[];
   seed?: string;
   status: "waiting" | "playing" | "finished";
+  persistence?: GamePersistenceSummary;
 };
 
 const playerRegistry = new Map<string, PlayerRegistryEntry>();
@@ -109,6 +121,7 @@ const seatAssignments = new Map<string, string>(); // key: `${gameId}:${playerId
 const gameProcessingChains = new Map<string, Promise<void>>();
 const demoRoomsByRulesId = new Map<string, string>(); // rulesId -> gameId
 const roomTypeByGameId = new Map<string, RoomType>();
+const persistenceByGameId = new Map<string, GamePersistenceSummary>();
 const pendingCloseTimers = new Map<string, NodeJS.Timeout>();
 const NO_HUMAN_CLOSE_DELAY_MS = 5 * 60 * 1000;
 const DEMO_ABANDONED_RESET_DELAY_MS = 30 * 1000;
@@ -193,6 +206,100 @@ export function getRoomType(gameId: string): RoomType {
   return roomTypeByGameId.get(gameId) ?? "private";
 }
 
+function normalizePersistedRoomType(roomType: PersistedRoomType): RoomType {
+  return roomType === "demo" || roomType === "public" || roomType === "private"
+    ? roomType
+    : "private";
+}
+
+function isValidIsoDatetime(value: string | undefined): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function setGamePersistenceSummary(
+  gameId: string,
+  update: Partial<GamePersistenceSummary> & { storage: PersistedStorage }
+): void {
+  const previous = persistenceByGameId.get(gameId);
+  const next: GamePersistenceSummary = {
+    storage: update.storage,
+    ...(previous?.persistedAt ? { persistedAt: previous.persistedAt } : {}),
+    ...(previous?.hydratedFrom
+      ? { hydratedFrom: previous.hydratedFrom, hydratedAt: previous.hydratedAt }
+      : {}),
+  };
+
+  if (isValidIsoDatetime(update.persistedAt)) {
+    next.persistedAt = update.persistedAt;
+  }
+  if (update.hydratedFrom) {
+    next.hydratedFrom = update.hydratedFrom;
+    if (isValidIsoDatetime(update.hydratedAt)) {
+      next.hydratedAt = update.hydratedAt;
+    }
+  }
+
+  persistenceByGameId.set(gameId, next);
+}
+
+function getGamePersistenceSummary(
+  gameId: string
+): GamePersistenceSummary | undefined {
+  const summary = persistenceByGameId.get(gameId);
+  if (!summary) return undefined;
+  return {
+    storage: summary.storage,
+    ...(summary.persistedAt ? { persistedAt: summary.persistedAt } : {}),
+    ...(summary.hydratedFrom
+      ? {
+          hydratedFrom: summary.hydratedFrom,
+          ...(summary.hydratedAt ? { hydratedAt: summary.hydratedAt } : {}),
+        }
+      : {}),
+  };
+}
+
+export function getGamePersistenceMetadata(
+  gameId: string
+): Record<string, string> | undefined {
+  const summary = getGamePersistenceSummary(gameId);
+  if (!summary) return undefined;
+  const metadata: Record<string, string> = {
+    saveStorage: summary.storage,
+  };
+  if (summary.persistedAt) {
+    metadata.savePersistedAt = summary.persistedAt;
+  }
+  if (summary.hydratedFrom) {
+    metadata.saveHydratedFrom = summary.hydratedFrom;
+  }
+  if (summary.hydratedAt) {
+    metadata.saveHydratedAt = summary.hydratedAt;
+  }
+  return metadata;
+}
+
+export function notePersistedSnapshot(payload: {
+  gameId: string;
+  roomType: PersistedRoomType;
+  persistedAt: string;
+  storage?: PersistedStorage;
+}): void {
+  const roomType = normalizePersistedRoomType(payload.roomType);
+  setRoomType(payload.gameId, roomType);
+  setGamePersistenceSummary(payload.gameId, {
+    storage: payload.storage ?? "supabase",
+    persistedAt: payload.persistedAt,
+  });
+}
+
+export function noteDeletedSnapshot(payload: { gameId: string }): void {
+  // Keep metadata while in memory so UI can still show last persistence status.
+  if (!projectState(payload.gameId)) {
+    persistenceByGameId.delete(payload.gameId);
+  }
+}
+
 function isDemoRoom(gameId: string): boolean {
   return getRoomType(gameId) === "demo";
 }
@@ -215,10 +322,12 @@ function ensureDemoRoom(rulesId: string): string | null {
   const initialState = loadAndValidateGameConfig(rulesId, DEFAULT_DEMO_SEED);
   const gameId = generateGameId();
   const stateForGame: GameState = { ...initialState, gameId };
+  setRoomType(gameId, "demo");
 
   try {
     initGame(stateForGame);
   } catch (err) {
+    roomTypeByGameId.delete(gameId);
     console.warn(
       `[Demo Rooms] Failed to create demo room for rulesId="%s"`,
       rulesId,
@@ -287,6 +396,7 @@ export function closeGameSession(io: Server, gameId: string): boolean {
   }
 
   roomTypeByGameId.delete(gameId);
+  persistenceByGameId.delete(gameId);
   gameProcessingChains.delete(gameId);
   closeGame(gameId);
   return true;
@@ -500,49 +610,6 @@ type GameSaveExportCallback = (response: GameSaveExportAck) => void;
 type GameSaveImportCallback = (response: GameSaveImportAck) => void;
 type GameLogFetchCallback = (response: GameLogFetchAck) => void;
 
-function buildExportInitialState(initialState: GameState): GameState {
-  const cards = Object.fromEntries(
-    Object.entries(initialState.cards).map(([cardId, card]) => {
-      const cardWithoutLabel = { ...card };
-      delete cardWithoutLabel.label;
-      return [cardId, cardWithoutLabel];
-    })
-  ) as GameState["cards"];
-
-  return {
-    ...initialState,
-    cards,
-  };
-}
-
-function buildGameSaveSnapshot(gameId: string) {
-  const initialState = getInitialState(gameId);
-  if (!initialState) {
-    return null;
-  }
-
-  const buildInfo = getBackendBuildInfo();
-
-  const events: PersistedGameEvent[] = getEvents(gameId).map((event) => {
-    return Object.fromEntries(
-      Object.entries(event).filter(([key]) => key !== "gameId")
-    ) as PersistedGameEvent;
-  });
-  const executedIntents: PersistedExecutedIntent[] = getExecutedIntents(gameId);
-
-  return {
-    exportedAt: new Date().toISOString(),
-    origin: {
-      backendCommitHash: buildInfo.commitHash,
-      backendCommitUnixTs: buildInfo.commitUnixTs,
-    },
-    format: buildGameSaveFormat(initialState),
-    initialState: buildExportInitialState(initialState),
-    events,
-    ...(executedIntents.length > 0 ? { executedIntents } : {}),
-  };
-}
-
 function resolveGameLogViewerId(socketId: string, gameId: string): string {
   const registryEntry = playerRegistry.get(socketId);
   if (registryEntry && registryEntry.gameId === gameId) {
@@ -688,6 +755,7 @@ export function getGameSummary(gameId: string): GameSummary | null {
     players,
     seed: state.seed,
     status,
+    persistence: getGamePersistenceSummary(gameId),
   };
 }
 
@@ -700,6 +768,12 @@ export function getActiveGameSummaries(): ActiveGameSummary[] {
   for (const gameId of roomTypeByGameId.keys()) {
     if (!activeGameIds.has(gameId)) {
       roomTypeByGameId.delete(gameId);
+    }
+  }
+
+  for (const gameId of persistenceByGameId.keys()) {
+    if (!activeGameIds.has(gameId)) {
+      persistenceByGameId.delete(gameId);
     }
   }
 
@@ -738,9 +812,6 @@ export function getActiveGameSummaries(): ActiveGameSummary[] {
     const numSpectators = spectatorCounts.get(gameId) ?? 0;
     const hasWinner = state.winner != null;
     const roomType = getRoomType(gameId);
-    if (roomType === "private") {
-      continue;
-    }
 
     const rulesState = state.rulesState as { hasDealt?: boolean } | null;
     const hasDealt = rulesState?.hasDealt ?? false;
@@ -755,10 +826,185 @@ export function getActiveGameSummaries(): ActiveGameSummary[] {
       hasWinner,
       roomType,
       status,
+      persistence: getGamePersistenceSummary(gameId),
     });
   }
 
   return summaries;
+}
+
+type HydrateGameFromSnapshotOptions = {
+  gameId?: string;
+  roomType: RoomType;
+  markImportedHistory: boolean;
+  markHistoricalAiUnavailable: boolean;
+  persistence?: {
+    storage: PersistedStorage;
+    persistedAt?: string;
+    hydratedFrom?: PersistedStorage;
+    hydratedAt?: string;
+  };
+};
+
+type HydrateGameFromSnapshotResult =
+  | { ok: true; gameId: string; rulesId: string }
+  | { ok: false; message: string };
+
+function hydrateGameFromSnapshot(
+  snapshot: GameSaveSnapshot,
+  options: HydrateGameFromSnapshotOptions
+): HydrateGameFromSnapshotResult {
+  const rulesId = snapshot.initialState.rulesId;
+  if (!GAME_PLUGINS[rulesId]) {
+    return {
+      ok: false,
+      message: `Unsupported rules id in save: ${rulesId}`,
+    };
+  }
+
+  const gameId = options.gameId ?? generateGameId();
+  const initialState: GameState = {
+    ...snapshot.initialState,
+    gameId,
+  };
+  setRoomType(gameId, options.roomType);
+
+  try {
+    initGame(initialState);
+  } catch (error) {
+    roomTypeByGameId.delete(gameId);
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to create game from save",
+    };
+  }
+
+  try {
+    let workingState = initialState;
+    for (let idx = 0; idx < snapshot.events.length; idx += 1) {
+      const persistedEvent = snapshot.events[idx];
+      const { id: persistedId, ...persistedEventPayload } = persistedEvent;
+      const event = GameEventSchema.parse({
+        id: persistedId ?? idx + 1,
+        gameId,
+        ...persistedEventPayload,
+      });
+      workingState = applyEvent(workingState, event);
+      appendEvent(gameId, event);
+    }
+    setExecutedIntents(gameId, snapshot.executedIntents ?? []);
+    setImportedEventCount(
+      gameId,
+      options.markImportedHistory ? snapshot.events.length : 0
+    );
+    setImportedExecutedIntentCount(
+      gameId,
+      options.markImportedHistory ? (snapshot.executedIntents?.length ?? 0) : 0
+    );
+  } catch (error) {
+    closeGame(gameId);
+    roomTypeByGameId.delete(gameId);
+    persistenceByGameId.delete(gameId);
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to load save",
+    };
+  }
+
+  if (options.roomType === "demo") {
+    demoRoomsByRulesId.set(initialState.rulesId, gameId);
+  }
+  clearPendingClose(gameId);
+
+  if (options.markHistoricalAiUnavailable) {
+    markHistoricalAiTelemetryUnavailable(gameId);
+  }
+
+  if (options.persistence) {
+    setGamePersistenceSummary(gameId, {
+      storage: options.persistence.storage,
+      ...(options.persistence.persistedAt
+        ? { persistedAt: options.persistence.persistedAt }
+        : {}),
+      ...(options.persistence.hydratedFrom
+        ? {
+            hydratedFrom: options.persistence.hydratedFrom,
+            ...(options.persistence.hydratedAt
+              ? { hydratedAt: options.persistence.hydratedAt }
+              : {}),
+          }
+        : {}),
+    });
+  }
+
+  return {
+    ok: true,
+    gameId,
+    rulesId: initialState.rulesId,
+  };
+}
+
+export function restorePersistedGames(records: SupabasePersistedGameRecord[]): {
+  restored: number;
+  skipped: number;
+  failed: number;
+} {
+  if (records.length === 0) {
+    return { restored: 0, skipped: 0, failed: 0 };
+  }
+
+  const restoredDemoRules = new Set<string>();
+  let restored = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const record of records) {
+    const roomType = normalizePersistedRoomType(record.roomType);
+    const rulesId = record.snapshot.initialState.rulesId;
+    if (roomType === "demo" && restoredDemoRules.has(rulesId)) {
+      skipped += 1;
+      continue;
+    }
+
+    if (projectState(record.gameId)) {
+      skipped += 1;
+      continue;
+    }
+
+    const hydratedAt = new Date().toISOString();
+    const result = hydrateGameFromSnapshot(record.snapshot, {
+      gameId: record.gameId,
+      roomType,
+      markImportedHistory: true,
+      markHistoricalAiUnavailable: true,
+      persistence: {
+        storage: record.storage,
+        persistedAt: record.persistedAt,
+        hydratedFrom: record.storage,
+        hydratedAt,
+      },
+    });
+
+    if (!result.ok) {
+      failed += 1;
+      console.warn("[Autosave] Failed to restore persisted game", {
+        gameId: record.gameId,
+        roomType,
+        message: result.message,
+      });
+      continue;
+    }
+
+    if (roomType === "demo") {
+      restoredDemoRules.add(result.rulesId);
+    }
+    restored += 1;
+  }
+
+  return { restored, skipped, failed };
 }
 
 // Interface for local pre-validation results
@@ -1318,10 +1564,17 @@ export function initSocket(io: Server) {
             ...initialState,
             gameId,
           };
+          const roomType: RoomType = isDemoRoomRequest
+            ? "demo"
+            : isPublicRoomRequest
+              ? "public"
+              : "private";
+          setRoomType(gameId, roomType);
 
           try {
             initGame(stateForGame);
           } catch (err) {
+            roomTypeByGameId.delete(gameId);
             if (
               err instanceof Error &&
               err.message.includes("Max active games")
@@ -1336,13 +1589,8 @@ export function initSocket(io: Server) {
             }
             throw err;
           }
-          if (isDemoRoomRequest) {
+          if (roomType === "demo") {
             demoRoomsByRulesId.set(requestedGameType, gameId);
-            setRoomType(gameId, "demo");
-          } else if (isPublicRoomRequest) {
-            setRoomType(gameId, "public");
-          } else {
-            setRoomType(gameId, "private");
           }
 
           socket.emit("game:start:success", {
@@ -1442,54 +1690,21 @@ export function initSocket(io: Server) {
           return;
         }
 
-        const gameId = generateGameId();
+        const hydrateResult = hydrateGameFromSnapshot(snapshot, {
+          roomType: "private",
+          markImportedHistory: true,
+          markHistoricalAiUnavailable: true,
+        });
+        if (!hydrateResult.ok) {
+          respondError(`Failed to load save: ${hydrateResult.message}`);
+          return;
+        }
+
+        const { gameId } = hydrateResult;
         const initialState: GameState = {
           ...snapshot.initialState,
           gameId,
         };
-
-        try {
-          initGame(initialState);
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Failed to create game from save";
-          respondError(message);
-          return;
-        }
-
-        try {
-          let workingState = initialState;
-          for (let idx = 0; idx < snapshot.events.length; idx += 1) {
-            const persistedEvent = snapshot.events[idx];
-            const { id: persistedId, ...persistedEventPayload } =
-              persistedEvent;
-            const event = GameEventSchema.parse({
-              id: persistedId ?? idx + 1,
-              gameId,
-              ...persistedEventPayload,
-            });
-            workingState = applyEvent(workingState, event);
-            appendEvent(gameId, event);
-          }
-          setExecutedIntents(gameId, snapshot.executedIntents ?? []);
-          setImportedEventCount(gameId, snapshot.events.length);
-          setImportedExecutedIntentCount(
-            gameId,
-            snapshot.executedIntents?.length ?? 0
-          );
-        } catch (error) {
-          closeGame(gameId);
-          const message =
-            error instanceof Error ? error.message : "Failed to load save";
-          respondError(`Failed to load save: ${message}`);
-          return;
-        }
-
-        setRoomType(gameId, "private");
-        clearPendingClose(gameId);
-        markHistoricalAiTelemetryUnavailable(gameId);
 
         socket.join(gameId);
         sendSeatStatus(socket, gameId);
@@ -1556,6 +1771,7 @@ export function initSocket(io: Server) {
       watchRegistry.set(socket.id, gameId);
       socket.join(gameId);
       sendSeatStatus(socket, gameId);
+      maybeScheduleAiTurn(gameId, broadcastStateToGame);
     });
 
     type JoinGamePayload = {
@@ -1708,6 +1924,7 @@ export function initSocket(io: Server) {
         ...(legalIntents && legalIntents.length > 0 ? { legalIntents } : {}),
       });
       broadcastSeatStatus(gameId);
+      maybeScheduleAiTurn(gameId, broadcastStateToGame);
     });
 
     // Rate limiting configuration
