@@ -1,0 +1,98 @@
+{
+  "rulesId": "skruuvi",
+  "rows": 3,
+  "cols": 4,
+  "zones": [
+    {
+      "id": "scoreboards-area",
+      "cell": {
+        "row": 0,
+        "col": 0
+      },
+      "piles": [],
+      "widget": "scoreboards"
+    },
+    {
+      "id": "north-area",
+      "label": "North",
+      "cell": {
+        "row": 0,
+        "col": 1,
+        "colspan": 2
+      },
+      "piles": ["N-hand"]
+    },
+    {
+      "id": "actions-area",
+      "cell": {
+        "row": 0,
+        "col": 3
+      },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "west-area",
+      "label": "West",
+      "cell": {
+        "row": 1,
+        "col": 0
+      },
+      "piles": ["W-hand"]
+    },
+    {
+      "id": "center-area",
+      "label": "Table",
+      "cell": {
+        "row": 1,
+        "col": 1,
+        "colspan": 2
+      },
+      "piles": ["deck", "table"]
+    },
+    {
+      "id": "east-area",
+      "label": "East",
+      "cell": {
+        "row": 1,
+        "col": 3
+      },
+      "piles": ["E-hand"]
+    },
+    {
+      "id": "south-area",
+      "label": "South",
+      "cell": {
+        "row": 2,
+        "col": 1,
+        "colspan": 2
+      },
+      "piles": ["S-hand"]
+    }
+  ],
+  "pileStyles": {
+    "N-hand": {
+      "layout": "horizontal",
+      "isHand": true
+    },
+    "E-hand": {
+      "layout": "vertical",
+      "isHand": true
+    },
+    "S-hand": {
+      "layout": "horizontal",
+      "isHand": true
+    },
+    "W-hand": {
+      "layout": "vertical",
+      "isHand": true
+    },
+    "deck": {
+      "layout": "complete",
+      "showDetails": true
+    },
+    "table": {
+      "layout": "horizontal"
+    }
+  }
+}

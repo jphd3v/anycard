@@ -1,13 +1,24 @@
 {
-  "id": "example",
+  "id": "your-game-basic",
+  "tags": ["basic"],
   "rulesId": "your-game",
   "seed": "INTEGRATION-SEED",
   "players": [
     { "id": "P1", "name": "Player 1" },
     { "id": "P2", "name": "Player 2" }
   ],
-  "intents": [{ "type": "action", "playerId": "P1", "action": "TODO" }],
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "P1",
+      "action": "TODO",
+      "expectEvents": {
+        "includeTypes": ["set-rules-state", "set-actions", "set-scoreboards"]
+      }
+    }
+  ],
   "expect": {
-    "winner": null
+    "winner": null,
+    "actions": { "rows": 0, "cols": 0, "cells": [] }
   }
 }

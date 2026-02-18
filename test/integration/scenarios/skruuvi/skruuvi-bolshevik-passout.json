@@ -1,0 +1,65 @@
+{
+  "id": "skruuvi-bolshevik-passout",
+  "tags": ["bolshevik"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-BOLSHEVIK-PASSOUT-1",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "start-bolshevik-set"
+    },
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "playerId": "S",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "playerId": "W",
+      "action": "pass",
+      "expectEvents": {
+        "includeTypes": [
+          "announce",
+          "set-rules-state",
+          "set-current-player",
+          "set-actions"
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "piles": {
+      "deck": { "size": 52, "visibility": "hidden" },
+      "table": { "size": 0, "visibility": "public" },
+      "N-hand": { "size": 0, "visibility": "owner" },
+      "E-hand": { "size": 0, "visibility": "owner" },
+      "S-hand": { "size": 0, "visibility": "owner" },
+      "W-hand": { "size": 0, "visibility": "owner" }
+    },
+    "actions": {
+      "rows": 1,
+      "cols": 1,
+      "cells": [
+        {
+          "id": "start-bolshevik-deal",
+          "label": "Start Bolshevik Deal",
+          "enabled": true,
+          "row": 0,
+          "col": 0
+        }
+      ]
+    }
+  }
+}

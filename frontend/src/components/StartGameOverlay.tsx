@@ -239,8 +239,9 @@ export function StartGameOverlay({
     >
       <div className="flex flex-col gap-1 md:col-span-2 pb-1 md:pb-2 text-center">
         <p className="leading-relaxed">
-          <strong>Drag and drop</strong> cards between designated areas. Moves
-          are validated based on rules and only allowed on your own turn.
+          <strong>Click</strong> or <strong>Drag and drop</strong> cards between
+          designated areas. Moves are validated based on rules and only allowed
+          on your own turn.
         </p>
       </div>
       <div className="flex flex-col gap-1">

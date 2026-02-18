@@ -1,0 +1,8 @@
+{
+  "rulesId": "skruuvi",
+  "gameName": "Skruuvi",
+  "description": "Finnish auction whist with rotating partnerships, kitty/no-kitty deals, all-pass misere, doubles/redoubles, and optional Bolshevik session play.",
+  "players": 4,
+  "category": "Custom",
+  "supportsActions": true
+}

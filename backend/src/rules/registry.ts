@@ -15,6 +15,7 @@ import { crazyEightsPlugin } from "./impl/crazy-eights.js";
 import { gamePlugin as jokerPlugin } from "./impl/joker.js";
 import { cribbagePlugin } from "./impl/cribbage.js";
 import { golfPlugin } from "./impl/golf.js";
+import { skruuviPlugin } from "./impl/skruuvi.js";
 
 export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [bridgePlugin.id]: bridgePlugin,
@@ -33,6 +34,7 @@ export const GAME_PLUGINS: Record<string, GamePlugin> = {
   [jokerPlugin.id]: jokerPlugin,
   [cribbagePlugin.id]: cribbagePlugin,
   [golfPlugin.id]: golfPlugin,
+  [skruuviPlugin.id]: skruuviPlugin,
 };
 
 /** Convenience: list of plugins for lobbies or /games endpoint. */

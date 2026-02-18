@@ -1,0 +1,670 @@
+{
+  "id": "skruuvi-round-reset",
+  "tags": ["round-reset"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-AUTO-SCORE",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1200,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "rulesState": {
+      "phase": "auction",
+      "hasDealt": true,
+      "dealNumber": 2,
+      "dealer": "E",
+      "mode": "kitty",
+      "scores": {
+        "N": 26,
+        "E": -26,
+        "S": 26,
+        "W": -26
+      },
+      "lastDealDelta": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "result": null,
+      "recap": ["Deal 2 started (Kitty), dealer E."],
+      "auction": {
+        "history": [],
+        "highestBid": null,
+        "consecutivePasses": 0,
+        "totalCalls": 0,
+        "firstBidLevel": null
+      },
+      "mainPlayers": null,
+      "contract": null,
+      "round": {
+        "trickNumber": 1,
+        "currentTrick": [],
+        "tricksNS": 0,
+        "tricksEW": 0,
+        "acePenaltyNS": 0,
+        "acePenaltyEW": 0,
+        "allPassTrickPenaltyNS": 0,
+        "allPassTrickPenaltyEW": 0
+      },
+      "exchange": {
+        "bidderPassedCount": 0,
+        "partnerGivenTo": [],
+        "kotkaOutCount": 0,
+        "kotkaBackCount": 0,
+        "allPassExchangeIndex": 0,
+        "bolshevikGivenTo": [],
+        "bolshevikPasses": 0,
+        "bolshevikDoubler": null,
+        "bolshevikAuctionIndex": 0,
+        "bolshevikBidders": [],
+        "bolshevikChoiceIndex": 0,
+        "partnerSignalSuit": {
+          "N": null,
+          "E": null,
+          "S": null,
+          "W": null
+        },
+        "kittyBidderPacket": [],
+        "kotkaOutPacket": [],
+        "kotkaBackPacket": []
+      },
+      "allPassDoublingPasses": 0,
+      "penalties": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "bolshevik": {
+        "active": false,
+        "dealsPlayed": 0,
+        "declarersPlayed": [],
+        "rawScores": {
+          "N": 0,
+          "E": 0,
+          "S": 0,
+          "W": 0
+        }
+      }
+    },
+    "piles": {
+      "deck": {
+        "size": 4,
+        "visibility": "hidden"
+      },
+      "table": {
+        "size": 0,
+        "visibility": "public"
+      },
+      "N-hand": {
+        "size": 12,
+        "visibility": "owner"
+      },
+      "E-hand": {
+        "size": 12,
+        "visibility": "owner"
+      },
+      "S-hand": {
+        "size": 12,
+        "visibility": "owner"
+      },
+      "W-hand": {
+        "size": 12,
+        "visibility": "owner"
+      }
+    },
+    "actions": {
+      "rows": 8,
+      "cols": 6,
+      "cells": [
+        {
+          "id": "bid:1:misere",
+          "label": "1 Misere",
+          "enabled": true,
+          "row": 0,
+          "col": 0
+        },
+        {
+          "id": "bid:1:spades",
+          "label": "1 ♠️",
+          "enabled": true,
+          "row": 0,
+          "col": 1
+        },
+        {
+          "id": "bid:1:clubs",
+          "label": "1 ♣️",
+          "enabled": true,
+          "row": 0,
+          "col": 2
+        },
+        {
+          "id": "bid:1:diamonds",
+          "label": "1 ♦️",
+          "enabled": true,
+          "row": 0,
+          "col": 3
+        },
+        {
+          "id": "bid:1:hearts",
+          "label": "1 ♥️",
+          "enabled": true,
+          "row": 0,
+          "col": 4
+        },
+        {
+          "id": "bid:1:grand",
+          "label": "1 Grand",
+          "enabled": true,
+          "row": 0,
+          "col": 5
+        },
+        {
+          "id": "bid:2:misere",
+          "label": "2 Misere",
+          "enabled": true,
+          "row": 1,
+          "col": 0
+        },
+        {
+          "id": "bid:2:spades",
+          "label": "2 ♠️",
+          "enabled": true,
+          "row": 1,
+          "col": 1
+        },
+        {
+          "id": "bid:2:clubs",
+          "label": "2 ♣️",
+          "enabled": true,
+          "row": 1,
+          "col": 2
+        },
+        {
+          "id": "bid:2:diamonds",
+          "label": "2 ♦️",
+          "enabled": true,
+          "row": 1,
+          "col": 3
+        },
+        {
+          "id": "bid:2:hearts",
+          "label": "2 ♥️",
+          "enabled": true,
+          "row": 1,
+          "col": 4
+        },
+        {
+          "id": "bid:2:grand",
+          "label": "2 Grand",
+          "enabled": true,
+          "row": 1,
+          "col": 5
+        },
+        {
+          "id": "bid:3:misere",
+          "label": "3 Misere",
+          "enabled": true,
+          "row": 2,
+          "col": 0
+        },
+        {
+          "id": "bid:3:spades",
+          "label": "3 ♠️",
+          "enabled": true,
+          "row": 2,
+          "col": 1
+        },
+        {
+          "id": "bid:3:clubs",
+          "label": "3 ♣️",
+          "enabled": true,
+          "row": 2,
+          "col": 2
+        },
+        {
+          "id": "bid:3:diamonds",
+          "label": "3 ♦️",
+          "enabled": true,
+          "row": 2,
+          "col": 3
+        },
+        {
+          "id": "bid:3:hearts",
+          "label": "3 ♥️",
+          "enabled": true,
+          "row": 2,
+          "col": 4
+        },
+        {
+          "id": "bid:3:grand",
+          "label": "3 Grand",
+          "enabled": true,
+          "row": 2,
+          "col": 5
+        },
+        {
+          "id": "bid:4:misere",
+          "label": "4 Misere",
+          "enabled": true,
+          "row": 3,
+          "col": 0
+        },
+        {
+          "id": "bid:4:spades",
+          "label": "4 ♠️",
+          "enabled": true,
+          "row": 3,
+          "col": 1
+        },
+        {
+          "id": "bid:4:clubs",
+          "label": "4 ♣️",
+          "enabled": true,
+          "row": 3,
+          "col": 2
+        },
+        {
+          "id": "bid:4:diamonds",
+          "label": "4 ♦️",
+          "enabled": true,
+          "row": 3,
+          "col": 3
+        },
+        {
+          "id": "bid:4:hearts",
+          "label": "4 ♥️",
+          "enabled": true,
+          "row": 3,
+          "col": 4
+        },
+        {
+          "id": "bid:4:grand",
+          "label": "4 Grand",
+          "enabled": true,
+          "row": 3,
+          "col": 5
+        },
+        {
+          "id": "bid:5:misere",
+          "label": "5 Misere",
+          "enabled": true,
+          "row": 4,
+          "col": 0
+        },
+        {
+          "id": "bid:5:spades",
+          "label": "5 ♠️",
+          "enabled": true,
+          "row": 4,
+          "col": 1
+        },
+        {
+          "id": "bid:5:clubs",
+          "label": "5 ♣️",
+          "enabled": true,
+          "row": 4,
+          "col": 2
+        },
+        {
+          "id": "bid:5:diamonds",
+          "label": "5 ♦️",
+          "enabled": true,
+          "row": 4,
+          "col": 3
+        },
+        {
+          "id": "bid:5:hearts",
+          "label": "5 ♥️",
+          "enabled": true,
+          "row": 4,
+          "col": 4
+        },
+        {
+          "id": "bid:5:grand",
+          "label": "5 Grand",
+          "enabled": true,
+          "row": 4,
+          "col": 5
+        },
+        {
+          "id": "bid:6:misere",
+          "label": "6 Misere",
+          "enabled": true,
+          "row": 5,
+          "col": 0
+        },
+        {
+          "id": "bid:6:spades",
+          "label": "6 ♠️",
+          "enabled": true,
+          "row": 5,
+          "col": 1
+        },
+        {
+          "id": "bid:6:clubs",
+          "label": "6 ♣️",
+          "enabled": true,
+          "row": 5,
+          "col": 2
+        },
+        {
+          "id": "bid:6:diamonds",
+          "label": "6 ♦️",
+          "enabled": true,
+          "row": 5,
+          "col": 3
+        },
+        {
+          "id": "bid:6:hearts",
+          "label": "6 ♥️",
+          "enabled": true,
+          "row": 5,
+          "col": 4
+        },
+        {
+          "id": "bid:6:grand",
+          "label": "6 Grand",
+          "enabled": true,
+          "row": 5,
+          "col": 5
+        },
+        {
+          "id": "bid:7:misere",
+          "label": "7 Misere",
+          "enabled": true,
+          "row": 6,
+          "col": 0
+        },
+        {
+          "id": "bid:7:spades",
+          "label": "7 ♠️",
+          "enabled": true,
+          "row": 6,
+          "col": 1
+        },
+        {
+          "id": "bid:7:clubs",
+          "label": "7 ♣️",
+          "enabled": true,
+          "row": 6,
+          "col": 2
+        },
+        {
+          "id": "bid:7:diamonds",
+          "label": "7 ♦️",
+          "enabled": true,
+          "row": 6,
+          "col": 3
+        },
+        {
+          "id": "bid:7:hearts",
+          "label": "7 ♥️",
+          "enabled": true,
+          "row": 6,
+          "col": 4
+        },
+        {
+          "id": "bid:7:grand",
+          "label": "7 Grand",
+          "enabled": true,
+          "row": 6,
+          "col": 5
+        },
+        {
+          "id": "pass",
+          "label": "Pass",
+          "enabled": true,
+          "row": 7,
+          "col": 0,
+          "colspan": 6
+        }
+      ]
+    },
+    "scoreboards": [
+      {
+        "id": "skruuvi-score",
+        "title": "Skruuvi Scores",
+        "rows": 5,
+        "cols": 4,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Side",
+            "role": "header",
+            "align": "center"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Total",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 3,
+            "text": "Last Deal",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "North",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 1,
+            "text": "NS",
+            "align": "center"
+          },
+          {
+            "row": 1,
+            "col": 2,
+            "text": "26",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "East",
+            "align": "left"
+          },
+          {
+            "row": 2,
+            "col": 1,
+            "text": "EW",
+            "align": "center"
+          },
+          {
+            "row": 2,
+            "col": 2,
+            "text": "-26",
+            "align": "right"
+          },
+          {
+            "row": 2,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "South",
+            "align": "left"
+          },
+          {
+            "row": 3,
+            "col": 1,
+            "text": "NS",
+            "align": "center"
+          },
+          {
+            "row": 3,
+            "col": 2,
+            "text": "26",
+            "align": "right"
+          },
+          {
+            "row": 3,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "West",
+            "align": "left"
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "text": "EW",
+            "align": "center"
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "text": "-26",
+            "align": "right"
+          },
+          {
+            "row": 4,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          }
+        ]
+      },
+      {
+        "id": "skruuvi-round",
+        "title": "Current Deal",
+        "rows": 8,
+        "cols": 2,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Field",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Value",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "Deal",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 1,
+            "text": "2/24"
+          },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "Mode",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 2,
+            "col": 1,
+            "text": "Kitty"
+          },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "Phase",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 3,
+            "col": 1,
+            "text": "auction"
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "Bid / Contract",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "text": "—"
+          },
+          {
+            "row": 5,
+            "col": 0,
+            "text": "Tricks",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 5,
+            "col": 1,
+            "text": "NS 0 / EW 0"
+          },
+          {
+            "row": 6,
+            "col": 0,
+            "text": "Multiplier",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 6,
+            "col": 1,
+            "text": "x1"
+          },
+          {
+            "row": 7,
+            "col": 0,
+            "text": "Dealer",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 7,
+            "col": 1,
+            "text": "E"
+          }
+        ]
+      }
+    ]
+  }
+}

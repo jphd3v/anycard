@@ -1794,7 +1794,20 @@ Every action button in your game MUST have a test showing:
 
 This exact scenario was a critical bug in Cribbage that should have been caught by tests.
 
-#### E. Auto-Playthrough Tests
+#### E. UI Semantics Coverage (Scoreboards, Actions, Announcements)
+
+Your scenarios must verify UI-relevant semantics using integration assertions:
+
+- Assert scoreboard structure/content via `expect.scoreboards`
+- Assert action grid state via `expect.actions`
+- Assert required emitted event types per move using `intent.expectEvents`
+  - Example: when a trick is completed and should notify players, assert
+    `includeTypes: [\"announce\"]`
+
+This catches subtle regressions where game logic is mostly correct but the UI
+state contract is wrong or incomplete.
+
+#### F. Auto-Playthrough Tests
 
 Create `<rulesId>-auto-playthrough.json` with `"auto": <N>` where N is enough moves to exercise your game deeply (20-30+ moves recommended).
 
@@ -1841,6 +1854,8 @@ The number depends on your game's complexity, not a fixed target. Cover all crit
 - [ ] "Cannot play" or "must pass" scenarios are tested (if applicable)
 - [ ] Boundary conditions (empty deck, etc.) are tested
 - [ ] Auto-playthrough test exists and passes for at least 20-30 moves
+- [ ] Scenario tags cover `basic`, `illegal`, `scoring`, `round-reset`, and `auto-playthrough`
+- [ ] Round-reset scenario asserts `expect.rulesState`, `expect.piles`, `expect.scoreboards`, and `expect.actions`
 - [ ] All tests pass: `npm run test:integration -- <rulesId>`
 
 ### 6.4 Example Test Scenarios
@@ -1852,6 +1867,7 @@ Tests the happy path through one complete hand or round.
 ```json
 {
   "id": "myGame-basic",
+  "tags": ["basic"],
   "rulesId": "myGame",
   "seed": "TEST-SEED-1",
   "intents": [
@@ -1887,6 +1903,7 @@ Documents that rule violations are properly rejected.
 ```json
 {
   "id": "myGame-must-follow-suit",
+  "tags": ["illegal"],
   "rulesId": "myGame",
   "seed": "TEST-SEED-2",
   "intents": [
@@ -2583,6 +2600,7 @@ Before calling the new game "done", verify:
 - [ ] No other backend or frontend files changed.
 - [ ] **Integration tests** exist under `test/integration/scenarios/<rulesId>/` covering minimum requirements (see Section 6): basic gameplay, illegal move rejection, scoring, and win condition. Tests must pass with `npm run test:integration -- <rulesId>`.
 - [ ] Deterministic integration scenarios exist under `test/integration/scenarios/<rulesId>/` with full rules coverage (core turn flow, scoring, illegal moves). See `test/integration/README.md` for the format and inspect helper.
+- [ ] Scenario tags include (across files): `basic`, `illegal`, `scoring`, `round-reset`, `auto-playthrough`.
 - [ ] `rules/<rulesId>/<rulesId>.initial-state.json` passes schema validation and:
   - [ ] **Deck size is correct** for your game (e.g., 36 for Durak, 52 for Bridge, 40 for Italian games),
   - [ ] every card id appears in exactly one pile,

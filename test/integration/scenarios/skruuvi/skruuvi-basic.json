@@ -1,0 +1,111 @@
+{
+  "id": "skruuvi-basic",
+  "tags": ["basic"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-BASIC-1",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "start-game",
+      "expectEvents": {
+        "includeTypes": [
+          "announce",
+          "set-rules-state",
+          "set-actions",
+          "set-scoreboards"
+        ]
+      }
+    },
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "pass",
+      "expectEvents": {
+        "includeTypes": ["set-rules-state", "set-current-player"]
+      }
+    }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "rulesState": {
+      "phase": "auction",
+      "hasDealt": true,
+      "dealNumber": 1,
+      "dealer": "N",
+      "mode": "kitty",
+      "scores": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "lastDealDelta": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "result": null,
+      "auction": {
+        "history": [{ "player": "N", "call": "pass" }],
+        "highestBid": null,
+        "consecutivePasses": 1,
+        "totalCalls": 1,
+        "firstBidLevel": null
+      },
+      "mainPlayers": null,
+      "contract": null,
+      "round": {
+        "trickNumber": 1,
+        "currentTrick": [],
+        "tricksNS": 0,
+        "tricksEW": 0,
+        "acePenaltyNS": 0,
+        "acePenaltyEW": 0,
+        "allPassTrickPenaltyNS": 0,
+        "allPassTrickPenaltyEW": 0
+      },
+      "exchange": {
+        "bidderPassedCount": 0,
+        "partnerGivenTo": [],
+        "kotkaOutCount": 0,
+        "kotkaBackCount": 0,
+        "allPassExchangeIndex": 0,
+        "bolshevikGivenTo": [],
+        "bolshevikPasses": 0,
+        "bolshevikDoubler": null,
+        "bolshevikAuctionIndex": 0,
+        "bolshevikBidders": [],
+        "bolshevikChoiceIndex": 0,
+        "partnerSignalSuit": {
+          "N": null,
+          "E": null,
+          "S": null,
+          "W": null
+        },
+        "kittyBidderPacket": [],
+        "kotkaOutPacket": [],
+        "kotkaBackPacket": []
+      },
+      "allPassDoublingPasses": 0,
+      "penalties": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "bolshevik": {
+        "active": false,
+        "dealsPlayed": 0,
+        "declarersPlayed": [],
+        "rawScores": {
+          "N": 0,
+          "E": 0,
+          "S": 0,
+          "W": 0
+        }
+      }
+    }
+  }
+}

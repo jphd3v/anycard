@@ -102,10 +102,35 @@ Required fields:
 Optional fields:
 
 - `id` (string)
+- `tags` (string[]) - for coverage gating (e.g. `["basic"]`, `["round-reset"]`)
 - `seed` (string)
 - `gameId` (string)
 - `players` (array of `{ id, name?, isAi? }`)
-- `expect` (object with `winner`, `currentPlayer`, `scoreboards`, `rulesState`)
+- `expect` (object with `winner`, `currentPlayer`, `actions`, `scoreboards`, `rulesState`, and optional pile/pileProperties/cardVisuals checks)
+
+`intents[]` supports additional assertion helpers:
+
+- `expectedError` (string): intent must fail with a message containing this text
+- `expectEvents` (object): asserts emitted engine event types for that intent
+  - `includeTypes`: event types that must appear at least once
+  - `excludeTypes`: event types that must not appear
+  - `exactTypes`: exact multiset of emitted event types (order-insensitive)
+  - `minCounts` / `maxCounts`: per-type lower/upper bounds
+
+Example (assert trick completion emits an announcement):
+
+```json
+{
+  "type": "move",
+  "playerId": "P2",
+  "fromPileId": "P2-hand",
+  "toPileId": "trick",
+  "cardId": 27,
+  "expectEvents": {
+    "includeTypes": ["announce", "set-rules-state", "set-scoreboards"]
+  }
+}
+```
 
 ### Scripted mode (default)
 
@@ -114,6 +139,7 @@ Provide an explicit `intents` list.
 ```json
 {
   "id": "bridge-basic",
+  "tags": ["basic"],
   "rulesId": "bridge",
   "seed": "INTEGRATION-SEED",
   "intents": [{ "type": "action", "playerId": "P1", "action": "play" }]
@@ -128,6 +154,7 @@ Use `stopWhen` to end the run once a milestone is reached (useful for long games
 ```json
 {
   "id": "bridge-complete",
+  "tags": ["auto-playthrough"],
   "rulesId": "bridge",
   "seed": "BRIDGE-INTEGRATION-1",
   "mode": "auto",
@@ -141,6 +168,18 @@ Use `stopWhen` to end the run once a milestone is reached (useful for long games
 }
 ```
 
+## New game coverage tags
+
+For newly added games, tag scenario files and cover these required tags:
+
+- `basic`
+- `illegal`
+- `scoring`
+- `round-reset`
+- `auto-playthrough`
+
+````
+
 ## Helper: list legal intents
 
 Use the inspect helper to print legal intents step-by-step (and advance with the
@@ -148,7 +187,7 @@ first legal intent). This is useful for building scripted scenarios.
 
 ```bash
 npm run test:integration:inspect -- bridge BRIDGE-INTEGRATION-1 20
-```
+````
 
 ## Deriving card IDs from a seed
 

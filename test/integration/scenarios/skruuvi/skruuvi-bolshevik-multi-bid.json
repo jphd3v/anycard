@@ -1,0 +1,60 @@
+{
+  "id": "skruuvi-bolshevik-multi-bid",
+  "tags": ["bolshevik"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-BOLSHEVIK-MULTI-1",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "start-bolshevik-set"
+    },
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "bolshevik"
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "bolshevik"
+    },
+    {
+      "type": "action",
+      "playerId": "S",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "playerId": "W",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "pass",
+      "expectedError": "It is not your turn."
+    },
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "pass",
+      "expectEvents": {
+        "minCounts": {
+          "move-cards": 2,
+          "announce": 2
+        }
+      }
+    }
+  ],
+  "expect": {
+    "currentPlayer": "E",
+    "piles": {
+      "deck": { "size": 0, "visibility": "hidden" },
+      "E-hand": { "size": 16, "visibility": "owner" },
+      "N-hand": { "size": 12, "visibility": "owner" },
+      "S-hand": { "size": 12, "visibility": "owner" },
+      "W-hand": { "size": 12, "visibility": "owner" }
+    }
+  }
+}

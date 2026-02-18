@@ -1,0 +1,256 @@
+{
+  "id": "skruuvi-scoring",
+  "tags": ["scoring"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-AUTO-SCORE",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1200,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "scoreboards": [
+      {
+        "id": "skruuvi-score",
+        "title": "Skruuvi Scores",
+        "rows": 5,
+        "cols": 4,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Player",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Side",
+            "role": "header",
+            "align": "center"
+          },
+          {
+            "row": 0,
+            "col": 2,
+            "text": "Total",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 0,
+            "col": 3,
+            "text": "Last Deal",
+            "role": "header",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "North",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 1,
+            "text": "NS",
+            "align": "center"
+          },
+          {
+            "row": 1,
+            "col": 2,
+            "text": "26",
+            "align": "right"
+          },
+          {
+            "row": 1,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "East",
+            "align": "left"
+          },
+          {
+            "row": 2,
+            "col": 1,
+            "text": "EW",
+            "align": "center"
+          },
+          {
+            "row": 2,
+            "col": 2,
+            "text": "-26",
+            "align": "right"
+          },
+          {
+            "row": 2,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "South",
+            "align": "left"
+          },
+          {
+            "row": 3,
+            "col": 1,
+            "text": "NS",
+            "align": "center"
+          },
+          {
+            "row": 3,
+            "col": 2,
+            "text": "26",
+            "align": "right"
+          },
+          {
+            "row": 3,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "West",
+            "align": "left"
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "text": "EW",
+            "align": "center"
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "text": "-26",
+            "align": "right"
+          },
+          {
+            "row": 4,
+            "col": 3,
+            "text": "0",
+            "align": "right"
+          }
+        ]
+      },
+      {
+        "id": "skruuvi-round",
+        "title": "Current Deal",
+        "rows": 8,
+        "cols": 2,
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "text": "Field",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "text": "Value",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "text": "Deal",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 1,
+            "col": 1,
+            "text": "2/24"
+          },
+          {
+            "row": 2,
+            "col": 0,
+            "text": "Mode",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 2,
+            "col": 1,
+            "text": "Kitty"
+          },
+          {
+            "row": 3,
+            "col": 0,
+            "text": "Phase",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 3,
+            "col": 1,
+            "text": "auction"
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "text": "Bid / Contract",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "text": "—"
+          },
+          {
+            "row": 5,
+            "col": 0,
+            "text": "Tricks",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 5,
+            "col": 1,
+            "text": "NS 0 / EW 0"
+          },
+          {
+            "row": 6,
+            "col": 0,
+            "text": "Multiplier",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 6,
+            "col": 1,
+            "text": "x1"
+          },
+          {
+            "row": 7,
+            "col": 0,
+            "text": "Dealer",
+            "role": "header",
+            "align": "left"
+          },
+          {
+            "row": 7,
+            "col": 1,
+            "text": "E"
+          }
+        ]
+      }
+    ]
+  }
+}

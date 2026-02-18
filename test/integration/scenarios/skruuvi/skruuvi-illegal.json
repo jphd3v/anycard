@@ -1,0 +1,101 @@
+{
+  "id": "skruuvi-illegal",
+  "tags": ["illegal"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-ILLEGAL-1",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "start-game"
+    },
+    {
+      "type": "action",
+      "playerId": "E",
+      "action": "pass",
+      "expectedError": "It is not your turn."
+    }
+  ],
+  "expect": {
+    "currentPlayer": "N",
+    "rulesState": {
+      "phase": "auction",
+      "hasDealt": true,
+      "dealNumber": 1,
+      "dealer": "N",
+      "mode": "kitty",
+      "scores": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "lastDealDelta": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "result": null,
+      "auction": {
+        "history": [],
+        "highestBid": null,
+        "consecutivePasses": 0,
+        "totalCalls": 0,
+        "firstBidLevel": null
+      },
+      "mainPlayers": null,
+      "contract": null,
+      "round": {
+        "trickNumber": 1,
+        "currentTrick": [],
+        "tricksNS": 0,
+        "tricksEW": 0,
+        "acePenaltyNS": 0,
+        "acePenaltyEW": 0,
+        "allPassTrickPenaltyNS": 0,
+        "allPassTrickPenaltyEW": 0
+      },
+      "exchange": {
+        "bidderPassedCount": 0,
+        "partnerGivenTo": [],
+        "kotkaOutCount": 0,
+        "kotkaBackCount": 0,
+        "allPassExchangeIndex": 0,
+        "bolshevikGivenTo": [],
+        "bolshevikPasses": 0,
+        "bolshevikDoubler": null,
+        "bolshevikAuctionIndex": 0,
+        "bolshevikBidders": [],
+        "bolshevikChoiceIndex": 0,
+        "partnerSignalSuit": {
+          "N": null,
+          "E": null,
+          "S": null,
+          "W": null
+        },
+        "kittyBidderPacket": [],
+        "kotkaOutPacket": [],
+        "kotkaBackPacket": []
+      },
+      "allPassDoublingPasses": 0,
+      "penalties": {
+        "N": 0,
+        "E": 0,
+        "S": 0,
+        "W": 0
+      },
+      "bolshevik": {
+        "active": false,
+        "dealsPlayed": 0,
+        "declarersPlayed": [],
+        "rawScores": {
+          "N": 0,
+          "E": 0,
+          "S": 0,
+          "W": 0
+        }
+      }
+    }
+  }
+}

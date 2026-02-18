@@ -1,0 +1,45 @@
+{
+  "id": "skruuvi-bolshevik",
+  "tags": ["bolshevik"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-BOLSHEVIK-1",
+  "intents": [
+    {
+      "type": "action",
+      "playerId": "N",
+      "action": "start-bolshevik-set",
+      "expectEvents": {
+        "includeTypes": [
+          "announce",
+          "set-rules-state",
+          "set-actions",
+          "set-scoreboards"
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "currentPlayer": "N",
+    "piles": {
+      "deck": { "size": 4, "visibility": "hidden" },
+      "N-hand": { "size": 12, "visibility": "owner" },
+      "E-hand": { "size": 12, "visibility": "owner" },
+      "S-hand": { "size": 12, "visibility": "owner" },
+      "W-hand": { "size": 12, "visibility": "owner" }
+    },
+    "actions": {
+      "rows": 1,
+      "cols": 2,
+      "cells": [
+        { "id": "pass", "label": "Pass", "enabled": true, "row": 0, "col": 0 },
+        {
+          "id": "bolshevik",
+          "label": "Bolshevik",
+          "enabled": true,
+          "row": 0,
+          "col": 1
+        }
+      ]
+    }
+  }
+}

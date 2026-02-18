@@ -19,6 +19,7 @@ import { runDeterministicShuffleTests } from "./deterministic-shuffle.js";
 type ScenarioExpect = {
   winner?: string | null;
   currentPlayer?: string | null;
+  actions?: unknown;
   scoreboards?: unknown;
   rulesState?: unknown;
   cardVisuals?: Record<number, { rotationDeg?: number }>;
@@ -39,6 +40,14 @@ type ScenarioExpect = {
     | undefined;
 };
 
+type ScenarioEventExpect = {
+  includeTypes?: string[];
+  excludeTypes?: string[];
+  exactTypes?: string[];
+  minCounts?: Record<string, number>;
+  maxCounts?: Record<string, number>;
+};
+
 type ScenarioPlayer = {
   id: string;
   name?: string;
@@ -56,10 +65,12 @@ type ScenarioAuto = {
 
 type ScenarioIntent = ClientIntent & {
   expectedError?: string;
+  expectEvents?: ScenarioEventExpect;
 };
 
 type Scenario = {
   id?: string;
+  tags?: string[];
   rulesId: string;
   seed?: string;
   gameId?: string;
@@ -148,6 +159,63 @@ function listLegalIntentsForPlayerLocal(
   );
 }
 
+function assertIntentEventExpectations(
+  label: string,
+  index: number,
+  events: GameEvent[],
+  expectEvents?: ScenarioEventExpect
+) {
+  if (!expectEvents) return;
+
+  const eventTypes = events.map((event) => event.type);
+  const eventTypeCounts = new Map<string, number>();
+  for (const eventType of eventTypes) {
+    eventTypeCounts.set(eventType, (eventTypeCounts.get(eventType) ?? 0) + 1);
+  }
+
+  for (const eventType of expectEvents.includeTypes ?? []) {
+    assert.ok(
+      eventTypeCounts.has(eventType),
+      `[integration] ${label}: intent ${index} expected event type '${eventType}', got [${eventTypes.join(", ")}]`
+    );
+  }
+
+  for (const eventType of expectEvents.excludeTypes ?? []) {
+    assert.ok(
+      !eventTypeCounts.has(eventType),
+      `[integration] ${label}: intent ${index} expected no event type '${eventType}', got [${eventTypes.join(", ")}]`
+    );
+  }
+
+  if (expectEvents.exactTypes) {
+    const expectedSorted = [...expectEvents.exactTypes].sort();
+    const actualSorted = [...eventTypes].sort();
+    assert.deepStrictEqual(
+      actualSorted,
+      expectedSorted,
+      `[integration] ${label}: intent ${index} exact event types mismatch`
+    );
+  }
+
+  for (const [eventType, minCount] of Object.entries(
+    expectEvents.minCounts ?? {}
+  )) {
+    assert.ok(
+      (eventTypeCounts.get(eventType) ?? 0) >= minCount,
+      `[integration] ${label}: intent ${index} expected at least ${minCount} '${eventType}' event(s), got ${eventTypeCounts.get(eventType) ?? 0}`
+    );
+  }
+
+  for (const [eventType, maxCount] of Object.entries(
+    expectEvents.maxCounts ?? {}
+  )) {
+    assert.ok(
+      (eventTypeCounts.get(eventType) ?? 0) <= maxCount,
+      `[integration] ${label}: intent ${index} expected at most ${maxCount} '${eventType}' event(s), got ${eventTypeCounts.get(eventType) ?? 0}`
+    );
+  }
+}
+
 function assertExpectations(state: GameState, expect?: ScenarioExpect) {
   if (!expect) return;
 
@@ -161,6 +229,10 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
       expect.currentPlayer,
       "currentPlayer mismatch"
     );
+  }
+
+  if (expect.actions !== undefined) {
+    assert.deepStrictEqual(state.actions, expect.actions, "actions mismatch");
   }
 
   if (expect.scoreboards !== undefined) {
@@ -314,6 +386,12 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
     if (!result.valid) {
       if (intent.expectedError) {
         if (result.reason?.includes(intent.expectedError)) {
+          assertIntentEventExpectations(
+            label,
+            index,
+            result.engineEvents,
+            intent.expectEvents
+          );
           // Expected failure, continue to next intent (but this intent didn't change state)
           continue;
         } else {
@@ -330,6 +408,13 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
         `[integration] ${label}: intent ${index} succeeded but was expected to fail with "${intent.expectedError}"`
       );
     }
+
+    assertIntentEventExpectations(
+      label,
+      index,
+      result.engineEvents,
+      intent.expectEvents
+    );
 
     for (const event of result.engineEvents) {
       events.push(event);
