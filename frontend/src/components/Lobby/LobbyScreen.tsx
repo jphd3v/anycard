@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   ActiveGameSummary,
   AiRuntimePreference,
@@ -16,6 +17,11 @@ import {
   SuitDivider,
   TopCornerOrnaments,
 } from "./SuitDecorations";
+import { WelcomeModal } from "../WelcomeModal";
+import {
+  INVALID_EMAIL_MESSAGE,
+  INVALID_API_KEY_MESSAGE,
+} from "../../auth/messages";
 
 type LobbyScreenProps = {
   themeSetting: ThemeSetting;
@@ -80,24 +86,51 @@ export function LobbyScreen({
   recentGames,
   backendRuntime,
 }: LobbyScreenProps) {
+  const [showProfile, setShowProfile] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    const hasSeenWelcome = localStorage.getItem("anycard:welcome_seen");
+    if (!hasSeenWelcome) {
+      // Delay slightly to allow initial render
+      const timer = setTimeout(() => setShowWelcome(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleCloseWelcome = () => {
+    localStorage.setItem("anycard:welcome_seen", "true");
+    setShowWelcome(false);
+  };
+
+  const handleSignInClick = () => {
+    setShowProfile(true);
+  };
+
   return (
     <div className="flex-1 w-full flex flex-col max-w-lg landscape:max-w-none landscape:px-12 mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
+      {showWelcome && (
+        <WelcomeModal
+          onClose={handleCloseWelcome}
+          onSignInClick={handleSignInClick}
+        />
+      )}
+
       <header className="relative pb-2 px-6 text-center z-10 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:pt-12">
         <TopCornerOrnaments />
-        <h1 className="text-5xl md:text-6xl font-serif-display font-black text-ink mb-2 tracking-tight drop-shadow-sm relative z-10">
+        <h1 className="text-4xl md:text-5xl font-serif-display font-black text-ink mb-2 tracking-tight drop-shadow-sm relative z-10">
           AnyCard
         </h1>
-        <p className="text-sm font-medium text-ink-muted uppercase tracking-[0.2em] opacity-80 relative z-10">
+        <p className="text-xs md:text-sm font-medium text-ink-muted uppercase tracking-[0.2em] opacity-80 relative z-10">
           Universal Card Game Engine
         </p>
 
-        <div className="relative z-10 mt-4 flex items-center justify-center gap-2">
+        <div className="relative z-10 mt-6 flex items-center justify-center gap-2">
           <button
             onClick={onCycleTheme}
             className="button-base button-ghost flex items-center gap-1.5 px-3 py-1.5 text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors rounded-lg"
             title="Toggle Theme"
           >
-            <span className="text-sm font-medium">Theme</span>
             {themeSetting === "system" ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -145,7 +178,10 @@ export function LobbyScreen({
           </button>
           <div className="w-px h-4 bg-surface-3"></div>
           <button
-            onClick={onToggleSettings}
+            onClick={() => {
+              if (showProfile) setShowProfile(false);
+              onToggleSettings();
+            }}
             className={`button-base button-ghost flex items-center gap-1.5 px-3 py-1.5 transition-colors rounded-lg ${
               showSettings
                 ? "text-primary bg-primary/10"
@@ -174,10 +210,62 @@ export function LobbyScreen({
               />
             </svg>
           </button>
+          <div className="w-px h-4 bg-surface-3"></div>
+          <button
+            onClick={() => {
+              if (showSettings) onToggleSettings();
+              setShowProfile(!showProfile);
+            }}
+            className={`button-base button-ghost flex items-center gap-1.5 px-3 py-1.5 transition-colors rounded-lg ${
+              showProfile
+                ? "text-primary bg-primary/10"
+                : "text-ink-muted hover:text-ink hover:bg-surface-2"
+            }`}
+            title="Identity & Sign In"
+          >
+            <span className="text-sm font-medium">
+              {identityMode === "user" ? "Profile" : "Sign In"}
+            </span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+          </button>
         </div>
 
         {showSettings && (
-          <div className="relative z-10 mt-4 mx-4 p-4 bg-surface-1 border border-surface-3 rounded-xl shadow-lg animate-in slide-in-from-top-2">
+          <div className="relative z-10 mt-4 mx-auto w-full max-w-[720px] p-4 bg-surface-1 border border-surface-3 rounded-xl shadow-lg animate-in slide-in-from-top-2 text-left">
+            <div className="flex justify-end mb-2">
+              <button
+                type="button"
+                onClick={onToggleSettings}
+                className="text-ink-muted hover:text-ink"
+                aria-label="Close AI settings"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
             <AiSettings
               preference={aiRuntimePreference}
               onChangePreference={onChangeAiRuntimePreference}
@@ -188,68 +276,108 @@ export function LobbyScreen({
           </div>
         )}
 
-        <div className="relative z-10">
-          <SuitDivider />
-        </div>
+        {showProfile && (
+          <div className="relative z-10 mt-4 mx-auto w-full max-w-[720px] rounded-xl border border-surface-3 bg-surface-1 px-4 py-4 text-left text-xs text-ink-muted shadow-lg animate-in slide-in-from-top-2">
+            <div className="mb-3 text-[11px] uppercase tracking-wider text-ink-muted flex items-center justify-between">
+              <span>Account</span>
+              <button
+                onClick={() => setShowProfile(false)}
+                className="text-ink-muted hover:text-ink"
+                aria-label="Close profile"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
 
-        {identityWarning && (
-          <div className="relative z-10 mt-4 mx-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-700">
-            {identityWarning}
+            {identityWarning && (
+              <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700">
+                {identityWarning}
+              </div>
+            )}
+
+            <div className="mb-3 text-sm text-ink group relative cursor-help w-fit">
+              {identityMode === "user" ? "Signed in as " : "Playing as "}
+              <span className="font-mono font-bold">
+                {identityMode === "user" ? identityLabel : "Guest"}
+              </span>
+              {identityMode === "guest" && (
+                <span className="absolute left-full ml-2 top-0 bg-surface-3 text-ink px-1.5 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  ID: {identityLabel}
+                </span>
+              )}
+            </div>
+
+            {identityMode === "user" ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  disabled={authBusy}
+                  className="button-base button-secondary px-3 py-1.5 text-xs"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : !isIdentityAvailable ? (
+              <div className="text-[11px] text-ink-muted">
+                Sign-in is currently unavailable on this server.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-ink-muted leading-snug">
+                  Sign in to keep the same identity across devices and browsers.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(event) => onAuthEmailChange(event.target.value)}
+                    placeholder="you@example.com"
+                    className="flex-1 rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-xs text-ink outline-none focus:border-brand-500 placeholder:text-ink-muted/50"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={onSendMagicLink}
+                    disabled={authBusy}
+                    className="button-base button-primary px-3 py-2 text-xs whitespace-nowrap"
+                  >
+                    Send Link to Sign In
+                  </button>
+                </div>
+              </div>
+            )}
+            {authMessage && (
+              <div
+                className={`mt-3 text-[11px] p-2 rounded ${
+                  authMessage === INVALID_EMAIL_MESSAGE ||
+                  authMessage === INVALID_API_KEY_MESSAGE
+                    ? "text-red-700 bg-red-50 border border-red-100"
+                    : "text-primary bg-primary/5 border border-primary/10"
+                }`}
+              >
+                {authMessage}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="relative z-10 mt-4 mx-4 rounded-xl border border-surface-3 bg-surface-1 px-3 py-3 text-left text-xs text-ink-muted">
-          <div className="mb-2 text-[11px] uppercase tracking-wider text-ink-muted">
-            Identity
-          </div>
-          <div className="mb-2 text-sm text-ink">
-            {identityMode === "user" ? "Signed in as " : "Playing as "}
-            <span className="font-mono">{identityLabel}</span>
-          </div>
-          {identityMode === "user" ? (
-            <button
-              type="button"
-              onClick={onSignOut}
-              disabled={authBusy}
-              className="button-base button-secondary px-3 py-1.5 text-xs"
-            >
-              Sign out
-            </button>
-          ) : !isIdentityAvailable ? (
-            <div className="text-[11px] text-ink-muted">
-              Supabase sign-in is currently unavailable on this server. Continue
-              as guest.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="email"
-                  value={authEmail}
-                  onChange={(event) => onAuthEmailChange(event.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-xs text-ink outline-none focus:border-brand-500"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-                <button
-                  type="button"
-                  onClick={onSendMagicLink}
-                  disabled={authBusy}
-                  className="button-base button-primary px-3 py-2 text-xs whitespace-nowrap"
-                >
-                  Send magic link
-                </button>
-              </div>
-              <div className="text-[11px] text-ink-muted">
-                Optional: sign in to keep the same identity across devices.
-              </div>
-            </div>
-          )}
-          {authMessage && (
-            <div className="mt-2 text-[11px] text-primary">{authMessage}</div>
-          )}
+        <div className="relative z-10 mt-6">
+          <SuitDivider />
         </div>
       </header>
 

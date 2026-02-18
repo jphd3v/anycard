@@ -78,6 +78,10 @@ import type {
   LayoutZone,
   AnnounceAnchor,
 } from "../../shared/schemas";
+import {
+  INVALID_EMAIL_MESSAGE,
+  INVALID_API_KEY_MESSAGE,
+} from "./auth/messages";
 import { RulesOverlay } from "./components/RulesOverlay";
 import { AboutOverlay } from "./components/AboutOverlay";
 import { LoadingOverlay } from "./components/LoadingOverlay";
@@ -1175,14 +1179,24 @@ export default function App() {
         source: "app",
       });
     } catch (error) {
-      const message =
+      const rawMessage =
         error instanceof Error ? error.message : "Failed to send magic link";
-      setAuthMessage(message);
-      showStatus({
-        tone: "error",
-        message,
-        source: "app",
-      });
+      const normalizedRaw = rawMessage.toLowerCase();
+      const invalidEmailError = normalizedRaw.includes("invalid format");
+      const invalidApiKeyError = normalizedRaw.includes("api key");
+      const visibleMessage = invalidEmailError
+        ? INVALID_EMAIL_MESSAGE
+        : invalidApiKeyError
+          ? INVALID_API_KEY_MESSAGE
+          : rawMessage;
+      setAuthMessage(visibleMessage);
+      if (!invalidEmailError && !invalidApiKeyError) {
+        showStatus({
+          tone: "error",
+          message: rawMessage,
+          source: "app",
+        });
+      }
     } finally {
       setAuthBusy(false);
     }
@@ -2267,6 +2281,7 @@ export default function App() {
               sendActionIntent(gameId, playerId, action)
             }
             onEndOverlayMinimizedChange={setIsEndOverlayMinimized}
+            identityLabel={identityLabel}
           />
         )}
 

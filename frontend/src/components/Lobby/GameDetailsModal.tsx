@@ -499,13 +499,15 @@ export function GameDetailsModal({
                       <label className="block text-2xs font-bold text-ink-muted uppercase tracking-wider mb-1.5 ml-1">
                         Shuffle Seed (Optional)
                       </label>
-                      <input
-                        value={customSeed}
-                        onChange={(e) => setCustomSeed(e.target.value)}
-                        placeholder="e.g. ABCDEF (Leave blank for random)"
-                        className="w-full rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-2xs font-mono text-ink placeholder:text-ink-muted/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
-                      />
-                      <p className="mt-2 text-2xs text-ink-muted/70 leading-relaxed px-1">
+                      <div className="w-full max-w-[420px] mx-auto">
+                        <input
+                          value={customSeed}
+                          onChange={(e) => setCustomSeed(e.target.value)}
+                          placeholder="e.g. ABCDEF (Leave blank for random)"
+                          className="w-full rounded-lg border border-surface-3 bg-surface-1 px-3 py-2 text-2xs font-mono text-ink placeholder:text-ink-muted/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                        />
+                      </div>
+                      <p className="mt-2 text-2xs text-ink-muted/70 leading-relaxed px-1 max-w-[420px] mx-auto whitespace-normal">
                         Use a specific seed to replay a exact card distribution.
                         You can find seeds in the in-game menu of existing
                         matches.

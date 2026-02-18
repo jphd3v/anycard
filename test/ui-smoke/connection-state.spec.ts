@@ -842,6 +842,7 @@ test.describe("UI Smoke Tests - Connection State Management", () => {
     const newPage = await context.newPage();
     await seedLocalStorage(newPage, {
       "ai-runtime-preference": "backend",
+      "anycard:welcome_seen": "true",
     });
 
     // Navigate to the game URL (simulating user returning to the game)

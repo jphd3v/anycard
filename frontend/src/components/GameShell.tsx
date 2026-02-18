@@ -52,6 +52,7 @@ type GameShellProps = {
   onAboutClick: () => void;
   onActionIntent: (action: string) => void;
   onEndOverlayMinimizedChange: (isMinimized: boolean) => void;
+  identityLabel: string;
 };
 
 type SetState<T> = (update: T | ((prev: T) => T)) => void;
@@ -92,6 +93,7 @@ export function GameShell({
   onAboutClick,
   onActionIntent,
   onEndOverlayMinimizedChange,
+  identityLabel,
 }: GameShellProps) {
   const actionsDisabled = Boolean(
     view.seats?.find((s: SeatView) => s.seatId === playerId)?.aiRuntime !==
@@ -150,6 +152,7 @@ export function GameShell({
           onExit={onExitSeat}
           onReset={onRestart}
           onAboutClick={onAboutClick}
+          identityLabel={identityLabel}
         />
         <div
           className={`header-floating-panel fixed top-16 right-2 sm:right-4 pointer-events-none flex flex-col items-end ${

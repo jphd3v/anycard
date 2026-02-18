@@ -55,6 +55,11 @@ export function assertNoConsoleErrors(
 }
 
 export async function goToLobby(page: Page): Promise<void> {
+  // Pre-set the welcome modal as seen to avoid blocking tests
+  await page.addInitScript(() => {
+    window.localStorage.setItem("anycard:welcome_seen", "true");
+  });
+
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /AnyCard/i })).toBeVisible();
   await page

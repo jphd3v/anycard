@@ -1,6 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { GameSaveSnapshotSchema } from "../../../shared/schemas";
 import {
   availableGamesAtom,
   rulesIdAtom,
@@ -14,13 +13,7 @@ import {
 } from "../state";
 import type { AiLogEntry } from "../state";
 
-import {
-  exportGameSave,
-  importGameSave,
-  leaveGame,
-  resetGameWithSeed,
-  setGodMode,
-} from "../socket";
+import { resetGameWithSeed, setGodMode } from "../socket";
 import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { useAiLog } from "../hooks/useAiLog";
 import { useToast } from "../hooks/useToast";
@@ -38,14 +31,10 @@ interface GameHUDProps {
   onAboutClick?: () => void;
   // Deprecated/Unused props kept for compatibility if needed, or removed if App.tsx is updated
   // We will update App.tsx to remove these
+  identityLabel: string;
 }
 
 type ConfirmType = "restartHand" | "exit" | "restartSeed" | null;
-type SaveValidationState =
-  | { status: "empty"; message: string; payload: null }
-  | { status: "invalid"; message: string; payload: null }
-  | { status: "valid"; message: string; payload: unknown };
-
 type RenderLogEntry =
   | {
       source: "game";
@@ -67,6 +56,7 @@ export function GameHUD({
   onExit,
   onReset,
   onAboutClick,
+  identityLabel,
 }: GameHUDProps) {
   const view = useAtomValue(gameViewAtom);
   const rulesId = useAtomValue(rulesIdAtom);
@@ -97,16 +87,7 @@ export function GameHUD({
 
   const [confirmType, setConfirmType] = useState<ConfirmType>(null);
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
-  const [isCopyingSaveJson, setIsCopyingSaveJson] = useState(false);
-  const [isSaveCopySuccess, setIsSaveCopySuccess] = useState(false);
-  const [isLoadPanelOpen, setIsLoadPanelOpen] = useState(false);
-  const [saveJson, setSaveJson] = useState("");
-  const [isLoadingSave, setIsLoadingSave] = useState(false);
-  const [saveLoadServerError, setSaveLoadServerError] = useState<string | null>(
-    null
-  );
   const [showAiEvents, setShowAiEvents] = useState(false);
-  const saveCopySuccessTimeoutRef = useRef<number | null>(null);
 
   const currentGameType = view?.rulesId ?? rulesId ?? "";
   const displayName =
@@ -118,17 +99,28 @@ export function GameHUD({
     (view?.metadata && typeof view.metadata.seed === "string"
       ? view.metadata.seed
       : null) || "Unknown";
-  const saveStorage =
-    view?.metadata?.saveStorage === "supabase" ? "supabase" : null;
-  const saveHydratedFrom =
-    view?.metadata?.saveHydratedFrom === "supabase" ? "supabase" : null;
   const savePersistedAt =
     typeof view?.metadata?.savePersistedAt === "string"
       ? view.metadata.savePersistedAt
       : null;
+  const saveHydratedAt =
+    typeof view?.metadata?.saveHydratedAt === "string"
+      ? view.metadata.saveHydratedAt
+      : null;
   const savePersistedAtLabel = (() => {
     if (!savePersistedAt) return null;
     const parsed = new Date(savePersistedAt);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return parsed.toLocaleTimeString([], {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  })();
+  const saveHydratedAtLabel = (() => {
+    if (!saveHydratedAt) return null;
+    const parsed = new Date(saveHydratedAt);
     if (!Number.isFinite(parsed.getTime())) return null;
     return parsed.toLocaleTimeString([], {
       hour12: false,
@@ -313,134 +305,6 @@ export function GameHUD({
     setGodMode(gameId, !isGodMode);
   };
 
-  useEffect(() => {
-    return () => {
-      if (saveCopySuccessTimeoutRef.current != null) {
-        window.clearTimeout(saveCopySuccessTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleCopySaveJson = useCallback(async () => {
-    if (!gameId || isCopyingSaveJson) return;
-    setIsCopyingSaveJson(true);
-    try {
-      const snapshot = await exportGameSave(gameId);
-      const serialized = JSON.stringify(snapshot, null, 2);
-      const copied = await copyToClipboard(serialized);
-      if (!copied) {
-        console.error("Failed to copy game save to clipboard");
-        return;
-      }
-      setIsSaveCopySuccess(true);
-      if (saveCopySuccessTimeoutRef.current != null) {
-        window.clearTimeout(saveCopySuccessTimeoutRef.current);
-      }
-      saveCopySuccessTimeoutRef.current = window.setTimeout(() => {
-        setIsSaveCopySuccess(false);
-      }, 2000);
-    } catch (err) {
-      console.error("Failed to export save", err);
-    } finally {
-      setIsCopyingSaveJson(false);
-    }
-  }, [gameId, isCopyingSaveJson]);
-
-  const saveValidation = useMemo<SaveValidationState>(() => {
-    const trimmed = saveJson.trim();
-    if (!trimmed) {
-      return {
-        status: "empty",
-        message: "Paste save JSON to load a game.",
-        payload: null,
-      };
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch {
-      return {
-        status: "invalid",
-        message: "Input is not valid JSON.",
-        payload: null,
-      };
-    }
-
-    const validated = GameSaveSnapshotSchema.safeParse(parsed);
-    if (validated.success) {
-      return {
-        status: "valid",
-        message: `${validated.data.initialState.gameName} · ${validated.data.events.length} events`,
-        payload: parsed,
-      };
-    }
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {
-        status: "invalid",
-        message: "Save root must be a JSON object.",
-        payload: null,
-      };
-    }
-
-    return {
-      status: "valid",
-      message: "JSON parsed. Server will attempt best-effort recovery.",
-      payload: parsed,
-    };
-  }, [saveJson]);
-
-  const handleLoadSave = useCallback(async () => {
-    if (isLoadingSave) return;
-    if (saveValidation.status !== "valid") {
-      setSaveLoadServerError("Paste a valid save JSON first.");
-      return;
-    }
-
-    setIsLoadingSave(true);
-    setSaveLoadServerError(null);
-
-    try {
-      let imported: { gameId: string; rulesId: string } | null = null;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          imported = await importGameSave(saveValidation.payload);
-          break;
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Failed to load save.";
-          if (
-            attempt === 0 &&
-            message.toLowerCase().includes("leave the current game")
-          ) {
-            leaveGame();
-            await new Promise((resolve) => setTimeout(resolve, 200));
-            continue;
-          }
-          throw err;
-        }
-      }
-
-      if (!imported) {
-        throw new Error("Failed to load save.");
-      }
-
-      setIsLoadPanelOpen(false);
-      setSaveJson("");
-      setAiLogVisible(false);
-
-      const nextPath = `/${encodeURIComponent(imported.rulesId)}/${encodeURIComponent(imported.gameId)}`;
-      window.location.assign(nextPath);
-    } catch (err) {
-      setSaveLoadServerError(
-        err instanceof Error ? err.message : "Failed to load save."
-      );
-    } finally {
-      setIsLoadingSave(false);
-    }
-  }, [isLoadingSave, saveValidation, setAiLogVisible]);
-
   // Close on Escape for AI Log
   useEffect(() => {
     if (!isAiLogVisible) return;
@@ -452,13 +316,6 @@ export function GameHUD({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isAiLogVisible, setAiLogVisible]);
-
-  useEffect(() => {
-    if (isAiLogVisible) return;
-    setIsLoadPanelOpen(false);
-    setSaveJson("");
-    setSaveLoadServerError(null);
-  }, [isAiLogVisible]);
 
   return (
     <>
@@ -594,23 +451,21 @@ export function GameHUD({
                           {seed}
                         </span>
                       </div>
-                      {saveStorage && (
+                      <div className="flex items-center gap-1">
+                        <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                          Player
+                        </span>
+                        <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                          {identityLabel}
+                        </span>
+                      </div>
+                      {saveHydratedAtLabel && (
                         <div className="flex items-center gap-1">
                           <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
-                            Save
+                            Restored At
                           </span>
-                          <span className="ai-log-meta-value font-mono text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                            Supabase
-                          </span>
-                        </div>
-                      )}
-                      {saveHydratedFrom && (
-                        <div className="flex items-center gap-1">
-                          <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
-                            Restored
-                          </span>
-                          <span className="ai-log-meta-value font-mono text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                            Supabase
+                          <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                            {saveHydratedAtLabel}
                           </span>
                         </div>
                       )}
@@ -637,83 +492,8 @@ export function GameHUD({
                           Show AI events
                         </span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => void handleCopySaveJson()}
-                        disabled={isCopyingSaveJson}
-                        className="px-2 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-bold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {isCopyingSaveJson
-                          ? "Exporting..."
-                          : isSaveCopySuccess
-                            ? "Exported"
-                            : "Export"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsLoadPanelOpen((open) => !open);
-                          setSaveLoadServerError(null);
-                        }}
-                        className="px-2 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-bold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors"
-                      >
-                        Import
-                      </button>
                     </div>
                   </div>
-                  {isLoadPanelOpen && (
-                    <div className="rounded-md border border-surface-3 bg-surface-1 p-2 w-full max-w-[820px]">
-                      <textarea
-                        value={saveJson}
-                        onChange={(event) => {
-                          setSaveJson(event.target.value);
-                          setSaveLoadServerError(null);
-                        }}
-                        placeholder="Paste save JSON"
-                        rows={5}
-                        className="w-full resize-y rounded border border-surface-3 bg-surface-1 px-2 py-1.5 text-xs font-mono text-ink placeholder:text-ink-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
-                      />
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleLoadSave()}
-                          disabled={
-                            isLoadingSave || saveValidation.status !== "valid"
-                          }
-                          className="px-2.5 py-1 rounded border border-surface-3 bg-surface-2 text-2xs font-bold uppercase tracking-wide text-ink hover:bg-surface-3 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {isLoadingSave ? "Importing..." : "Import"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsLoadPanelOpen(false);
-                            setSaveLoadServerError(null);
-                          }}
-                          disabled={isLoadingSave}
-                          className="px-2.5 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-semibold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                        <span
-                          className={`text-2xs ${
-                            saveValidation.status === "valid"
-                              ? "text-green-700"
-                              : saveValidation.status === "invalid"
-                                ? "text-red-600"
-                                : "text-ink-muted"
-                          }`}
-                        >
-                          {saveValidation.message}
-                        </span>
-                      </div>
-                      {saveLoadServerError && (
-                        <p className="mt-2 text-2xs text-red-600">
-                          {saveLoadServerError}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
