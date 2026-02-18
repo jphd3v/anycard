@@ -257,8 +257,13 @@ export function GameRoot({
         toPileId = zoneProxyPileIds.get(toPileId);
       }
 
-      // 1. STRICT FIX: If source and target are the same, STOP immediately.
-      if (fromPileId === toPileId) {
+      // 1. Check if this is a sortable reorder within the same pile
+      const isSortableDrag =
+        typeof active.id === "string" && active.id.startsWith("sortable-");
+      const isSamePile = fromPileId === toPileId;
+
+      if (isSamePile && !isSortableDrag) {
+        // Regular drag within same pile (not sortable) - stop
         return;
       }
 
@@ -274,6 +279,48 @@ export function GameRoot({
 
       // 3. validation
       if (!fromPileId || !toPileId || typeof cardId !== "number") {
+        return;
+      }
+
+      // 4. Handle sortable reordering within the same pile
+      if (isSortableDrag && isSamePile) {
+        const pile = view.piles.find((p) => p.id === fromPileId);
+        if (!pile) return;
+
+        const oldIndex = pile.cards.findIndex((c) => c.id === cardId);
+        if (oldIndex === -1) return;
+
+        // Extract target index from the over element
+        let newIndex = oldIndex;
+        if (typeof over.id === "string" && over.id.startsWith("sortable-")) {
+          const overCardId = over.data.current?.cardId as number | undefined;
+          if (typeof overCardId === "number") {
+            newIndex = pile.cards.findIndex((c) => c.id === overCardId);
+          }
+        }
+
+        if (newIndex === -1 || oldIndex === newIndex) return;
+
+        // Optimistically update UI
+        setView((draft) => {
+          if (!draft) return;
+          const draftPile = draft.piles.find((p) => p.id === fromPileId);
+          if (!draftPile) return;
+
+          const [card] = draftPile.cards.splice(oldIndex, 1);
+          draftPile.cards.splice(newIndex, 0, card);
+        });
+
+        // Send reorder intent with targetIndex
+        sendMoveIntent(
+          gameId,
+          playerId,
+          fromPileId,
+          toPileId,
+          cardId,
+          newIndex
+        );
+        setIsEvaluating(true);
         return;
       }
 
@@ -325,6 +372,7 @@ export function GameRoot({
       showToast,
       view.currentPlayer,
       view.legalIntents,
+      view.piles,
       freeDragEnabled,
       isAutomatedSeat,
       zoneProxyPileIds,
@@ -414,6 +462,12 @@ export function GameRoot({
 
     const allowViewerToggle = sort?.allowViewerToggle ?? true;
 
+    // Read allowReorder from rules-derived pile view
+    // Only enable when there are at least 2 cards to reorder
+    const allowReorderFromRules = pileToRender.allowReorder ?? false;
+    const allowReorder =
+      allowReorderFromRules && pileToRender.cards.length >= 2;
+
     return (
       <Pile
         key={pileId}
@@ -426,6 +480,7 @@ export function GameRoot({
         sortOptions={sort?.options}
         selectedSortId={resolvedId}
         allowViewerToggle={allowViewerToggle}
+        allowReorder={allowReorder}
         isProxyTarget={isSinglePileZone}
         onChangeSort={
           allowViewerToggle && sort?.options?.length

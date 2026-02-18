@@ -1,74 +1,100 @@
 {
   "rulesId": "pinnacola",
+  "autoRotate": false,
+  "rows": 7,
+  "cols": 10,
   "zones": [
     {
-      "id": "P2-hand",
-      "cell": { "row": 0, "col": 0, "colspan": 6 },
-      "piles": ["P2-hand"]
+      "id": "north",
+      "label": "N",
+      "cell": { "row": 0, "col": 1, "colspan": 8 },
+      "piles": ["N-hand"]
     },
     {
-      "id": "P2-melds-top",
-      "cell": { "row": 1, "col": 0, "colspan": 6 },
+      "id": "team-a-melds-1",
+      "label": "S/N Melds (1-6)",
+      "cell": { "row": 1, "col": 1, "colspan": 8 },
       "piles": [
-        "P2-meld-0",
-        "P2-meld-1",
-        "P2-meld-2",
-        "P2-meld-3",
-        "P2-meld-4",
-        "P2-meld-5"
+        "A-meld-0",
+        "A-meld-1",
+        "A-meld-2",
+        "A-meld-3",
+        "A-meld-4",
+        "A-meld-5"
       ]
     },
     {
-      "id": "P2-melds-bottom",
-      "cell": { "row": 2, "col": 0, "colspan": 6 },
+      "id": "west",
+      "label": "W",
+      "cell": { "row": 1, "col": 0, "rowspan": 5 },
+      "piles": ["W-hand"]
+    },
+    {
+      "id": "team-a-melds-2",
+      "label": "S/N Melds (7-12)",
+      "cell": { "row": 2, "col": 1, "colspan": 8 },
       "piles": [
-        "P2-meld-6",
-        "P2-meld-7",
-        "P2-meld-8",
-        "P2-meld-9",
-        "P2-meld-10",
-        "P2-meld-11"
+        "A-meld-6",
+        "A-meld-7",
+        "A-meld-8",
+        "A-meld-9",
+        "A-meld-10",
+        "A-meld-11"
       ]
     },
     {
-      "id": "table",
-      "cell": { "row": 3, "col": 0, "colspan": 6 },
+      "id": "east",
+      "label": "E",
+      "cell": { "row": 1, "col": 9, "rowspan": 5 },
+      "piles": ["E-hand"]
+    },
+    {
+      "id": "center",
+      "label": "Stock/Discard",
+      "cell": { "row": 3, "col": 1, "colspan": 8 },
       "piles": ["deck", "discard"]
     },
     {
-      "id": "P1-melds-top",
-      "cell": { "row": 4, "col": 0, "colspan": 6 },
+      "id": "team-b-melds-1",
+      "label": "W/E Melds (1-6)",
+      "cell": { "row": 4, "col": 1, "colspan": 8 },
       "piles": [
-        "P1-meld-0",
-        "P1-meld-1",
-        "P1-meld-2",
-        "P1-meld-3",
-        "P1-meld-4",
-        "P1-meld-5"
+        "B-meld-0",
+        "B-meld-1",
+        "B-meld-2",
+        "B-meld-3",
+        "B-meld-4",
+        "B-meld-5"
       ]
     },
     {
-      "id": "P1-melds-bottom",
-      "cell": { "row": 5, "col": 0, "colspan": 6 },
+      "id": "team-b-melds-2",
+      "label": "W/E Melds (7-12)",
+      "cell": { "row": 5, "col": 1, "colspan": 8 },
       "piles": [
-        "P1-meld-6",
-        "P1-meld-7",
-        "P1-meld-8",
-        "P1-meld-9",
-        "P1-meld-10",
-        "P1-meld-11"
+        "B-meld-6",
+        "B-meld-7",
+        "B-meld-8",
+        "B-meld-9",
+        "B-meld-10",
+        "B-meld-11"
       ]
     },
     {
-      "id": "P1-hand",
-      "cell": { "row": 6, "col": 0, "colspan": 6 },
-      "piles": ["P1-hand"]
+      "id": "south",
+      "label": "S",
+      "cell": { "row": 6, "col": 1, "colspan": 8 },
+      "piles": ["S-hand"]
     }
   ],
-  "rows": 7,
-  "cols": 6,
   "pileStyles": {
-    "P1-hand": {
+    "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
+    "discard": {
+      "layout": "horizontal",
+      "label": "Discard",
+      "showDetails": true
+    },
+    "S-hand": {
       "layout": "horizontal",
       "isHand": true,
       "allowViewerToggle": true,
@@ -121,7 +147,7 @@
         ]
       }
     },
-    "P2-hand": {
+    "N-hand": {
       "layout": "horizontal",
       "isHand": true,
       "sort": {
@@ -173,31 +199,133 @@
         ]
       }
     },
-    "deck": { "layout": "complete" },
-    "discard": { "layout": "horizontal" },
-    "P1-meld-0": { "layout": "horizontal", "label": "M1" },
-    "P1-meld-1": { "layout": "horizontal", "label": "M2" },
-    "P1-meld-2": { "layout": "horizontal", "label": "M3" },
-    "P1-meld-3": { "layout": "horizontal", "label": "M4" },
-    "P1-meld-4": { "layout": "horizontal", "label": "M5" },
-    "P1-meld-5": { "layout": "horizontal", "label": "M6" },
-    "P1-meld-6": { "layout": "horizontal", "label": "M7" },
-    "P1-meld-7": { "layout": "horizontal", "label": "M8" },
-    "P1-meld-8": { "layout": "horizontal", "label": "M9" },
-    "P1-meld-9": { "layout": "horizontal", "label": "M10" },
-    "P1-meld-10": { "layout": "horizontal", "label": "M11" },
-    "P1-meld-11": { "layout": "horizontal", "label": "M12" },
-    "P2-meld-0": { "layout": "horizontal", "label": "M1" },
-    "P2-meld-1": { "layout": "horizontal", "label": "M2" },
-    "P2-meld-2": { "layout": "horizontal", "label": "M3" },
-    "P2-meld-3": { "layout": "horizontal", "label": "M4" },
-    "P2-meld-4": { "layout": "horizontal", "label": "M5" },
-    "P2-meld-5": { "layout": "horizontal", "label": "M6" },
-    "P2-meld-6": { "layout": "horizontal", "label": "M7" },
-    "P2-meld-7": { "layout": "horizontal", "label": "M8" },
-    "P2-meld-8": { "layout": "horizontal", "label": "M9" },
-    "P2-meld-9": { "layout": "horizontal", "label": "M10" },
-    "P2-meld-10": { "layout": "horizontal", "label": "M11" },
-    "P2-meld-11": { "layout": "horizontal", "label": "M12" }
+    "W-hand": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "E-hand": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "rank-asc",
+        "options": [
+          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "rank-asc",
+            "label": "Ranks A-2..K",
+            "type": "byRank",
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ],
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"]
+          },
+          {
+            "id": "suit-then-rank",
+            "label": "Suit groups",
+            "type": "bySuitRank",
+            "suitOrder": ["spades", "hearts", "diamonds", "clubs"],
+            "rankOrder": [
+              "A",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K"
+            ]
+          }
+        ]
+      }
+    },
+    "A-meld-0": { "layout": "horizontal", "label": "A1", "hideTitle": true },
+    "A-meld-1": { "layout": "horizontal", "label": "A2", "hideTitle": true },
+    "A-meld-2": { "layout": "horizontal", "label": "A3", "hideTitle": true },
+    "A-meld-3": { "layout": "horizontal", "label": "A4", "hideTitle": true },
+    "A-meld-4": { "layout": "horizontal", "label": "A5", "hideTitle": true },
+    "A-meld-5": { "layout": "horizontal", "label": "A6", "hideTitle": true },
+    "A-meld-6": { "layout": "horizontal", "label": "A7", "hideTitle": true },
+    "A-meld-7": { "layout": "horizontal", "label": "A8", "hideTitle": true },
+    "A-meld-8": { "layout": "horizontal", "label": "A9", "hideTitle": true },
+    "A-meld-9": { "layout": "horizontal", "label": "A10", "hideTitle": true },
+    "A-meld-10": { "layout": "horizontal", "label": "A11", "hideTitle": true },
+    "A-meld-11": { "layout": "horizontal", "label": "A12", "hideTitle": true },
+    "B-meld-0": { "layout": "horizontal", "label": "B1", "hideTitle": true },
+    "B-meld-1": { "layout": "horizontal", "label": "B2", "hideTitle": true },
+    "B-meld-2": { "layout": "horizontal", "label": "B3", "hideTitle": true },
+    "B-meld-3": { "layout": "horizontal", "label": "B4", "hideTitle": true },
+    "B-meld-4": { "layout": "horizontal", "label": "B5", "hideTitle": true },
+    "B-meld-5": { "layout": "horizontal", "label": "B6", "hideTitle": true },
+    "B-meld-6": { "layout": "horizontal", "label": "B7", "hideTitle": true },
+    "B-meld-7": { "layout": "horizontal", "label": "B8", "hideTitle": true },
+    "B-meld-8": { "layout": "horizontal", "label": "B9", "hideTitle": true },
+    "B-meld-9": { "layout": "horizontal", "label": "B10", "hideTitle": true },
+    "B-meld-10": { "layout": "horizontal", "label": "B11", "hideTitle": true },
+    "B-meld-11": { "layout": "horizontal", "label": "B12", "hideTitle": true }
   }
 }

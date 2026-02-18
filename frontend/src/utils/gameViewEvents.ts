@@ -99,13 +99,28 @@ export function applyViewEventToView(
         });
       }
 
+      const isSamePileMove = fromPileId === toPileId;
+      const hasTargetIndex = typeof event.targetIndex === "number";
+
       const piles = prev.piles.map((pile) => {
         if (pile.id === toPileId) {
-          // Append moved cards to destination using their final orientation
-          const nextCards = [
-            ...pile.cards.filter((card) => !idSet.has(card.id)),
-            ...movedCards,
-          ];
+          const remainingCards = pile.cards.filter(
+            (card) => !idSet.has(card.id)
+          );
+          let nextCards: CardView[];
+
+          if (isSamePileMove && hasTargetIndex) {
+            const insertIndex = Math.min(
+              Math.max(event.targetIndex ?? 0, 0),
+              remainingCards.length
+            );
+            nextCards = [...remainingCards];
+            nextCards.splice(insertIndex, 0, ...movedCards);
+          } else {
+            // Append moved cards to destination using their final orientation
+            nextCards = [...remainingCards, ...movedCards];
+          }
+
           const seenIds = new Set<number>();
           return {
             ...pile,

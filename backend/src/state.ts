@@ -388,6 +388,8 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
 
 function applyMoveCards(state: GameState, event: MoveCardsEvent): GameState {
   const { fromPileId, toPileId, cardIds, playerId } = event;
+  const targetIndex = (event as MoveCardsEvent & { targetIndex?: number })
+    .targetIndex;
   const fromPile = state.piles[fromPileId];
   const toPile = state.piles[toPileId];
 
@@ -438,11 +440,23 @@ function applyMoveCards(state: GameState, event: MoveCardsEvent): GameState {
     (cardId) => !requestedIds.has(cardId)
   );
 
-  // Append moved cards to the end of the destination pile.
-  // If moving within the same pile, we must append to the remaining cards (fromCardIds)
-  // to avoid duplication, as toPile.cardIds still points to the original full list.
-  const baseCardIds = fromPileId === toPileId ? fromCardIds : toPile.cardIds;
-  const toCardIds = [...baseCardIds, ...movingCardIds];
+  // Build destination card list
+  let toCardIds: number[];
+
+  if (
+    fromPileId === toPileId &&
+    typeof targetIndex === "number" &&
+    targetIndex >= 0
+  ) {
+    // Reordering within the same pile: insert at targetIndex
+    toCardIds = [...fromCardIds];
+    const clampedIndex = Math.min(targetIndex, toCardIds.length);
+    toCardIds.splice(clampedIndex, 0, ...movingCardIds);
+  } else {
+    // Standard move: append to end of destination pile
+    const baseCardIds = fromPileId === toPileId ? fromCardIds : toPile.cardIds;
+    toCardIds = [...baseCardIds, ...movingCardIds];
+  }
 
   return {
     ...state,

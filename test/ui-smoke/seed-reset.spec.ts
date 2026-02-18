@@ -27,7 +27,8 @@ test.describe("UI Smoke Tests - Seed Reset", () => {
     await skipStartGameOverlayIfPresent(page);
 
     await page.locator(".game-layout").first().waitFor();
-    await page.getByRole("button", { name: /Menu/i }).click();
+    // Use dispatchEvent to bypass potential View Transition overlays
+    await page.getByRole("button", { name: /Menu/i }).dispatchEvent("click");
 
     const seedButton = page.getByTitle("Copy Seed");
     await expect(seedButton).toBeVisible();

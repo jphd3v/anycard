@@ -288,6 +288,7 @@ export function getRotationAngle(
   playerId: string
 ): number {
   if (!playerId || playerId.startsWith("spectator")) return 0;
+  if (layout.autoRotate === false) return 0;
   if (isSideBySideLayout(layout)) return 0;
 
   const playerZone = getPlayerPrimaryZone(view, layout, playerId);

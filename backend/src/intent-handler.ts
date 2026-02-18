@@ -200,11 +200,15 @@ export function preValidateIntentLocally(
       };
     }
 
-    // No-op move guard: if moving from the same pile to the same pile
-    if (intent.fromPileId === intent.toPileId) {
+    // No-op move guard: if moving from the same pile to the same pile without reordering
+    // Allow reordering (same-pile moves with targetIndex) to reach the rules engine
+    const hasTargetIndex =
+      "targetIndex" in intent && typeof intent.targetIndex === "number";
+    if (intent.fromPileId === intent.toPileId && !hasTargetIndex) {
       return {
         shortCircuit: true,
-        reason: "Moving a card within the same pile has no effect.",
+        reason:
+          "Cannot move a card to the same pile. To reorder cards within a pile, drag them to a new position or use the arrow buttons.",
       };
     }
 

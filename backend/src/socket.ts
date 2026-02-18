@@ -622,11 +622,15 @@ function preValidateIntentLocally(
       };
     }
 
-    // No-op move guard: if moving from the same pile to the same pile
-    if (intent.fromPileId === intent.toPileId) {
+    // No-op move guard: if moving from the same pile to the same pile without reordering
+    // Allow reordering (same-pile moves with targetIndex) to reach the rules engine
+    const hasTargetIndex =
+      "targetIndex" in intent && typeof intent.targetIndex === "number";
+    if (intent.fromPileId === intent.toPileId && !hasTargetIndex) {
       return {
         shortCircuit: true,
-        reason: "Moving a card within the same pile has no effect.",
+        reason:
+          "Cannot move a card to the same pile. To reorder cards within a pile, drag them to a new position or use the arrow buttons.",
       };
     }
 
@@ -737,9 +741,14 @@ function broadcastState(
             ? listLegalIntentsForView(state.gameId, info.playerId).map(
                 (intent) => {
                   if (intent.type !== "move") return intent;
+                  const baseIntent =
+                    typeof intent.targetIndex === "number"
+                      ? { targetIndex: intent.targetIndex }
+                      : {};
                   if (intent.cardId !== undefined) {
                     return {
                       ...intent,
+                      ...baseIntent,
                       cardId: toViewCardId(
                         intent.cardId,
                         viewSalt,
@@ -750,12 +759,13 @@ function broadcastState(
                   if (intent.cardIds !== undefined) {
                     return {
                       ...intent,
+                      ...baseIntent,
                       cardIds: intent.cardIds.map((id) =>
                         toViewCardId(id, viewSalt, info.playerId)
                       ),
                     };
                   }
-                  return intent;
+                  return baseIntent ? { ...intent, ...baseIntent } : intent;
                 }
               )
             : undefined;
@@ -1580,6 +1590,9 @@ export function initSocket(io: Server) {
                 fromPileId: effectiveIntent.fromPileId,
                 toPileId: effectiveIntent.toPileId,
                 cardIds: engineCardIds,
+                ...(typeof effectiveIntent.targetIndex === "number"
+                  ? { targetIndex: effectiveIntent.targetIndex }
+                  : {}),
               };
             } else if (effectiveIntent.cardId !== undefined) {
               const engineCardId = viewToEngineCardId(effectiveIntent.cardId);
@@ -1603,6 +1616,9 @@ export function initSocket(io: Server) {
                 fromPileId: effectiveIntent.fromPileId,
                 toPileId: effectiveIntent.toPileId,
                 cardId: engineCardId,
+                ...(typeof effectiveIntent.targetIndex === "number"
+                  ? { targetIndex: effectiveIntent.targetIndex }
+                  : {}),
               };
             }
           }

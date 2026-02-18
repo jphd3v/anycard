@@ -42,6 +42,7 @@ export const PileSchema = z.object({
   cardIds: z.array(CardIdSchema),
   shuffle: z.boolean().optional(),
   shuffleGroup: z.string().optional(),
+  allowReorder: z.boolean().optional(),
 });
 
 export type Pile = z.infer<typeof PileSchema>;
@@ -116,6 +117,7 @@ export const PilePropertyOverridesSchema = z.object({
   layout: PileLayoutSchema.optional(),
   label: z.string().optional(),
   isHand: z.boolean().optional(),
+  allowReorder: z.boolean().optional(),
 });
 
 export const GameStateSchema = z.object({
@@ -148,6 +150,8 @@ export const MoveCardsEventSchema = EventBaseSchema.extend({
   fromPileId: z.string(),
   toPileId: z.string(),
   cardIds: z.array(CardIdSchema).nonempty(),
+  /** Optional target index for reordering within the same pile. */
+  targetIndex: z.number().int().nonnegative().optional(),
 });
 
 export const SetCurrentPlayerEventSchema = EventBaseSchema.extend({
@@ -332,6 +336,8 @@ const MoveIntentBaseSchema = z.object({
   toPileId: z.string(),
   cardId: CardIdSchema.optional(),
   cardIds: z.array(CardIdSchema).optional(),
+  /** Optional target index for reordering within the same pile. */
+  targetIndex: z.number().int().nonnegative().optional(),
 });
 
 // Helper to enforce the mutual-exclusion and array rules for move intents
@@ -445,6 +451,7 @@ export const PileViewSchema = z.object({
   cards: z.array(CardViewSchema),
   totalCards: z.number().int().nonnegative().optional(),
   layout: PileLayoutSchema.optional(),
+  allowReorder: z.boolean().optional(),
 });
 
 export type PileView = z.infer<typeof PileViewSchema>;
@@ -621,6 +628,7 @@ export const LayoutPileStyleSchema = z.object({
   hideTitle: z.boolean().optional(),
   showDetails: z.boolean().optional(),
   sort: LayoutPileSortConfigSchema.optional(),
+  allowReorder: z.boolean().optional(),
 });
 
 export type LayoutPileStyle = z.infer<typeof LayoutPileStyleSchema>;
@@ -631,6 +639,7 @@ export const GameLayoutSchema = z.object({
   cols: z.number().int().nonnegative(),
   zones: z.array(LayoutZoneSchema),
   pileStyles: z.record(z.string(), LayoutPileStyleSchema).optional(),
+  autoRotate: z.boolean().optional(),
 });
 
 export type GameLayout = z.infer<typeof GameLayoutSchema>;

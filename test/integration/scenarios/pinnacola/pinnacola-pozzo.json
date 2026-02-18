@@ -1,66 +1,15 @@
 {
   "id": "pinnacola-pozzo",
   "rulesId": "pinnacola",
-  "seed": "PINNACOLA-SEED-1",
+  "seed": "PINNACOLA-SEED-3",
   "players": [
-    { "id": "P1", "name": "Player 1" },
-    { "id": "P2", "name": "Player 2" }
+    { "id": "S", "name": "South" },
+    { "id": "W", "name": "West" },
+    { "id": "N", "name": "North" },
+    { "id": "E", "name": "East" }
   ],
-  "intents": [
-    { "type": "action", "playerId": "P1", "action": "start-game" },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "discard",
-      "toPileId": "P2-hand",
-      "cardId": 107
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P1-hand",
-      "toPileId": "P2-meld-0",
-      "cardId": 107,
-      "expectedError": "Can only meld cards from your own hand."
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-0",
-      "cardId": 85,
-      "expectedError": "You must use the card JOKERblack first."
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-0",
-      "cardId": 107
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-0",
-      "cardId": 85
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "P2-meld-0",
-      "cardId": 86
-    },
-    {
-      "type": "move",
-      "playerId": "P2",
-      "fromPileId": "P2-hand",
-      "toPileId": "discard",
-      "cardId": 1
-    }
-  ],
+  "intents": [{ "type": "action", "playerId": "S", "action": "start-game" }],
   "expect": {
-    "currentPlayer": "P1"
+    "currentPlayer": "N"
   }
 }

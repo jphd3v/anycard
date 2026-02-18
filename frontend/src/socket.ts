@@ -251,17 +251,30 @@ export function sendMoveIntent(
   playerId: string,
   fromPileId: string,
   toPileId: string,
-  cardId: number
+  cardId: number,
+  targetIndex?: number
 ) {
   const s = ensureSocket();
-  s.emit("game:intent", {
+  const intent: {
+    type: "move";
+    gameId: string;
+    playerId: string;
+    fromPileId: string;
+    toPileId: string;
+    cardId: number;
+    targetIndex?: number;
+  } = {
     type: "move",
     gameId,
     playerId,
     fromPileId,
     toPileId,
     cardId,
-  });
+  };
+  if (typeof targetIndex === "number") {
+    intent.targetIndex = targetIndex;
+  }
+  s.emit("game:intent", intent);
 }
 
 export function sendActionIntent(

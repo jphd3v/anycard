@@ -84,6 +84,7 @@ export function buildViewForPlayer(
       cards,
       totalCards: pile.cardIds.length,
       layout: overrides?.layout,
+      allowReorder: overrides?.allowReorder,
     };
   });
 

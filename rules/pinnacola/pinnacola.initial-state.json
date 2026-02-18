@@ -4,626 +4,626 @@
     "1": {
       "id": 1,
       "rank": "A",
-      "suit": "clubs",
-      "label": "A♣️"
+      "suit": "♣",
+      "label": "A♣"
     },
     "2": {
       "id": 2,
       "rank": "2",
-      "suit": "clubs",
-      "label": "2♣️"
+      "suit": "♣",
+      "label": "2♣"
     },
     "3": {
       "id": 3,
       "rank": "3",
-      "suit": "clubs",
-      "label": "3♣️"
+      "suit": "♣",
+      "label": "3♣"
     },
     "4": {
       "id": 4,
       "rank": "4",
-      "suit": "clubs",
-      "label": "4♣️"
+      "suit": "♣",
+      "label": "4♣"
     },
     "5": {
       "id": 5,
       "rank": "5",
-      "suit": "clubs",
-      "label": "5♣️"
+      "suit": "♣",
+      "label": "5♣"
     },
     "6": {
       "id": 6,
       "rank": "6",
-      "suit": "clubs",
-      "label": "6♣️"
+      "suit": "♣",
+      "label": "6♣"
     },
     "7": {
       "id": 7,
       "rank": "7",
-      "suit": "clubs",
-      "label": "7♣️"
+      "suit": "♣",
+      "label": "7♣"
     },
     "8": {
       "id": 8,
       "rank": "8",
-      "suit": "clubs",
-      "label": "8♣️"
+      "suit": "♣",
+      "label": "8♣"
     },
     "9": {
       "id": 9,
       "rank": "9",
-      "suit": "clubs",
-      "label": "9♣️"
+      "suit": "♣",
+      "label": "9♣"
     },
     "10": {
       "id": 10,
       "rank": "10",
-      "suit": "clubs",
-      "label": "10♣️"
+      "suit": "♣",
+      "label": "10♣"
     },
     "11": {
       "id": 11,
       "rank": "J",
-      "suit": "clubs",
-      "label": "J♣️"
+      "suit": "♣",
+      "label": "J♣"
     },
     "12": {
       "id": 12,
       "rank": "Q",
-      "suit": "clubs",
-      "label": "Q♣️"
+      "suit": "♣",
+      "label": "Q♣"
     },
     "13": {
       "id": 13,
       "rank": "K",
-      "suit": "clubs",
-      "label": "K♣️"
+      "suit": "♣",
+      "label": "K♣"
     },
     "14": {
       "id": 14,
       "rank": "A",
-      "suit": "diamonds",
-      "label": "A♦️"
+      "suit": "♦",
+      "label": "A♦"
     },
     "15": {
       "id": 15,
       "rank": "2",
-      "suit": "diamonds",
-      "label": "2♦️"
+      "suit": "♦",
+      "label": "2♦"
     },
     "16": {
       "id": 16,
       "rank": "3",
-      "suit": "diamonds",
-      "label": "3♦️"
+      "suit": "♦",
+      "label": "3♦"
     },
     "17": {
       "id": 17,
       "rank": "4",
-      "suit": "diamonds",
-      "label": "4♦️"
+      "suit": "♦",
+      "label": "4♦"
     },
     "18": {
       "id": 18,
       "rank": "5",
-      "suit": "diamonds",
-      "label": "5♦️"
+      "suit": "♦",
+      "label": "5♦"
     },
     "19": {
       "id": 19,
       "rank": "6",
-      "suit": "diamonds",
-      "label": "6♦️"
+      "suit": "♦",
+      "label": "6♦"
     },
     "20": {
       "id": 20,
       "rank": "7",
-      "suit": "diamonds",
-      "label": "7♦️"
+      "suit": "♦",
+      "label": "7♦"
     },
     "21": {
       "id": 21,
       "rank": "8",
-      "suit": "diamonds",
-      "label": "8♦️"
+      "suit": "♦",
+      "label": "8♦"
     },
     "22": {
       "id": 22,
       "rank": "9",
-      "suit": "diamonds",
-      "label": "9♦️"
+      "suit": "♦",
+      "label": "9♦"
     },
     "23": {
       "id": 23,
       "rank": "10",
-      "suit": "diamonds",
-      "label": "10♦️"
+      "suit": "♦",
+      "label": "10♦"
     },
     "24": {
       "id": 24,
       "rank": "J",
-      "suit": "diamonds",
-      "label": "J♦️"
+      "suit": "♦",
+      "label": "J♦"
     },
     "25": {
       "id": 25,
       "rank": "Q",
-      "suit": "diamonds",
-      "label": "Q♦️"
+      "suit": "♦",
+      "label": "Q♦"
     },
     "26": {
       "id": 26,
       "rank": "K",
-      "suit": "diamonds",
-      "label": "K♦️"
+      "suit": "♦",
+      "label": "K♦"
     },
     "27": {
       "id": 27,
       "rank": "A",
-      "suit": "hearts",
-      "label": "A♥️"
+      "suit": "♥",
+      "label": "A♥"
     },
     "28": {
       "id": 28,
       "rank": "2",
-      "suit": "hearts",
-      "label": "2♥️"
+      "suit": "♥",
+      "label": "2♥"
     },
     "29": {
       "id": 29,
       "rank": "3",
-      "suit": "hearts",
-      "label": "3♥️"
+      "suit": "♥",
+      "label": "3♥"
     },
     "30": {
       "id": 30,
       "rank": "4",
-      "suit": "hearts",
-      "label": "4♥️"
+      "suit": "♥",
+      "label": "4♥"
     },
     "31": {
       "id": 31,
       "rank": "5",
-      "suit": "hearts",
-      "label": "5♥️"
+      "suit": "♥",
+      "label": "5♥"
     },
     "32": {
       "id": 32,
       "rank": "6",
-      "suit": "hearts",
-      "label": "6♥️"
+      "suit": "♥",
+      "label": "6♥"
     },
     "33": {
       "id": 33,
       "rank": "7",
-      "suit": "hearts",
-      "label": "7♥️"
+      "suit": "♥",
+      "label": "7♥"
     },
     "34": {
       "id": 34,
       "rank": "8",
-      "suit": "hearts",
-      "label": "8♥️"
+      "suit": "♥",
+      "label": "8♥"
     },
     "35": {
       "id": 35,
       "rank": "9",
-      "suit": "hearts",
-      "label": "9♥️"
+      "suit": "♥",
+      "label": "9♥"
     },
     "36": {
       "id": 36,
       "rank": "10",
-      "suit": "hearts",
-      "label": "10♥️"
+      "suit": "♥",
+      "label": "10♥"
     },
     "37": {
       "id": 37,
       "rank": "J",
-      "suit": "hearts",
-      "label": "J♥️"
+      "suit": "♥",
+      "label": "J♥"
     },
     "38": {
       "id": 38,
       "rank": "Q",
-      "suit": "hearts",
-      "label": "Q♥️"
+      "suit": "♥",
+      "label": "Q♥"
     },
     "39": {
       "id": 39,
       "rank": "K",
-      "suit": "hearts",
-      "label": "K♥️"
+      "suit": "♥",
+      "label": "K♥"
     },
     "40": {
       "id": 40,
       "rank": "A",
-      "suit": "spades",
-      "label": "A♠️"
+      "suit": "♠",
+      "label": "A♠"
     },
     "41": {
       "id": 41,
       "rank": "2",
-      "suit": "spades",
-      "label": "2♠️"
+      "suit": "♠",
+      "label": "2♠"
     },
     "42": {
       "id": 42,
       "rank": "3",
-      "suit": "spades",
-      "label": "3♠️"
+      "suit": "♠",
+      "label": "3♠"
     },
     "43": {
       "id": 43,
       "rank": "4",
-      "suit": "spades",
-      "label": "4♠️"
+      "suit": "♠",
+      "label": "4♠"
     },
     "44": {
       "id": 44,
       "rank": "5",
-      "suit": "spades",
-      "label": "5♠️"
+      "suit": "♠",
+      "label": "5♠"
     },
     "45": {
       "id": 45,
       "rank": "6",
-      "suit": "spades",
-      "label": "6♠️"
+      "suit": "♠",
+      "label": "6♠"
     },
     "46": {
       "id": 46,
       "rank": "7",
-      "suit": "spades",
-      "label": "7♠️"
+      "suit": "♠",
+      "label": "7♠"
     },
     "47": {
       "id": 47,
       "rank": "8",
-      "suit": "spades",
-      "label": "8♠️"
+      "suit": "♠",
+      "label": "8♠"
     },
     "48": {
       "id": 48,
       "rank": "9",
-      "suit": "spades",
-      "label": "9♠️"
+      "suit": "♠",
+      "label": "9♠"
     },
     "49": {
       "id": 49,
       "rank": "10",
-      "suit": "spades",
-      "label": "10♠️"
+      "suit": "♠",
+      "label": "10♠"
     },
     "50": {
       "id": 50,
       "rank": "J",
-      "suit": "spades",
-      "label": "J♠️"
+      "suit": "♠",
+      "label": "J♠"
     },
     "51": {
       "id": 51,
       "rank": "Q",
-      "suit": "spades",
-      "label": "Q♠️"
+      "suit": "♠",
+      "label": "Q♠"
     },
     "52": {
       "id": 52,
       "rank": "K",
-      "suit": "spades",
-      "label": "K♠️"
+      "suit": "♠",
+      "label": "K♠"
     },
     "53": {
       "id": 53,
       "rank": "A",
-      "suit": "clubs",
-      "label": "A♣️"
+      "suit": "♣",
+      "label": "A♣"
     },
     "54": {
       "id": 54,
       "rank": "2",
-      "suit": "clubs",
-      "label": "2♣️"
+      "suit": "♣",
+      "label": "2♣"
     },
     "55": {
       "id": 55,
       "rank": "3",
-      "suit": "clubs",
-      "label": "3♣️"
+      "suit": "♣",
+      "label": "3♣"
     },
     "56": {
       "id": 56,
       "rank": "4",
-      "suit": "clubs",
-      "label": "4♣️"
+      "suit": "♣",
+      "label": "4♣"
     },
     "57": {
       "id": 57,
       "rank": "5",
-      "suit": "clubs",
-      "label": "5♣️"
+      "suit": "♣",
+      "label": "5♣"
     },
     "58": {
       "id": 58,
       "rank": "6",
-      "suit": "clubs",
-      "label": "6♣️"
+      "suit": "♣",
+      "label": "6♣"
     },
     "59": {
       "id": 59,
       "rank": "7",
-      "suit": "clubs",
-      "label": "7♣️"
+      "suit": "♣",
+      "label": "7♣"
     },
     "60": {
       "id": 60,
       "rank": "8",
-      "suit": "clubs",
-      "label": "8♣️"
+      "suit": "♣",
+      "label": "8♣"
     },
     "61": {
       "id": 61,
       "rank": "9",
-      "suit": "clubs",
-      "label": "9♣️"
+      "suit": "♣",
+      "label": "9♣"
     },
     "62": {
       "id": 62,
       "rank": "10",
-      "suit": "clubs",
-      "label": "10♣️"
+      "suit": "♣",
+      "label": "10♣"
     },
     "63": {
       "id": 63,
       "rank": "J",
-      "suit": "clubs",
-      "label": "J♣️"
+      "suit": "♣",
+      "label": "J♣"
     },
     "64": {
       "id": 64,
       "rank": "Q",
-      "suit": "clubs",
-      "label": "Q♣️"
+      "suit": "♣",
+      "label": "Q♣"
     },
     "65": {
       "id": 65,
       "rank": "K",
-      "suit": "clubs",
-      "label": "K♣️"
+      "suit": "♣",
+      "label": "K♣"
     },
     "66": {
       "id": 66,
       "rank": "A",
-      "suit": "diamonds",
-      "label": "A♦️"
+      "suit": "♦",
+      "label": "A♦"
     },
     "67": {
       "id": 67,
       "rank": "2",
-      "suit": "diamonds",
-      "label": "2♦️"
+      "suit": "♦",
+      "label": "2♦"
     },
     "68": {
       "id": 68,
       "rank": "3",
-      "suit": "diamonds",
-      "label": "3♦️"
+      "suit": "♦",
+      "label": "3♦"
     },
     "69": {
       "id": 69,
       "rank": "4",
-      "suit": "diamonds",
-      "label": "4♦️"
+      "suit": "♦",
+      "label": "4♦"
     },
     "70": {
       "id": 70,
       "rank": "5",
-      "suit": "diamonds",
-      "label": "5♦️"
+      "suit": "♦",
+      "label": "5♦"
     },
     "71": {
       "id": 71,
       "rank": "6",
-      "suit": "diamonds",
-      "label": "6♦️"
+      "suit": "♦",
+      "label": "6♦"
     },
     "72": {
       "id": 72,
       "rank": "7",
-      "suit": "diamonds",
-      "label": "7♦️"
+      "suit": "♦",
+      "label": "7♦"
     },
     "73": {
       "id": 73,
       "rank": "8",
-      "suit": "diamonds",
-      "label": "8♦️"
+      "suit": "♦",
+      "label": "8♦"
     },
     "74": {
       "id": 74,
       "rank": "9",
-      "suit": "diamonds",
-      "label": "9♦️"
+      "suit": "♦",
+      "label": "9♦"
     },
     "75": {
       "id": 75,
       "rank": "10",
-      "suit": "diamonds",
-      "label": "10♦️"
+      "suit": "♦",
+      "label": "10♦"
     },
     "76": {
       "id": 76,
       "rank": "J",
-      "suit": "diamonds",
-      "label": "J♦️"
+      "suit": "♦",
+      "label": "J♦"
     },
     "77": {
       "id": 77,
       "rank": "Q",
-      "suit": "diamonds",
-      "label": "Q♦️"
+      "suit": "♦",
+      "label": "Q♦"
     },
     "78": {
       "id": 78,
       "rank": "K",
-      "suit": "diamonds",
-      "label": "K♦️"
+      "suit": "♦",
+      "label": "K♦"
     },
     "79": {
       "id": 79,
       "rank": "A",
-      "suit": "hearts",
-      "label": "A♥️"
+      "suit": "♥",
+      "label": "A♥"
     },
     "80": {
       "id": 80,
       "rank": "2",
-      "suit": "hearts",
-      "label": "2♥️"
+      "suit": "♥",
+      "label": "2♥"
     },
     "81": {
       "id": 81,
       "rank": "3",
-      "suit": "hearts",
-      "label": "3♥️"
+      "suit": "♥",
+      "label": "3♥"
     },
     "82": {
       "id": 82,
       "rank": "4",
-      "suit": "hearts",
-      "label": "4♥️"
+      "suit": "♥",
+      "label": "4♥"
     },
     "83": {
       "id": 83,
       "rank": "5",
-      "suit": "hearts",
-      "label": "5♥️"
+      "suit": "♥",
+      "label": "5♥"
     },
     "84": {
       "id": 84,
       "rank": "6",
-      "suit": "hearts",
-      "label": "6♥️"
+      "suit": "♥",
+      "label": "6♥"
     },
     "85": {
       "id": 85,
       "rank": "7",
-      "suit": "hearts",
-      "label": "7♥️"
+      "suit": "♥",
+      "label": "7♥"
     },
     "86": {
       "id": 86,
       "rank": "8",
-      "suit": "hearts",
-      "label": "8♥️"
+      "suit": "♥",
+      "label": "8♥"
     },
     "87": {
       "id": 87,
       "rank": "9",
-      "suit": "hearts",
-      "label": "9♥️"
+      "suit": "♥",
+      "label": "9♥"
     },
     "88": {
       "id": 88,
       "rank": "10",
-      "suit": "hearts",
-      "label": "10♥️"
+      "suit": "♥",
+      "label": "10♥"
     },
     "89": {
       "id": 89,
       "rank": "J",
-      "suit": "hearts",
-      "label": "J♥️"
+      "suit": "♥",
+      "label": "J♥"
     },
     "90": {
       "id": 90,
       "rank": "Q",
-      "suit": "hearts",
-      "label": "Q♥️"
+      "suit": "♥",
+      "label": "Q♥"
     },
     "91": {
       "id": 91,
       "rank": "K",
-      "suit": "hearts",
-      "label": "K♥️"
+      "suit": "♥",
+      "label": "K♥"
     },
     "92": {
       "id": 92,
       "rank": "A",
-      "suit": "spades",
-      "label": "A♠️"
+      "suit": "♠",
+      "label": "A♠"
     },
     "93": {
       "id": 93,
       "rank": "2",
-      "suit": "spades",
-      "label": "2♠️"
+      "suit": "♠",
+      "label": "2♠"
     },
     "94": {
       "id": 94,
       "rank": "3",
-      "suit": "spades",
-      "label": "3♠️"
+      "suit": "♠",
+      "label": "3♠"
     },
     "95": {
       "id": 95,
       "rank": "4",
-      "suit": "spades",
-      "label": "4♠️"
+      "suit": "♠",
+      "label": "4♠"
     },
     "96": {
       "id": 96,
       "rank": "5",
-      "suit": "spades",
-      "label": "5♠️"
+      "suit": "♠",
+      "label": "5♠"
     },
     "97": {
       "id": 97,
       "rank": "6",
-      "suit": "spades",
-      "label": "6♠️"
+      "suit": "♠",
+      "label": "6♠"
     },
     "98": {
       "id": 98,
       "rank": "7",
-      "suit": "spades",
-      "label": "7♠️"
+      "suit": "♠",
+      "label": "7♠"
     },
     "99": {
       "id": 99,
       "rank": "8",
-      "suit": "spades",
-      "label": "8♠️"
+      "suit": "♠",
+      "label": "8♠"
     },
     "100": {
       "id": 100,
       "rank": "9",
-      "suit": "spades",
-      "label": "9♠️"
+      "suit": "♠",
+      "label": "9♠"
     },
     "101": {
       "id": 101,
       "rank": "10",
-      "suit": "spades",
-      "label": "10♠️"
+      "suit": "♠",
+      "label": "10♠"
     },
     "102": {
       "id": 102,
       "rank": "J",
-      "suit": "spades",
-      "label": "J♠️"
+      "suit": "♠",
+      "label": "J♠"
     },
     "103": {
       "id": 103,
       "rank": "Q",
-      "suit": "spades",
-      "label": "Q♠️"
+      "suit": "♠",
+      "label": "Q♠"
     },
     "104": {
       "id": 104,
       "rank": "K",
-      "suit": "spades",
-      "label": "K♠️"
+      "suit": "♠",
+      "label": "K♠"
     },
     "105": {
       "id": 105,
@@ -671,171 +671,191 @@
       "visibility": "public",
       "cardIds": []
     },
-    "P1-hand": {
-      "id": "P1-hand",
-      "ownerId": "P1",
+    "S-hand": {
+      "id": "S-hand",
+      "ownerId": "S",
       "visibility": "owner",
       "cardIds": []
     },
-    "P2-hand": {
-      "id": "P2-hand",
-      "ownerId": "P2",
+    "N-hand": {
+      "id": "N-hand",
+      "ownerId": "N",
       "visibility": "owner",
       "cardIds": []
     },
-    "P1-meld-0": {
-      "id": "P1-meld-0",
-      "ownerId": "P1",
+    "W-hand": {
+      "id": "W-hand",
+      "ownerId": "W",
+      "visibility": "owner",
+      "cardIds": []
+    },
+    "E-hand": {
+      "id": "E-hand",
+      "ownerId": "E",
+      "visibility": "owner",
+      "cardIds": []
+    },
+    "A-meld-0": {
+      "id": "A-meld-0",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-1": {
-      "id": "P1-meld-1",
-      "ownerId": "P1",
+    "A-meld-1": {
+      "id": "A-meld-1",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-2": {
-      "id": "P1-meld-2",
-      "ownerId": "P1",
+    "A-meld-2": {
+      "id": "A-meld-2",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-3": {
-      "id": "P1-meld-3",
-      "ownerId": "P1",
+    "A-meld-3": {
+      "id": "A-meld-3",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-4": {
-      "id": "P1-meld-4",
-      "ownerId": "P1",
+    "A-meld-4": {
+      "id": "A-meld-4",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-5": {
-      "id": "P1-meld-5",
-      "ownerId": "P1",
+    "A-meld-5": {
+      "id": "A-meld-5",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-6": {
-      "id": "P1-meld-6",
-      "ownerId": "P1",
+    "A-meld-6": {
+      "id": "A-meld-6",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-7": {
-      "id": "P1-meld-7",
-      "ownerId": "P1",
+    "A-meld-7": {
+      "id": "A-meld-7",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-8": {
-      "id": "P1-meld-8",
-      "ownerId": "P1",
+    "A-meld-8": {
+      "id": "A-meld-8",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-9": {
-      "id": "P1-meld-9",
-      "ownerId": "P1",
+    "A-meld-9": {
+      "id": "A-meld-9",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-10": {
-      "id": "P1-meld-10",
-      "ownerId": "P1",
+    "A-meld-10": {
+      "id": "A-meld-10",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P1-meld-11": {
-      "id": "P1-meld-11",
-      "ownerId": "P1",
+    "A-meld-11": {
+      "id": "A-meld-11",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-0": {
-      "id": "P2-meld-0",
-      "ownerId": "P2",
+    "B-meld-0": {
+      "id": "B-meld-0",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-1": {
-      "id": "P2-meld-1",
-      "ownerId": "P2",
+    "B-meld-1": {
+      "id": "B-meld-1",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-2": {
-      "id": "P2-meld-2",
-      "ownerId": "P2",
+    "B-meld-2": {
+      "id": "B-meld-2",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-3": {
-      "id": "P2-meld-3",
-      "ownerId": "P2",
+    "B-meld-3": {
+      "id": "B-meld-3",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-4": {
-      "id": "P2-meld-4",
-      "ownerId": "P2",
+    "B-meld-4": {
+      "id": "B-meld-4",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-5": {
-      "id": "P2-meld-5",
-      "ownerId": "P2",
+    "B-meld-5": {
+      "id": "B-meld-5",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-6": {
-      "id": "P2-meld-6",
-      "ownerId": "P2",
+    "B-meld-6": {
+      "id": "B-meld-6",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-7": {
-      "id": "P2-meld-7",
-      "ownerId": "P2",
+    "B-meld-7": {
+      "id": "B-meld-7",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-8": {
-      "id": "P2-meld-8",
-      "ownerId": "P2",
+    "B-meld-8": {
+      "id": "B-meld-8",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-9": {
-      "id": "P2-meld-9",
-      "ownerId": "P2",
+    "B-meld-9": {
+      "id": "B-meld-9",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-10": {
-      "id": "P2-meld-10",
-      "ownerId": "P2",
+    "B-meld-10": {
+      "id": "B-meld-10",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     },
-    "P2-meld-11": {
-      "id": "P2-meld-11",
-      "ownerId": "P2",
+    "B-meld-11": {
+      "id": "B-meld-11",
+      "ownerId": null,
       "visibility": "public",
       "cardIds": []
     }
   },
   "players": [
     {
-      "id": "P1",
-      "name": "Player 1"
+      "id": "S",
+      "name": "South"
     },
     {
-      "id": "P2",
-      "name": "Player 2"
+      "id": "N",
+      "name": "North"
+    },
+    {
+      "id": "W",
+      "name": "West"
+    },
+    {
+      "id": "E",
+      "name": "East"
     }
   ],
   "currentPlayer": null,
@@ -855,7 +875,7 @@
         {
           "row": 0,
           "col": 0,
-          "text": "Player",
+          "text": "Team",
           "role": "header"
         },
         {
@@ -867,7 +887,7 @@
         {
           "row": 1,
           "col": 0,
-          "text": "P1",
+          "text": "Team A (S+N)",
           "role": "body"
         },
         {
@@ -879,7 +899,7 @@
         {
           "row": 2,
           "col": 0,
-          "text": "P2",
+          "text": "Team B (W+E)",
           "role": "body"
         },
         {
@@ -895,9 +915,9 @@
     "phase": "dealing",
     "hasDealt": false,
     "dealNumber": 0,
-    "cumulativeScores": {
-      "P1": 0,
-      "P2": 0
+    "teamScores": {
+      "A": 0,
+      "B": 0
     }
   }
 }

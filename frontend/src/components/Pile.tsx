@@ -1,4 +1,10 @@
 import { useDroppable, useDraggable, useDndContext } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { CSSProperties, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import {
@@ -31,6 +37,7 @@ interface Props {
   selectedSortId?: string;
   allowViewerToggle?: boolean;
   isProxyTarget?: boolean;
+  allowReorder?: boolean;
   onChangeSort?: (sortId: string) => void;
 }
 
@@ -66,6 +73,51 @@ function DraggableCard({
   );
 }
 
+function SortableCard({
+  card,
+  pileId,
+  disabled,
+  isMoveTarget,
+}: {
+  card: CardView;
+  pileId: string;
+  disabled: boolean;
+  isMoveTarget?: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `sortable-${pileId}-card-${card.id}`,
+    disabled,
+    data: { pileId, cardId: card.id, card },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={
+        disabled ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
+      }
+    >
+      <Card card={card} pileId={pileId} isMoveTarget={isMoveTarget} />
+    </div>
+  );
+}
+
 export function Pile({
   pile,
   className,
@@ -77,6 +129,7 @@ export function Pile({
   selectedSortId,
   allowViewerToggle = true,
   isProxyTarget = false,
+  allowReorder = false,
   onChangeSort,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
@@ -310,72 +363,166 @@ export function Pile({
           </div>
         )}
 
-        {pile.cards.map((card, index) => {
-          const movable =
-            freeDragEnabled ||
-            legalIntents.some(
-              (intent) =>
-                intent.type === "move" &&
-                intent.fromPileId === pile.id &&
-                (intent.cardId === card.id || intent.cardIds?.includes(card.id))
-            );
-          const dragDisabled = !!disabled || !movable || isClickMoveActive;
-          const isTopCard = index === pile.cards.length - 1;
-
-          const cardStyle: CSSProperties = {
-            position: "absolute",
-            top: 0,
-            left: 0,
-          };
-
-          if (layout === "horizontal") {
-            cardStyle.left = `calc(${index} * var(--fan-x))`;
-          } else if (layout === "vertical") {
-            cardStyle.top = `calc(${index} * var(--fan-y))`;
-          } else if (layout === "complete") {
-            // Apply a very slight realistic stack offset
-            cardStyle.left = `calc(${index} * 0.25px)`;
-            cardStyle.top = `calc(${index} * -0.05px)`; // slightly offset downwards for perspective
-          } else if (layout === "spread") {
-            cardStyle.position = "relative";
-            cardStyle.top = "auto";
-            cardStyle.left = "auto";
-          }
-
-          const animationStyle: CSSProperties = {};
-          if (shouldAnimate) {
-            animationStyle.animation = isAi
-              ? "card-shiver 3s ease-in-out infinite"
-              : "card-shiver 4s ease-in-out infinite";
-            animationStyle.animationDelay = `${index * 0.1}s`;
-          }
-
-          return (
-            <div
-              key={card.id}
-              style={{ ...cardStyle, ...animationStyle, zIndex: index }}
-              data-testid={isTopCard ? `pile-top:${pile.id}` : undefined}
-              data-topcard={isTopCard ? "true" : undefined}
-            >
-              <DraggableCard
-                card={card}
-                pileId={pile.id}
-                disabled={dragDisabled}
-                isMoveTarget={isDropTarget}
-              />
-            </div>
+        {(() => {
+          const isSortableEnabled =
+            allowReorder && !isClickMoveActive && layout === "horizontal";
+          const sortableIds = pile.cards.map(
+            (card) => `sortable-${pile.id}-card-${card.id}`
           );
-        })}
+
+          const cardElements = pile.cards.map((card, index) => {
+            const movable =
+              freeDragEnabled ||
+              legalIntents.some(
+                (intent) =>
+                  intent.type === "move" &&
+                  intent.fromPileId === pile.id &&
+                  (intent.cardId === card.id ||
+                    intent.cardIds?.includes(card.id))
+              );
+            const dragDisabled = !!disabled || !movable || isClickMoveActive;
+            const isTopCard = index === pile.cards.length - 1;
+
+            const cardStyle: CSSProperties = {
+              position: "absolute",
+              top: 0,
+              left: 0,
+            };
+
+            if (layout === "horizontal") {
+              cardStyle.left = `calc(${index} * var(--fan-x))`;
+            } else if (layout === "vertical") {
+              cardStyle.top = `calc(${index} * var(--fan-y))`;
+            } else if (layout === "complete") {
+              // Apply a very slight realistic stack offset
+              cardStyle.left = `calc(${index} * 0.25px)`;
+              cardStyle.top = `calc(${index} * -0.05px)`; // slightly offset downwards for perspective
+            } else if (layout === "spread") {
+              cardStyle.position = "relative";
+              cardStyle.top = "auto";
+              cardStyle.left = "auto";
+            }
+
+            const animationStyle: CSSProperties = {};
+            if (shouldAnimate) {
+              animationStyle.animation = isAi
+                ? "card-shiver 3s ease-in-out infinite"
+                : "card-shiver 4s ease-in-out infinite";
+              animationStyle.animationDelay = `${index * 0.1}s`;
+            }
+
+            const CardComponent = isSortableEnabled
+              ? SortableCard
+              : DraggableCard;
+
+            const isCardSelected =
+              isClickMoveActive &&
+              selectedCard?.cardId === card.id &&
+              selectedCard?.fromPileId === pile.id;
+            const canReorderInClickMode =
+              allowReorder && isCardSelected && pile.cards.length > 1;
+            const canMoveLeft = canReorderInClickMode && index > 0;
+            const canMoveRight =
+              canReorderInClickMode && index < pile.cards.length - 1;
+
+            return (
+              <div
+                key={card.id}
+                style={{ ...cardStyle, ...animationStyle, zIndex: index }}
+                data-testid={isTopCard ? `pile-top:${pile.id}` : undefined}
+                data-topcard={isTopCard ? "true" : undefined}
+              >
+                <CardComponent
+                  card={card}
+                  pileId={pile.id}
+                  disabled={dragDisabled}
+                  isMoveTarget={isDropTarget}
+                />
+                {canReorderInClickMode && (
+                  <div
+                    className={`absolute z-[200] pointer-events-auto ${
+                      layout === "vertical"
+                        ? "-left-8 top-1/2 -translate-y-1/2 flex flex-col gap-1"
+                        : "-bottom-8 left-1/2 -translate-x-1/2 flex gap-1"
+                    }`}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canMoveLeft && view?.gameId && myPlayerId) {
+                          sendMoveIntent(
+                            view.gameId,
+                            myPlayerId,
+                            pile.id,
+                            pile.id,
+                            card.id,
+                            index - 1
+                          );
+                          setSelectedCard(null);
+                        }
+                      }}
+                      disabled={!canMoveLeft}
+                      className="px-2 py-1 rounded bg-action-surface text-action-ink text-xs font-bold shadow-lg hover:bg-action-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title={layout === "vertical" ? "Move up" : "Move left"}
+                    >
+                      {layout === "vertical" ? "↑" : "←"}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canMoveRight && view?.gameId && myPlayerId) {
+                          sendMoveIntent(
+                            view.gameId,
+                            myPlayerId,
+                            pile.id,
+                            pile.id,
+                            card.id,
+                            index + 1
+                          );
+                          setSelectedCard(null);
+                        }
+                      }}
+                      disabled={!canMoveRight}
+                      className="px-2 py-1 rounded bg-action-surface text-action-ink text-xs font-bold shadow-lg hover:bg-action-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title={layout === "vertical" ? "Move down" : "Move right"}
+                    >
+                      {layout === "vertical" ? "↓" : "→"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          });
+
+          if (isSortableEnabled) {
+            return (
+              <SortableContext
+                items={sortableIds}
+                strategy={horizontalListSortingStrategy}
+              >
+                {cardElements}
+              </SortableContext>
+            );
+          }
+
+          return cardElements;
+        })()}
       </div>
 
-      <div
-        data-testid={`pile-count:${pile.id}`}
-        className={`absolute bottom-0 text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 whitespace-nowrap ${
-          showDetails ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-        }`}
-      >
-        {count} {count === 1 ? "card" : "cards"}
-      </div>
+      {!(
+        isClickMoveActive &&
+        selectedCard?.fromPileId === pile.id &&
+        pile.cards.length > 1
+      ) && (
+        <div
+          data-testid={`pile-count:${pile.id}`}
+          className={`absolute bottom-0 text-[10px] font-mono text-ink-muted bg-surface-2 px-1.5 rounded transition-opacity duration-200 whitespace-nowrap ${
+            showDetails ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {count} {count === 1 ? "card" : "cards"}
+        </div>
+      )}
     </div>
   );
 }

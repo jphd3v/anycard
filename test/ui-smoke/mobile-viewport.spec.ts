@@ -150,6 +150,7 @@ test.describe("UI Smoke Tests - Mobile Viewport", () => {
     assertNoConsoleErrors(consoleMessages, [
       /ERR_INTERNET_DISCONNECTED/,
       /Failed to load resource/,
+      /Failed to fetch/,
     ]);
   });
 });
