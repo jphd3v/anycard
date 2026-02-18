@@ -700,10 +700,59 @@ export default function App() {
     rememberAndJoin,
   });
 
+  const handleGameNotFoundOnReconnect = useCallback(() => {
+    // Only handle this once; if routeError already set, ignore
+    if (routeError?.kind === "GAME_NOT_FOUND") return;
+
+    const badGameId = gameIdRef.current;
+    const badGameType = rulesId;
+
+    if (badGameId) {
+      removeRecentGame(badGameId);
+    }
+
+    // Clear local game state
+    setGameId("");
+    setGameType(null);
+    setSeats([]);
+    setRoomSeed(null);
+    setView(null);
+    setJoinedGameId(null);
+    lastJoinRef.current = null;
+
+    // Mark route as invalid so auto-join stops
+    setRouteError({
+      kind: "GAME_NOT_FOUND",
+      gameId: badGameId,
+      rulesId: badGameType ?? undefined,
+    });
+
+    // Navigate to root *once*; use replaceState to avoid growing history
+    try {
+      window.history.replaceState({}, "", "/");
+    } catch (err) {
+      // Some Safari builds can be picky here; ignore failures
+      console.warn("Failed to replaceState after Game not found", err);
+    }
+  }, [
+    routeError,
+    rulesId,
+    removeRecentGame,
+    setGameId,
+    setGameType,
+    setSeats,
+    setRoomSeed,
+    setView,
+    setJoinedGameId,
+    setRouteError,
+  ]);
+
   useConnectionStatus({
     isConnected,
     setIsConnected,
     attemptRejoin,
+    gameId,
+    onGameNotFound: handleGameNotFoundOnReconnect,
   });
 
   useRouteHandlers({

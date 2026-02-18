@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { connect, setupConnectionHandlers } from "../socket";
+import { connect, setupConnectionHandlers, fetchGameInfo } from "../socket";
 
 type SetState<T> = (update: T | ((prev: T) => T)) => void;
 
@@ -7,12 +7,16 @@ type UseConnectionStatusOptions = {
   isConnected: boolean;
   setIsConnected: SetState<boolean>;
   attemptRejoin: () => void;
+  gameId?: string;
+  onGameNotFound?: () => void;
 };
 
 export function useConnectionStatus({
   isConnected,
   setIsConnected,
   attemptRejoin,
+  gameId,
+  onGameNotFound,
 }: UseConnectionStatusOptions) {
   const wasDisconnectedRef = useRef(false);
 
@@ -29,10 +33,32 @@ export function useConnectionStatus({
       return;
     }
     if (wasDisconnectedRef.current) {
-      attemptRejoin();
+      // On reconnection, first verify the game still exists if we're in a game
+      if (gameId && onGameNotFound) {
+        fetchGameInfo(gameId)
+          .then((gameInfo) => {
+            if (!gameInfo) {
+              // Game no longer exists on server
+              console.warn(
+                `Game ${gameId} not found on server after reconnection`
+              );
+              onGameNotFound();
+            } else {
+              // Game exists, proceed with rejoin
+              attemptRejoin();
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to verify game existence:", err);
+            // On fetch error, still attempt rejoin and let the join handler deal with it
+            attemptRejoin();
+          });
+      } else {
+        attemptRejoin();
+      }
       wasDisconnectedRef.current = false;
     }
-  }, [attemptRejoin, isConnected]);
+  }, [attemptRejoin, isConnected, gameId, onGameNotFound]);
 
   useEffect(() => {
     const handleOnline = () => {
