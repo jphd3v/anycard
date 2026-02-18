@@ -638,6 +638,14 @@ read by the frontend from `meta.json`):
 
 Used by the lobby and game list.
 
+### 6.6.1 Rules fidelity conventions
+
+For game implementations in this repository:
+
+- Prefer one primary authoritative rules source (or a very small set), such as Pagat/Wikipedia, and keep links in `rules/<rulesId>/<rulesId>.rules.md`.
+- Implement the basic/standard rule set by default; optional variants should only be added when explicitly requested.
+- Keep player counts fixed per game (`meta.json` + rule logic). Variable player-count support is a future enhancement, not the default.
+
 ### 6.7 Assets and deck types
 
 The engine assumes:

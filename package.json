@@ -17,6 +17,7 @@
     "dev:backend-slow": "PORT=3011 CLIENT_ORIGIN=http://localhost:5176,http://127.0.0.1:5176 npm --prefix backend run dev",
     "dev:frontend-test": "VITE_SERVER_URL=http://localhost:3011 npm --prefix frontend run dev -- --port 5176",
     "test:integration": "npm --prefix backend exec -- tsx ./test/integration/runner/run.ts",
+    "test:integration:liveness": "npm --prefix backend exec -- tsx ./test/integration/runner/liveness.ts",
     "test:integration:coverage:explore": "npm --prefix backend exec -- tsx ./test/integration/runner/coverage-explore.ts",
     "test:integration:coverage": "c8 --all --include \"backend/src/rules/impl/*.ts\" --exclude \"backend/src/rules/impl/template-game.ts\" --reporter=text-summary --reporter=json-summary --report-dir test-artifacts/integration-coverage sh -c \"npm run test:integration && npm run test:integration:coverage:explore\"",
     "test:integration:coverage:verify": "npm run test:integration:coverage && node scripts/check-rules-coverage.mjs",

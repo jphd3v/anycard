@@ -266,6 +266,104 @@ function getPileCardIds(
   return state.piles[pileId]?.cards?.map((c) => c.id) ?? [];
 }
 
+function isCardPlayable(
+  playedCard: { rank: string; suit: string },
+  topDiscard: { rank: string; suit: string },
+  rulesState: CrazyEightsRulesState
+): boolean {
+  const isEight = playedCard.rank === "8";
+  const isTwo = playedCard.rank === "2";
+  const topIsEight = topDiscard.rank === "8";
+  const requiredSuit = rulesState.currentSuit ?? (topDiscard.suit as Suit);
+
+  if (rulesState.drawPenalty > 0 && !isTwo) return false;
+
+  return (
+    isEight ||
+    (!topIsEight &&
+      (playedCard.rank === topDiscard.rank ||
+        playedCard.suit === topDiscard.suit)) ||
+    (topIsEight &&
+      (playedCard.rank === "8" || playedCard.suit === requiredSuit))
+  );
+}
+
+function hasPlayableDiscardMove(
+  state: ValidationState,
+  rulesState: CrazyEightsRulesState,
+  playerId: string,
+  projected?: ReturnType<typeof projectPilesAfterEvents>
+): boolean {
+  const handCardIds = getPileCardIds(state, `${playerId}-hand`, projected);
+  if (handCardIds.length === 0) return false;
+
+  const topDiscardId = getTopDiscardId(state, projected);
+  if (!topDiscardId) return false;
+  const topDiscard = state.allCards[topDiscardId];
+  if (!topDiscard) return false;
+
+  for (const cardId of handCardIds) {
+    const card = state.allCards[cardId];
+    if (!card) continue;
+    if (isCardPlayable(card, topDiscard, rulesState)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function resolveBlockedHand(
+  state: ValidationState,
+  rulesState: CrazyEightsRulesState,
+  projected: ReturnType<typeof projectPilesAfterEvents>
+): ValidationResult {
+  const players = rulesState.players;
+  const playerScores = Object.fromEntries(
+    players.map((playerId) => {
+      const handIds = getPileCardIds(state, `${playerId}-hand`, projected);
+      return [playerId, computePenaltyPoints(state, handIds)];
+    })
+  ) as Record<string, number>;
+
+  const sorted = [...players].sort((a, b) => {
+    const diff = (playerScores[a] ?? 0) - (playerScores[b] ?? 0);
+    if (diff !== 0) return diff;
+    return a.localeCompare(b);
+  });
+  const winner = sorted[0] ?? players[0] ?? null;
+
+  const nextRulesState: CrazyEightsRulesState = {
+    ...rulesState,
+    phase: "game-over",
+    pendingSuitPlayer: null,
+    pendingSuitNextPlayer: null,
+    lastCardPending: null,
+    drawPenalty: 0,
+    drawPenaltySuit: null,
+    scores: {
+      ...rulesState.scores,
+      ...playerScores,
+    },
+  };
+
+  const engineEvents: EngineEvent[] = [
+    ...(winner ? [{ type: "set-winner", winner } as const] : []),
+    { type: "set-current-player", player: null },
+    { type: "set-rules-state", rulesState: nextRulesState },
+    { type: "set-actions", actions: EMPTY_ACTIONS },
+    {
+      type: "set-scoreboards",
+      scoreboards: buildScoreboards(state, nextRulesState, projected, null),
+    },
+  ];
+
+  return {
+    valid: true,
+    engineEvents,
+  };
+}
+
 function drawCards(
   state: ValidationState,
   rulesState: CrazyEightsRulesState,
@@ -435,16 +533,14 @@ export const crazyEightsRules: GameRuleModule = {
 
     const deckCardIds = getPileCardIds(state, "deck");
     const topDeckId = deckCardIds[deckCardIds.length - 1] ?? null;
-    if (topDeckId) {
-      intents.push({
-        type: "move",
-        gameId,
-        playerId,
-        fromPileId: "deck",
-        toPileId: `${playerId}-hand`,
-        cardId: topDeckId,
-      });
-    }
+    intents.push({
+      type: "move",
+      gameId,
+      playerId,
+      fromPileId: "deck",
+      toPileId: `${playerId}-hand`,
+      ...(topDeckId ? { cardId: topDeckId } : {}),
+    });
 
     const handPileId = `${playerId}-hand`;
     const hand = state.piles[handPileId];
@@ -737,10 +833,20 @@ export const crazyEightsRules: GameRuleModule = {
       const topDeckId = deckCardIds[deckCardIds.length - 1] ?? null;
       const canReshuffle = !topDeckId && discardCardIds.length > 1;
       if (!topDeckId && !canReshuffle) {
-        return { valid: false, reason: "Stock is empty.", engineEvents: [] };
+        const hasPlayable = hasPlayableDiscardMove(
+          state,
+          nextRulesState,
+          intent.playerId,
+          projected
+        );
+        if (hasPlayable) {
+          return { valid: false, reason: "Stock is empty.", engineEvents: [] };
+        }
+
+        return resolveBlockedHand(state, nextRulesState, projected);
       }
 
-      if (intent.cardId == null) {
+      if (topDeckId && intent.cardId == null) {
         return {
           valid: false,
           reason: "You must draw the top card from the stock.",

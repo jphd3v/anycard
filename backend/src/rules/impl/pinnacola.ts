@@ -700,6 +700,21 @@ function teamHasPinnacolone(projected: ProjectedPiles, team: Team): boolean {
   return teamMelds.some((cards) => validateMeld(cards).isPinnacolone);
 }
 
+function canTakeAnyDiscardPickup(
+  state: ValidationState,
+  playerId: string
+): boolean {
+  const discardCards = state.piles["discard"]?.cards ?? [];
+  for (let i = 0; i < discardCards.length; i++) {
+    const deepest = discardCards[i];
+    const picked = discardCards.slice(i);
+    if (canMeldDeepestAfterPickup(state, playerId, deepest, picked)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function recomputeDerived(
   _state: ValidationState,
   rulesState: PinnacolaRulesState,
@@ -770,6 +785,16 @@ export const pinnacolaRules: GameRuleModule = {
             });
           }
         }
+      }
+
+      const deckEmpty = (state.piles["deck"]?.size ?? 0) === 0;
+      if (deckEmpty && !canTakeAnyDiscardPickup(state, playerId)) {
+        intents.push({
+          type: "action",
+          gameId: state.gameId,
+          playerId,
+          action: "end-hand-blocked",
+        });
       }
     } else if (
       rs.turnPhase === "play-or-discard" ||
@@ -1059,6 +1084,85 @@ export const pinnacolaRules: GameRuleModule = {
       return { valid: false, reason: "Not your turn.", engineEvents: [] };
 
     if (rs.turnPhase === "must-draw") {
+      if (intent.type === "action" && intent.action === "end-hand-blocked") {
+        const deckEmpty = (state.piles["deck"]?.size ?? 0) === 0;
+        if (!deckEmpty) {
+          return {
+            valid: false,
+            reason: "Stock is not empty.",
+            engineEvents: [],
+          };
+        }
+        if (canTakeAnyDiscardPickup(state, intent.playerId)) {
+          return {
+            valid: false,
+            reason: "You must take from discard if a legal pickup exists.",
+            engineEvents: [],
+          };
+        }
+
+        const projected = projectPilesAfterEvents(state, engineEvents);
+        const { scores } = calculateScores(projected);
+        nextRS.teamScores.A += scores.A;
+        nextRS.teamScores.B += scores.B;
+
+        const winner =
+          nextRS.teamScores.A >= 1000
+            ? "A"
+            : nextRS.teamScores.B >= 1000
+              ? "B"
+              : null;
+
+        if (winner) {
+          nextRS.phase = "ended";
+          engineEvents.push({
+            type: "set-winner",
+            winner: `Team ${winner}`,
+          });
+        } else {
+          nextRS.hasDealt = false;
+          nextRS.phase = "dealing";
+        }
+
+        engineEvents.push({
+          type: "announce",
+          text: "Hand ended: stock empty and no legal discard pickup.",
+          anchor: { type: "screen" },
+        });
+        engineEvents.push({ type: "set-current-player", player: null });
+        engineEvents.push({
+          type: "set-scoreboards",
+          scoreboards: [
+            {
+              id: "pinnacola-score",
+              title: "Score",
+              rows: 3,
+              cols: 2,
+              cells: [
+                { row: 0, col: 0, text: "Team", role: "header" },
+                { row: 0, col: 1, text: "Score", role: "header" },
+                { row: 1, col: 0, text: "Team A (S+N)", role: "body" },
+                {
+                  row: 1,
+                  col: 1,
+                  text: String(nextRS.teamScores.A),
+                  role: "body",
+                },
+                { row: 2, col: 0, text: "Team B (W+E)", role: "body" },
+                {
+                  row: 2,
+                  col: 1,
+                  text: String(nextRS.teamScores.B),
+                  role: "body",
+                },
+              ],
+            },
+          ],
+        });
+        recomputeDerived(state, nextRS, engineEvents);
+        return { valid: true, engineEvents };
+      }
+
       if (
         intent.type === "move" &&
         intent.toPileId === `${intent.playerId}-hand`
@@ -1200,6 +1304,17 @@ export const pinnacolaRules: GameRuleModule = {
           // Handle both single-card and multi-card intents
           const intentCardIds =
             intent.cardId !== undefined ? [intent.cardId] : intent.cardIds!;
+          if (intent.fromPileId === `${intent.playerId}-hand`) {
+            const handSize = state.piles[`${intent.playerId}-hand`]?.size ?? 0;
+            if (handSize - intentCardIds.length <= 0) {
+              return {
+                valid: false,
+                reason:
+                  "Keep at least one card in hand so you can end turn by discarding.",
+                engineEvents: [],
+              };
+            }
+          }
 
           // For mandatory meld, check if the mandatory card is included
           if (rs.mandatoryMeldCardId) {
@@ -1537,5 +1652,7 @@ export const pinnacolaPlugin: GamePlugin = {
       ...meldPileIdsForTeam("A"),
       ...meldPileIdsForTeam("B"),
     ],
+    // Rules must see all hands to safely gather/redeal and validate meld flows.
+    isPileAlwaysVisibleToRules: (pileId) => pileId.endsWith("-hand"),
   },
 };

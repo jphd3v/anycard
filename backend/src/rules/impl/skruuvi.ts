@@ -472,6 +472,29 @@ function asSeat(playerId: string): Seat | null {
   return isSeat(playerId) ? playerId : null;
 }
 
+function handCardCount(state: ValidationState, seat: Seat): number {
+  const pile = state.piles[`${seat}-hand`];
+  if (!pile) return 0;
+  if (Array.isArray(pile.cards)) return pile.cards.length;
+  if (typeof pile.size === "number") return pile.size;
+  return 0;
+}
+
+function nextSeatWithCards(
+  state: ValidationState,
+  fromSeat: Seat,
+  blockedSeats: Set<Seat>
+): Seat | null {
+  let probe = nextSeat(fromSeat);
+  for (let i = 0; i < SEATS.length; i++) {
+    if (!blockedSeats.has(probe) && handCardCount(state, probe) > 0) {
+      return probe;
+    }
+    probe = nextSeat(probe);
+  }
+  return null;
+}
+
 function getCardFromPile(
   state: ValidationState,
   pileId: string,
@@ -1762,6 +1785,67 @@ const validate: GameRuleModule["validate"] = (
   }
 
   const events: EngineEvent[] = [];
+
+  if (rs.phase === "play" && intent.type === "action") {
+    if (intent.action !== "continue-play") {
+      return {
+        valid: false,
+        reason: "This phase expects card moves, not actions.",
+        engineEvents: [],
+      };
+    }
+    if (handCardCount(state, actor) > 0) {
+      return {
+        valid: false,
+        reason: "You still have cards to play.",
+        engineEvents: [],
+      };
+    }
+
+    const trickPlayers = new Set<Seat>(
+      rs.round.currentTrick.map((entry) => entry.player)
+    );
+    const nextWithCards = nextSeatWithCards(state, actor, trickPlayers);
+
+    if (nextWithCards) {
+      withUiEvents(state, rs, events, nextWithCards);
+      return { valid: true, engineEvents: events };
+    }
+
+    if (rs.round.currentTrick.length === 0) {
+      finishRound(state, rs, events);
+      return { valid: true, engineEvents: events };
+    }
+
+    const winner = determineTrickWinner(rs.round.currentTrick, rs.contract);
+    let afterTrick = applyRoundTrickProgress(rs, rs.round.currentTrick, winner);
+    const tableCardIds = (state.piles.table.cards ?? []).map((c) => c.id);
+    if (tableCardIds.length > 0) {
+      events.push({
+        type: "move-cards",
+        fromPileId: "table",
+        toPileId: "deck",
+        cardIds: tableCardIds as [number, ...number[]],
+      });
+    }
+    events.push({
+      type: "announce",
+      text: `Trick ${rs.round.trickNumber} won by ${winner}.`,
+      anchor: { type: "pile", pileId: "table" },
+    });
+
+    const allHandsEmpty = SEATS.every(
+      (seat) => handCardCount(state, seat) === 0
+    );
+    if (allHandsEmpty || afterTrick.round.trickNumber > 13) {
+      finishRound(state, afterTrick, events);
+      return { valid: true, engineEvents: events };
+    }
+
+    afterTrick = { ...afterTrick, round: { ...afterTrick.round } };
+    withUiEvents(state, afterTrick, events, winner);
+    return { valid: true, engineEvents: events };
+  }
 
   if (intent.type === "action") {
     const availabilityError = validateActionAvailable(state, rs, intent.action);
@@ -3140,7 +3224,18 @@ const listLegalIntentsForPlayer: GameRuleModule["listLegalIntentsForPlayer"] = (
 
   const handPileId = `${seat}-hand`;
   const hand = state.piles[handPileId];
-  if (!hand?.cards || hand.cards.length === 0) return [];
+  if (!hand?.cards || hand.cards.length === 0) {
+    if (rs.phase === "play") {
+      const candidate: ClientIntent = {
+        type: "action",
+        gameId,
+        playerId: seat,
+        action: "continue-play",
+      };
+      if (validate(state, candidate).valid) intents.push(candidate);
+    }
+    return intents;
+  }
 
   const targets = legalMoveTargetsForCurrentPhase(rs, seat);
   for (const targetPileId of targets) {

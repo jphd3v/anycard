@@ -11,6 +11,13 @@ It is written for coding agents and humans. The goal is:
 - **aim for completeness**: implement all rules faithfully to the real-world classical version, without watering them down for digital convenience,
 - **maintain real-world analogy**: ensure interactions and state transitions reflect the mental model of playing with physical cards.
 
+### Rules fidelity policy (applies to every new game)
+
+- **Use authoritative sources**: Base each implementation on one primary source (or a small set of high-quality sources), such as Pagat and/or Wikipedia.
+- **Avoid variants by default**: Implement the basic/standard/core rules. Do not add optional or house-rule variants unless the user explicitly asks for them.
+- **Fix player count for now**: Keep each game at a fixed player count in `meta.json` and implementation logic. Do not add configurable player counts unless explicitly requested.
+- **Document choices clearly**: In `rules/<rulesId>/<rulesId>.rules.md`, include the source link(s) and explicitly note any intentional deviation from the source rules.
+
 If anything below is unclear or the requested game does not seem compatible,
 **stop and ask the user** instead of modifying the engine.
 

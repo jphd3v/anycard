@@ -66,6 +66,12 @@ Run scenarios for a specific game (e.g. durak):
 npm run test:integration -- durak
 ```
 
+Run cross-game liveness/deadlock detection sweep:
+
+```bash
+npm run test:integration:liveness
+```
+
 Run a specific scenario file:
 
 ```bash
@@ -92,6 +98,31 @@ Set `RULES_COVERAGE_THRESHOLD` to override (for local experiments).
 Use `COVERAGE_EXPLORE_VARIANTS` and `COVERAGE_EXPLORE_MAX_MOVES` to tune the
 extra deterministic coverage exploration phase.
 Set `COVERAGE_EXPLORE_PROBE_EVERY` (>0) to add periodic invalid-intent probes.
+
+### Liveness/deadlock sweep tuning
+
+`test:integration:liveness` runs deterministic auto-play across all games and
+fails on:
+
+- no legal intents (while winner is not set),
+- repeated state loops,
+- max-move stalls,
+- invalid intents returned by legal-intent listing.
+
+Useful env vars:
+
+- `LIVENESS_RULES` comma-separated rules IDs (e.g. `crazy-eights,cribbage`)
+- `LIVENESS_VARIANTS` number of seeds per game (default `12`)
+- `LIVENESS_VARIANT_START` seed offset (default `0`)
+- `LIVENESS_MAX_MOVES` move budget per seed (default `2200`)
+- `LIVENESS_REPEAT_LIMIT` repeated-fingerprint limit before loop fail
+- `LIVENESS_FAIL_FAST=1` stop on first failing seed
+
+Reproduce one failing seed:
+
+```bash
+LIVENESS_RULES=<rulesId> LIVENESS_VARIANT_START=<variant> LIVENESS_VARIANTS=1 npm run test:integration:liveness
+```
 
 ## Determinism and speed
 
