@@ -52,6 +52,7 @@ export function RulesOverlay({ rulesId, onClose }: Props) {
         aria-modal="true"
         aria-label="Game Rules"
         onClick={(e) => e.stopPropagation()}
+        style={{ viewTransitionName: "rules-content" }}
       >
         {/* Sticky Header: Name + Meta on one line */}
         <div className="px-6 py-4 border-b border-surface-2 flex items-center justify-between bg-surface-1/95 backdrop-blur-md sticky top-0 z-20 gap-4">

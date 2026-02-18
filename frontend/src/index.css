@@ -787,7 +787,7 @@ body,
 ::view-transition-group(action-overlay),
 ::view-transition-old(action-overlay),
 ::view-transition-new(action-overlay) {
-  z-index: 10050;
+  z-index: 10000;
 }
 
 /* Game Menu View Transition */

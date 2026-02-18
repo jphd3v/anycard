@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Overlay } from "./Overlay";
 
 interface Props {
@@ -12,7 +12,9 @@ interface Props {
   descriptionClassName?: string;
   titleClassName?: string;
   canMinimize?: boolean;
-  blockInteractionsWhenMinimized?: boolean;
+  forceMinimized?: boolean;
+  disableRestore?: boolean;
+  minimizedContent?: ReactNode;
   onClose?: () => void;
   position?: "center" | "bottom";
   viewTransitionName?: string;
@@ -31,7 +33,9 @@ export function FullScreenMessage({
   descriptionClassName = "",
   titleClassName = "",
   canMinimize = false,
-  blockInteractionsWhenMinimized = false,
+  forceMinimized = false,
+  disableRestore = false,
+  minimizedContent,
   onClose,
   position = "center",
   viewTransitionName,
@@ -39,6 +43,11 @@ export function FullScreenMessage({
   showBackArrow = false,
 }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
+  useEffect(() => {
+    if (forceMinimized) {
+      setIsMinimized(true);
+    }
+  }, [forceMinimized]);
 
   const panelFill = translucent ? "bg-surface-2/80" : "bg-surface-2";
   const panelBorder =
@@ -58,9 +67,7 @@ export function FullScreenMessage({
   `;
 
   const overlayLayout = isMinimized
-    ? `items-end justify-center pb-8 ${
-        blockInteractionsWhenMinimized ? "" : "pointer-events-none"
-      }`
+    ? "items-end justify-center pb-8 pointer-events-none"
     : position === "bottom"
       ? "items-end justify-center pb-4 px-4 sm:px-6"
       : "items-center justify-center p-4 overflow-y-auto";
@@ -73,30 +80,34 @@ export function FullScreenMessage({
       blurred={blurredOverlay}
       data-testid="fullscreen-message"
       className={overlayClasses}
-      lockScroll={!isMinimized || blockInteractionsWhenMinimized}
+      lockScroll={!isMinimized}
       style={overlayStyle}
     >
       {isMinimized ? (
-        <button
-          onClick={() => setIsMinimized(false)}
-          className={`pointer-events-auto px-4 py-2 rounded-full shadow-floating border flex items-center gap-2 transition-all hover:scale-105 active:scale-95 ${panelFill} ${panelBorder}`}
-        >
-          <span className={`text-xs font-bold ${titleColor}`}>{title}</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="w-4 h-4"
+        minimizedContent ? (
+          minimizedContent
+        ) : (
+          <button
+            onClick={() => setIsMinimized(false)}
+            className={`pointer-events-auto px-4 py-2 rounded-full shadow-floating border flex items-center gap-2 transition-all hover:scale-105 active:scale-95 ${panelFill} ${panelBorder}`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.5 15.75l7.5-7.5 7.5 7.5"
-            />
-          </svg>
-        </button>
+            <span className={`text-xs font-bold ${titleColor}`}>{title}</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.5 15.75l7.5-7.5 7.5 7.5"
+              />
+            </svg>
+          </button>
+        )
       ) : (
         <div
           className={`${containerClasses} flex flex-col h-fit max-h-none landscape:mb-8`}
@@ -138,7 +149,7 @@ export function FullScreenMessage({
               )}
             </button>
           )}
-          {canMinimize && (
+          {canMinimize && !disableRestore && (
             <button
               onClick={() => setIsMinimized(true)}
               className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-3 rounded-full transition-colors z-30"

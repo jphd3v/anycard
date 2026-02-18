@@ -199,6 +199,23 @@ export function StartGameOverlay({
   const busyPrimaryLabel = isNextRound ? "Dealing next round..." : "Dealing...";
   const busySecondaryLabel = "Tap to skip animations";
 
+  const minimizedSkipButton = isStartGameBusy ? (
+    <button
+      type="button"
+      className="pointer-events-auto button-base button-primary px-5 py-2 text-xs sm:text-sm shadow-floating"
+      onClick={handleClick}
+      aria-busy={true}
+    >
+      <span className="inline-flex items-center gap-2">
+        <span className="spinner h-4 w-4 border-2" aria-hidden="true" />
+        {busyPrimaryLabel}
+      </span>
+      <span className="block uppercase tracking-wide opacity-80 text-[9px] sm:text-[10px] mt-0.5">
+        {busySecondaryLabel}
+      </span>
+    </button>
+  ) : null;
+
   const mainDescription = (() => {
     if (isSpectator && !canSpectatorStart) {
       return `The room is full. A seated player must start the ${startLabel} to deal the cards and ${continuationLabel}.`;
@@ -307,7 +324,6 @@ export function StartGameOverlay({
         }
         position="bottom"
         titleClassName={`${isShortScreen ? "text-lg mb-0.5" : "text-xl md:text-2xl mb-2"}`}
-        blockInteractionsWhenMinimized={true}
         description={
           <div
             className={`flex flex-col ${
@@ -333,6 +349,9 @@ export function StartGameOverlay({
         translucent
         panelClassName={`p-3 md:p-10 max-w-[95vw] md:max-w-5xl`}
         canMinimize={true}
+        forceMinimized={isStartGameBusy}
+        disableRestore={isStartGameBusy}
+        minimizedContent={minimizedSkipButton}
         action={
           !isSpectator || canSpectatorStart ? (
             <div className={isShortScreen ? "" : "mt-4 md:mt-6"}>

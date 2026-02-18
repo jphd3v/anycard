@@ -38,13 +38,13 @@ export function Overlay({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (!dialog.open) {
-      try {
-        dialog.showModal();
-      } catch {
-        dialog.setAttribute("open", "");
-      }
+
+    if (dialog.open) {
+      dialog.close();
     }
+
+    dialog.showModal();
+
     return () => {
       if (dialog.open) {
         dialog.close();
@@ -77,9 +77,15 @@ export function Overlay({
     onClick(event);
   };
 
+  // Use showModal() to put dialog in top layer, AND set view-transition-name: none
+  // to explicitly exclude it from View Transition capture. This ensures:
+  // 1. Dialog is in top layer (above regular z-index content)
+  // 2. Dialog is NOT captured as part of view transition snapshots
+  // 3. Dialog remains interactive (real DOM, not frozen snapshot)
   return (
     <dialog
       ref={dialogRef}
+      style={{ viewTransitionName: "none" }}
       className={`fixed inset-0 flex transition-all duration-500 overscroll-contain ${layout} ${overlayFill} ${overlayBlur}`}
       onClick={handleDialogClick}
       onCancel={(event) => {

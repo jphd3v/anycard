@@ -179,6 +179,7 @@ export default function App() {
     skipTransition?: () => void;
   } | null>(null);
   const restoredFrontendAiRef = useRef<Set<string>>(new Set());
+  const isAnyOverlayOpenRef = useRef(false);
 
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
@@ -331,7 +332,7 @@ export default function App() {
     toastAutoCloseEnabledAtom
   );
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
-  const { openAiLog } = useAiLog();
+  const { openAiLog, isAiLogVisible } = useAiLog();
   const effectiveAiPreference =
     aiRuntimePreference === "backend" && !serverAiEnabled
       ? "off"
@@ -403,9 +404,18 @@ export default function App() {
     isNextRound &&
     !view?.winner;
 
+  const suppressStartOverlay = false;
   const isAnyEndOverlayVisible =
     isWinnerOverlayVisible || isNextRoundOverlayVisible;
+  // Track when pure UI overlays are open to skip View Transitions entirely.
+  // Start/dealing and winner overlays are tracked separately so we can use
+  // manual card animations while keeping dialogs interactive.
+  const isAnyModalOverlayOpen =
+    isMenuOpen || isRulesVisible || isAboutVisible || isAiLogVisible;
 
+  useEffect(() => {
+    isAnyOverlayOpenRef.current = isAnyModalOverlayOpen;
+  }, [isAnyModalOverlayOpen]);
   // Auto-open scoreboard when game/round ends if it's a widget
   useEffect(() => {
     if (isAnyEndOverlayVisible && !hasWidgetInLayout("scoreboards")) {
@@ -540,7 +550,6 @@ export default function App() {
   const isCurrentPlayerSeated =
     !!playerId &&
     seats.some((seat) => seat.playerId === playerId && seat.occupied);
-  const suppressStartOverlay = false;
 
   // Determine if the game has started based on whether cards have been dealt
   const hasGameStarted = hasGameDealt(view);
@@ -855,6 +864,7 @@ export default function App() {
     pileTransitionConfigRef,
     visiblePileIdsRef,
     clearHighlightsTimerRef,
+    isAnyOverlayOpenRef,
     playerId,
     routeError,
     initialRoute,

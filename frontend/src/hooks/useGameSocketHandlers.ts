@@ -76,6 +76,7 @@ type GameSocketHandlersOptions = {
   pileTransitionConfigRef: MutableRefObject<PileTransitionConfig>;
   visiblePileIdsRef: MutableRefObject<Set<string>>;
   clearHighlightsTimerRef: MutableRefObject<number | null>;
+  isAnyOverlayOpenRef: MutableRefObject<boolean>;
   playerId: string | null;
   routeError: RouteError;
   initialRoute: ParsedRoute | null;
@@ -132,6 +133,7 @@ export function useGameSocketHandlers({
   pileTransitionConfigRef,
   visiblePileIdsRef,
   clearHighlightsTimerRef,
+  isAnyOverlayOpenRef,
   playerId,
   routeError,
   initialRoute,
@@ -367,10 +369,12 @@ export function useGameSocketHandlers({
         return;
       }
 
+      // Skip View Transitions when any overlay is open to prevent click interception
       const canAnimate =
         !!startViewTransition &&
         document.visibilityState === "visible" &&
-        !skipAnimationsRef.current;
+        !skipAnimationsRef.current &&
+        !isAnyOverlayOpenRef.current;
 
       const hasCardMoveEvent = animationEvents.some(
         (event) => event.type === "move-cards"
@@ -530,8 +534,9 @@ export function useGameSocketHandlers({
           duplicateTransitionIds.add(id);
         }
 
+        let transitionIds = new Set<number>();
         flushSync(() => {
-          let transitionIds = new Set<number>(movingIds);
+          transitionIds = new Set<number>(movingIds);
           const addPileCards = (pileId: string) => {
             if (!visiblePileIds.has(pileId)) {
               return;
@@ -583,15 +588,28 @@ export function useGameSocketHandlers({
           setHeaderTransitionCards(entryCards);
         });
 
+        const applyWorkingView = () => {
+          setHeaderTransitionCards(exitCards);
+          workingView = nextWorkingView;
+          lastAuthoritativeViewRef.current = workingView;
+          setView(workingView);
+        };
+
+        if (!startViewTransition) {
+          flushSync(() => {
+            setActiveTransitionCardIds(null);
+            setHeaderTransitionCards([]);
+            workingView = nextWorkingView;
+            lastAuthoritativeViewRef.current = workingView;
+            setView(workingView);
+          });
+          continue;
+        }
+
         let transition: { finished?: Promise<unknown> } | void;
         try {
           transition = startViewTransition(() => {
-            flushSync(() => {
-              setHeaderTransitionCards(exitCards);
-              workingView = nextWorkingView;
-              lastAuthoritativeViewRef.current = workingView;
-              setView(workingView);
-            });
+            flushSync(applyWorkingView);
           });
         } catch {
           // If a transition cannot start (hidden tab or overlapping transition), apply immediately
@@ -693,37 +711,7 @@ export function useGameSocketHandlers({
         applyImmediateView([]);
         return;
       }
-      try {
-        const finalTransition = startViewTransition(() => {
-          flushSync(() => {
-            setActiveTransitionCardIds(null);
-            setHeaderTransitionCards([]);
-            lastAuthoritativeViewRef.current = nextView;
-            setView(nextView);
-            if (pendingScoreboardHighlights) {
-              setHighlightedScoreboardCells((prev) => ({
-                ...prev,
-                ...pendingScoreboardHighlights,
-              }));
-            }
-          });
-        });
-
-        activeViewTransitionRef.current =
-          finalTransition &&
-          typeof (finalTransition as { skipTransition?: () => void })
-            .skipTransition === "function"
-            ? (finalTransition as { skipTransition?: () => void })
-            : null;
-
-        try {
-          await (finalTransition as { finished?: Promise<void> })?.finished;
-        } catch {
-          // Ignore
-        }
-        activeViewTransitionRef.current = null;
-      } catch {
-        // If a transition cannot start, just apply the final state immediately
+      if (!startViewTransition) {
         flushSync(() => {
           setActiveTransitionCardIds(null);
           setHeaderTransitionCards([]);
@@ -736,6 +724,51 @@ export function useGameSocketHandlers({
             }));
           }
         });
+      } else {
+        try {
+          const finalTransition = startViewTransition(() => {
+            flushSync(() => {
+              setActiveTransitionCardIds(null);
+              setHeaderTransitionCards([]);
+              lastAuthoritativeViewRef.current = nextView;
+              setView(nextView);
+              if (pendingScoreboardHighlights) {
+                setHighlightedScoreboardCells((prev) => ({
+                  ...prev,
+                  ...pendingScoreboardHighlights,
+                }));
+              }
+            });
+          });
+
+          activeViewTransitionRef.current =
+            finalTransition &&
+            typeof (finalTransition as { skipTransition?: () => void })
+              .skipTransition === "function"
+              ? (finalTransition as { skipTransition?: () => void })
+              : null;
+
+          try {
+            await (finalTransition as { finished?: Promise<void> })?.finished;
+          } catch {
+            // Ignore
+          }
+          activeViewTransitionRef.current = null;
+        } catch {
+          // If a transition cannot start, just apply the final state immediately
+          flushSync(() => {
+            setActiveTransitionCardIds(null);
+            setHeaderTransitionCards([]);
+            lastAuthoritativeViewRef.current = nextView;
+            setView(nextView);
+            if (pendingScoreboardHighlights) {
+              setHighlightedScoreboardCells((prev) => ({
+                ...prev,
+                ...pendingScoreboardHighlights,
+              }));
+            }
+          });
+        }
       }
 
       scheduleClearHighlights();
@@ -963,5 +996,6 @@ export function useGameSocketHandlers({
     pileTransitionConfigRef,
     visiblePileIdsRef,
     clearHighlightsTimerRef,
+    isAnyOverlayOpenRef,
   ]); // Removed gameId from dependencies to prevent listener teardown race
 }

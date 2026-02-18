@@ -481,6 +481,28 @@ to see the end-of-round state, and then guarantees they can see the new deal
 before taking their next action. Avoid shortcuts that remove the dealing
 animation entirely; it is one of the main cues that a new round has begun.
 
+#### View Transition overlays (top-layer constraint)
+
+View Transitions render their pseudo-elements in the browser **top layer**.
+Dialogs shown via `showModal()` also live in the top layer. Because of this:
+
+- If a dialog is **named for View Transitions**, it becomes a **snapshot** and
+  is no longer a live, clickable UI.
+- If a dialog is **not named**, the transition tree still renders **above** it,
+  so animated cards can visually cover the dialog.
+
+There is no reliable way to keep a live dialog on top of View Transitions
+today. Our solution is pragmatic:
+
+- **Disable View Transitions** when other dialogs are open (menu, rules/info,
+  game log, etc.) to keep those UIs fully interactive.
+- **Keep View Transitions for dealing**, but **auto-minimize the overlay** once
+  dealing begins. The minimized state pins only the “Skip animations” control
+  to the **bottom safe zone**, where card animations do not pass.
+
+This preserves the core dealing animation while keeping the one critical
+control reliably clickable.
+
 #### Card move animations, reveal timing, and flip pause
 
 Card moves are animated by **replaying `lastViewEvents` on top of the previous

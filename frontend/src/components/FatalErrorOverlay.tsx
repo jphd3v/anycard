@@ -2,6 +2,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { aiLogAtom, aiLogVisibleAtom, fatalErrorAtom } from "../state";
 import { ensureSocket, fetchAiLog } from "../socket";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
+import { Overlay } from "./Overlay";
 
 interface Props {
   gameId: string;
@@ -63,11 +64,20 @@ export function FatalErrorOverlay({ gameId, onExitToSelection }: Props) {
   }
 
   return (
-    <div
-      data-testid="fatal-error"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-surface-0/90 backdrop-blur-sm"
+    <Overlay
+      translucent
+      blurred
+      lockScroll
+      className="items-center justify-center p-4"
     >
-      <div className="max-w-md w-full mx-4 rounded-2xl border border-surface-3 bg-surface-1 shadow-xl p-6 flex flex-col gap-4">
+      <div
+        data-testid="fatal-error"
+        className="max-w-md w-full rounded-2xl border border-surface-3 bg-surface-1 shadow-xl p-6 flex flex-col gap-4 pointer-events-auto"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Fatal Error"
+        style={{ viewTransitionName: "fatal-error-content" }}
+      >
         <div>
           <h1 className="text-lg font-semibold text-ink mb-1">
             Something went wrong in this game
@@ -110,6 +120,6 @@ export function FatalErrorOverlay({ gameId, onExitToSelection }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

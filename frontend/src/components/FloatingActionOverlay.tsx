@@ -25,7 +25,7 @@ export function FloatingActionOverlay({
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none z-[10050] overflow-hidden"
+      className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden"
       style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       {actions.map((action) => (

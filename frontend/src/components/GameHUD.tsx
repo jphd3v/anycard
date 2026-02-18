@@ -317,6 +317,7 @@ export function GameHUD({
             role="dialog"
             aria-modal="true"
             aria-label="Game Log"
+            style={{ viewTransitionName: "ai-log-content" }}
           >
             <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
               <div className="flex-1 min-w-0">
