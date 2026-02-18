@@ -205,7 +205,8 @@ this order:
 1. **Create per-game folder**
    - `rules/<rulesId>/meta.json`
    - `rules/<rulesId>/<rulesId>.initial-state.json`
-   - `rules/<rulesId>/<rulesId>.layout.json` (and optional `layout-wide`, `layout-portrait`)
+   - `rules/<rulesId>/<rulesId>.layout-landscape.json` (required)
+   - Optional: `rules/<rulesId>/<rulesId>.layout-portrait.json`
    - Optional: `rules/<rulesId>/<rulesId>.rules.md` (human-readable rules).
 
 2. **Implement rule module**

@@ -1,0 +1,255 @@
+{
+  "rulesId": "ristiseiska",
+  "rows": 5,
+  "cols": 4,
+  "zones": [
+    {
+      "id": "p2-area",
+      "label": "Player 2",
+      "showLabel": true,
+      "handForPlayerId": "P2",
+      "cell": { "row": 0, "col": 0, "colspan": 4 },
+      "piles": ["P2-hand"]
+    },
+    {
+      "id": "p3-area",
+      "label": "Player 3",
+      "showLabel": true,
+      "handForPlayerId": "P3",
+      "cell": { "row": 1, "col": 0, "rowspan": 4 },
+      "piles": ["P3-hand"]
+    },
+    {
+      "id": "table",
+      "label": "Table",
+      "showLabel": true,
+      "cell": { "row": 1, "col": 1, "rowspan": 4, "colspan": 2 },
+      "piles": [
+        "clubs-table",
+        "diamonds-table",
+        "hearts-table",
+        "spades-table"
+      ],
+      "subgrid": { "rows": 2, "cols": 2, "gap": "12px" },
+      "pileGrid": {
+        "clubs-table": { "row": 0, "col": 0 },
+        "diamonds-table": { "row": 0, "col": 1 },
+        "hearts-table": { "row": 1, "col": 0 },
+        "spades-table": { "row": 1, "col": 1 }
+      }
+    },
+    {
+      "id": "p1-area",
+      "label": "Player 1",
+      "showLabel": true,
+      "handForPlayerId": "P1",
+      "cell": { "row": 1, "col": 3, "rowspan": 4 },
+      "piles": ["P1-hand"]
+    }
+  ],
+  "pileStyles": {
+    "P1-hand": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "P2-hand": {
+      "layout": "horizontal",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "P3-hand": {
+      "layout": "vertical",
+      "isHand": true,
+      "sort": {
+        "default": "rank",
+        "options": [
+          {
+            "id": "rank",
+            "label": "By rank",
+            "type": "byRank",
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "clubs-table": {
+      "layout": "vertical",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "diamonds-table": {
+      "layout": "vertical",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "hearts-table": {
+      "layout": "vertical",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    },
+    "spades-table": {
+      "layout": "vertical",
+      "sort": {
+        "default": "bySuitRank",
+        "options": [
+          {
+            "id": "bySuitRank",
+            "label": "By rank",
+            "type": "bySuitRank",
+            "suitOrder": ["clubs", "diamonds", "hearts", "spades"],
+            "rankOrder": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "J",
+              "Q",
+              "K",
+              "A"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

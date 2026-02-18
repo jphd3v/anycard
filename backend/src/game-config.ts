@@ -71,7 +71,7 @@ export function loadLayout(rulesId: string, configPath?: string): GameLayout {
 
   const resolvedPath = configPath
     ? path.resolve(configPath)
-    : path.resolve(RULES_DIR, rulesId, `${rulesId}.layout.json`);
+    : path.resolve(RULES_DIR, rulesId, `${rulesId}.layout-landscape.json`);
 
   // Path traversal protection - ensure the resolved path is within RULES_DIR
   const rulesRoot = path.resolve(RULES_DIR) + path.sep;
@@ -104,7 +104,7 @@ export function loadAndValidateGameConfig(
 
     if (code === "ENOENT") {
       throw new Error(
-        `Layout file not found for rulesId ${rulesId}. Layout JSON must exist and validate against GameLayoutSchema.`
+        `Layout file not found for rulesId ${rulesId}. ${rulesId}.layout-landscape.json must exist and validate against GameLayoutSchema.`
       );
     }
 

@@ -55,14 +55,12 @@ export function useGameLayout(rulesId: string): GameLayout | null {
     }
 
     // Logic:
-    // 1. If Portrait -> Try `portrait` layout first.
-    // 2. If Landscape (Mobile OR Desktop) -> Try `wide` layout first.
-    //    We trust CSS to scale the 10-column wide layout down to mobile size.
-    // 3. Fallback -> `layout.json`
-
+    // 1. Landscape layout is required and acts as the default for all orientations.
+    // 2. If Portrait -> try `layout-portrait` first, then fallback to `layout-landscape`.
+    // 3. If Landscape -> use `layout-landscape`.
     const filenames = isPortrait
-      ? [`${rulesId}.layout-portrait.json`, `${rulesId}.layout.json`]
-      : [`${rulesId}.layout-wide.json`, `${rulesId}.layout.json`];
+      ? [`${rulesId}.layout-portrait.json`, `${rulesId}.layout-landscape.json`]
+      : [`${rulesId}.layout-landscape.json`];
 
     const cacheKey = `${rulesId}:${isPortrait ? "port" : "land"}`;
     const cached = layoutCache.get(cacheKey);

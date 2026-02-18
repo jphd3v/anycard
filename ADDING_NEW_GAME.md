@@ -151,11 +151,10 @@ Inside it, you MUST create:
 
 1. `rules/<rulesId>/meta.json`
 2. `rules/<rulesId>/<rulesId>.initial-state.json`
-3. `rules/<rulesId>/<rulesId>.layout.json`
+3. `rules/<rulesId>/<rulesId>.layout-landscape.json`
 
 Optionally you MAY also create:
 
-- `rules/<rulesId>/<rulesId>.layout-wide.json`
 - `rules/<rulesId>/<rulesId>.layout-portrait.json`
 - `rules/<rulesId>/<rulesId>.rules.md` (user-facing rules text only)
 
@@ -387,7 +386,7 @@ a specific card.
 - Any operation where the player can see and select specific cards
 
 **Tip: Face-down Discard Piles**
-If your game involves a discard or waste pile where players are not supposed to see the history of played cards (or to reduce visual clutter), set `visibility: "hidden"` in `initial-state.json`. Combined with `"layout": "complete"` in `layout.json`, this creates a clean, face-down stack.
+If your game involves a discard or waste pile where players are not supposed to see the history of played cards (or to reduce visual clutter), set `visibility: "hidden"` in `initial-state.json`. Combined with `"layout": "complete"` in `layout-landscape.json`, this creates a clean, face-down stack.
 
 **Examples of when action buttons are appropriate:**
 
@@ -539,8 +538,8 @@ This will catch missing turn changes during development.
 
 ## 4. Layout JSON
 
-**File:** `rules/<rulesId>/<rulesId>.layout.json`
-(optional: `layout-wide.json`, `layout-portrait.json`)
+**File:** `rules/<rulesId>/<rulesId>.layout-landscape.json`
+(optional: `layout-portrait.json`)
 
 The layout describes where piles and UI widgets appear in the table view.
 
@@ -686,15 +685,14 @@ In this engine, the total card count for the `"deck"` pile is always visible to 
 
 Optional:
 
-- `rules/<rulesId>/<rulesId>.layout-wide.json`
 - `rules/<rulesId>/<rulesId>.layout-portrait.json`
 
 Selection:
 
-- Portrait: `layout-portrait` → `layout`.
-- Landscape: `layout-wide` → `layout`.
+- Portrait: `layout-portrait` → `layout-landscape`.
+- Landscape: `layout-landscape`.
 
-If you don't need special handling, you can provide only `layout.json`.
+`layout-landscape.json` is required. If you don't need portrait-specific handling, omit `layout-portrait.json`.
 
 ### 4.5 Optional view-only sorting for piles
 

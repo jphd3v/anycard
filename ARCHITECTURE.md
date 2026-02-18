@@ -175,8 +175,8 @@ Backend applies result
   ↓
 Derive GameView
   - enforce visibility
-  - combine with layout.json
-  - (GameState has NO layout info; layout.json is the sole source of truth)
+  - combine with layout-landscape.json (or layout-portrait.json in portrait)
+  - (GameState has NO layout info; layout files are the sole source of truth)
   ↓
 Socket.io: "game:view"
   ↓
@@ -573,9 +573,9 @@ Deck placement:
 
 Orientation-specific layouts:
 
-- `*.layout-wide.json` for landscape.
-- `*.layout-portrait.json` for portrait.
-- Fallback to `*.layout.json` if variant is missing.
+- `*.layout-landscape.json` is required and used as the default for all orientations.
+- `*.layout-portrait.json` is optional and used only in portrait mode.
+- Portrait fallback is `*.layout-landscape.json` if `layout-portrait` is missing.
 
 View-only sorting:
 

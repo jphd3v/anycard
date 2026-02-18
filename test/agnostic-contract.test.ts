@@ -98,18 +98,18 @@ describe("Agnostic Contract Tests", () => {
           }
         });
 
-        it("should have layout.json file", async () => {
-          const layoutPath = `./rules/${plugin.id}/${plugin.id}.layout.json`;
+        it("should have layout-landscape.json file", async () => {
+          const layoutPath = `./rules/${plugin.id}/${plugin.id}.layout-landscape.json`;
           try {
             const fs = await import("fs/promises");
             await fs.access(layoutPath);
             const content = await fs.readFile(layoutPath, "utf-8");
             const layout = JSON.parse(content);
-            assert.ok(layout.piles, "layout.json missing piles");
+            assert.ok(layout.piles, "layout-landscape.json missing piles");
           } catch (err: unknown) {
             const error = err as Error;
             assert.fail(
-              `Missing or invalid layout.json for ${plugin.id}: ${error.message}`
+              `Missing or invalid layout-landscape.json for ${plugin.id}: ${error.message}`
             );
           }
         });
