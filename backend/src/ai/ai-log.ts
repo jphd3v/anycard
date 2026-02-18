@@ -5,6 +5,7 @@ import { getEnvironmentConfig } from "../config.js";
 export type { AiLogEntry } from "../../../shared/ai-log.js";
 
 const aiLogsByGame = new Map<string, AiLogEntry[]>();
+const historicalUnavailableByGame = new Map<string, boolean>();
 
 // Call this once with your socket.io server instance or a wrapper
 let io: SocketIOServer | null = null;
@@ -45,6 +46,14 @@ export function appendAiLogEntry(entry: AiLogEntry): void {
   }
 }
 
+export function markHistoricalAiTelemetryUnavailable(gameId: string): void {
+  historicalUnavailableByGame.set(gameId, true);
+}
+
+export function clearHistoricalAiTelemetryUnavailable(gameId: string): void {
+  historicalUnavailableByGame.delete(gameId);
+}
+
 /**
  * Broadcasts a simple status toast to all clients in a game.
  */
@@ -82,6 +91,22 @@ export function getAiLog(gameId: string): AiLogEntry[] {
   return aiLogsByGame.get(gameId) ?? [];
 }
 
-export function clearAiLogForGame(gameId: string): void {
+export function getAiLogSnapshot(gameId: string): {
+  entries: AiLogEntry[];
+  historicalUnavailable: boolean;
+} {
+  return {
+    entries: getAiLog(gameId),
+    historicalUnavailable: historicalUnavailableByGame.get(gameId) === true,
+  };
+}
+
+export function clearAiLogForGame(
+  gameId: string,
+  options?: { preserveHistoricalUnavailable?: boolean }
+): void {
   aiLogsByGame.delete(gameId);
+  if (!options?.preserveHistoricalUnavailable) {
+    historicalUnavailableByGame.delete(gameId);
+  }
 }

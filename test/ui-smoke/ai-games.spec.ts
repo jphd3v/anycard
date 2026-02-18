@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 import {
   assertNoConsoleErrors,
+  DEFAULT_RULES_ID,
   DEFAULT_SEED,
   goToLobby,
   openGameDetails,
+  readRoomIdFromLobby,
   seedLocalStorage,
   startPrivateGame,
   trackConsoleMessages,
@@ -89,6 +91,69 @@ test.describe("UI Smoke Tests - AI Games", () => {
     }
 
     assertNoConsoleErrors(consoleMessages);
+  });
+
+  test("Game log AI toggle does not duplicate executed action rows", async ({
+    page,
+    browser,
+  }) => {
+    const consoleMessages = trackConsoleMessages(page);
+    const playerTwoContext = await browser.newContext();
+    const playerTwoPage = await playerTwoContext.newPage();
+    const playerTwoConsoleMessages = trackConsoleMessages(playerTwoPage);
+
+    try {
+      await goToLobby(page);
+      await openGameDetails(page);
+      await startPrivateGame(page, DEFAULT_SEED);
+
+      await page.getByTestId("seat-join:P1").click();
+      const roomId = await readRoomIdFromLobby(page);
+
+      await playerTwoPage.goto(`/${DEFAULT_RULES_ID}/${roomId}`);
+      await expect(
+        playerTwoPage.getByRole("heading", { name: /Room Lobby/i })
+      ).toBeVisible({ timeout: 15000 });
+      await playerTwoPage.getByTestId("seat-join:P2").click();
+
+      await expect(page.getByTestId("start-game")).toBeVisible({
+        timeout: 10000,
+      });
+      await page.getByTestId("start-game").click();
+
+      await expect(page.locator(".game-layout").first()).toBeVisible({
+        timeout: 15000,
+      });
+
+      await page.getByRole("button", { name: /Show game log/i }).click();
+
+      const gameLogDialog = page.getByRole("dialog", { name: /Game Log/i });
+      await expect(gameLogDialog).toBeVisible();
+      const aiToggle = gameLogDialog.getByRole("checkbox", {
+        name: /Show AI events/i,
+      });
+      await expect(aiToggle).not.toBeChecked();
+      await expect(
+        gameLogDialog.getByText(/Action:\s*start-game/i)
+      ).toBeHidden();
+
+      await aiToggle.check();
+      await expect(aiToggle).toBeChecked();
+      await expect(
+        gameLogDialog.getByText(/Action:\s*start-game/i)
+      ).toBeHidden();
+
+      await aiToggle.uncheck();
+      await expect(aiToggle).not.toBeChecked();
+      await expect(
+        gameLogDialog.getByText(/Action:\s*start-game/i)
+      ).toBeHidden();
+
+      assertNoConsoleErrors(consoleMessages);
+      assertNoConsoleErrors(playerTwoConsoleMessages);
+    } finally {
+      await playerTwoContext.close();
+    }
   });
 
   test("Disconnect during AI move recovers gracefully", async ({

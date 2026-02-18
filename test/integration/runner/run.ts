@@ -14,6 +14,7 @@ import { buildValidationState } from "../../../backend/src/validation-state.js";
 import { GAME_PLUGINS } from "../../../backend/src/rules/registry.js";
 import { validateMove } from "../../../backend/src/rule-engine.js";
 import { applyEvent } from "../../../backend/src/state.js";
+import { buildDeterministicGameLog } from "../../../backend/src/game-log.js";
 import { runDeterministicShuffleTests } from "./deterministic-shuffle.js";
 import { runLegalIntentIsolationTests } from "./legal-intent-isolation.js";
 import {
@@ -53,6 +54,12 @@ type ScenarioEventExpect = {
   maxCounts?: Record<string, number>;
 };
 
+type ScenarioLogExpect = {
+  minEntries?: number;
+  contains?: string[];
+  excludes?: string[];
+};
+
 type ScenarioPlayer = {
   id: string;
   name?: string;
@@ -86,6 +93,7 @@ type Scenario = {
   intents?: ScenarioIntent[];
   auto?: ScenarioAuto;
   expect?: ScenarioExpect;
+  expectLog?: ScenarioLogExpect;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -354,6 +362,40 @@ function assertExpectations(state: GameState, expect?: ScenarioExpect) {
   }
 }
 
+function assertLogExpectations(
+  label: string,
+  initialState: GameState,
+  events: GameEvent[],
+  expectLog?: ScenarioLogExpect
+) {
+  if (!expectLog) return;
+
+  const plugin = GAME_PLUGINS[initialState.rulesId];
+  const entries = buildDeterministicGameLog(initialState, events, plugin);
+  const messages = entries.map((entry) => entry.message);
+
+  if (typeof expectLog.minEntries === "number") {
+    assert.ok(
+      entries.length >= expectLog.minEntries,
+      `[integration] ${label}: expected at least ${expectLog.minEntries} log entries, got ${entries.length}`
+    );
+  }
+
+  for (const needle of expectLog.contains ?? []) {
+    assert.ok(
+      messages.some((message) => message.includes(needle)),
+      `[integration] ${label}: expected log to contain "${needle}".\nActual log:\n${messages.join("\n")}`
+    );
+  }
+
+  for (const needle of expectLog.excludes ?? []) {
+    assert.ok(
+      !messages.some((message) => message.includes(needle)),
+      `[integration] ${label}: expected log to exclude "${needle}".\nActual log:\n${messages.join("\n")}`
+    );
+  }
+}
+
 function isBetweenRoundsState(state: GameState): boolean {
   if (state.winner) return false;
   if (!state.rulesState || typeof state.rulesState !== "object") return false;
@@ -547,6 +589,7 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
   }
 
   assertExpectations(state, scenario.expect);
+  assertLogExpectations(label, initialState, events, scenario.expectLog);
   console.log(`[integration] ${label}: ok`);
 }
 
@@ -693,6 +736,7 @@ async function runAutoScenario(label: string, scenario: Scenario) {
   }
 
   assertExpectations(state, scenario.expect);
+  assertLogExpectations(label, initialState, events, scenario.expectLog);
   console.log(
     `[integration] ${label}: ok${state.winner ? ` (winner ${state.winner})` : ""}`
   );

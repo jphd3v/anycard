@@ -143,6 +143,9 @@ export const EventBaseSchema = z.object({
   id: z.number().int(),
   gameId: z.string(),
   playerId: z.string().nullable(),
+  initiatedByPlayerId: z.string().nullable().optional(),
+  initiatedByIntentType: z.enum(["move", "action"]).optional(),
+  executorRole: z.enum(["player", "system"]).optional(),
 });
 
 export const MoveCardsEventSchema = EventBaseSchema.extend({
@@ -207,10 +210,13 @@ export const AnnounceAnchorSchema = z.discriminatedUnion("type", [
 
 export type AnnounceAnchor = z.infer<typeof AnnounceAnchorSchema>;
 
+export const AnnounceKindSchema = z.enum(["announce", "action", "score"]);
+
 export const AnnounceEventSchema = EventBaseSchema.extend({
   type: z.literal("announce"),
   text: z.string().min(1),
   anchor: AnnounceAnchorSchema.optional(),
+  announceKind: AnnounceKindSchema.optional(),
 });
 
 export const FatalErrorEventSchema = EventBaseSchema.extend({
@@ -233,65 +239,46 @@ export const GameEventSchema = z.discriminatedUnion("type", [
   FatalErrorEventSchema,
 ]);
 
-const MoveCardsEventPayloadSchema = MoveCardsEventSchema.omit({
+const EVENT_ENVELOPE_OMIT = {
   id: true,
   gameId: true,
   playerId: true,
-});
-const SetCurrentPlayerEventPayloadSchema = SetCurrentPlayerEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
-});
-const SetWinnerEventPayloadSchema = SetWinnerEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
-});
-const SetRulesStateEventPayloadSchema = SetRulesStateEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
-});
-const SetScoreboardsEventPayloadSchema = SetScoreboardsEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
-});
-const SetActionsEventPayloadSchema = SetActionsEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
-});
+  initiatedByPlayerId: true,
+  initiatedByIntentType: true,
+  executorRole: true,
+} as const;
+
+const MoveCardsEventPayloadSchema =
+  MoveCardsEventSchema.omit(EVENT_ENVELOPE_OMIT);
+const SetCurrentPlayerEventPayloadSchema =
+  SetCurrentPlayerEventSchema.omit(EVENT_ENVELOPE_OMIT);
+const SetWinnerEventPayloadSchema =
+  SetWinnerEventSchema.omit(EVENT_ENVELOPE_OMIT);
+const SetRulesStateEventPayloadSchema =
+  SetRulesStateEventSchema.omit(EVENT_ENVELOPE_OMIT);
+const SetScoreboardsEventPayloadSchema =
+  SetScoreboardsEventSchema.omit(EVENT_ENVELOPE_OMIT);
+const SetActionsEventPayloadSchema =
+  SetActionsEventSchema.omit(EVENT_ENVELOPE_OMIT);
 
 const SetPileVisibilityEventPayloadSchema = SetPileVisibilityEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
+  ...EVENT_ENVELOPE_OMIT,
 });
 
 const SetCardVisualsEventPayloadSchema = SetCardVisualsEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
+  ...EVENT_ENVELOPE_OMIT,
 });
 
 const SetPilePropertiesEventPayloadSchema = SetPilePropertiesEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
+  ...EVENT_ENVELOPE_OMIT,
 });
 
 const AnnounceEventPayloadSchema = AnnounceEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
+  ...EVENT_ENVELOPE_OMIT,
 });
 
 const FatalErrorEventPayloadSchema = FatalErrorEventSchema.omit({
-  id: true,
-  gameId: true,
-  playerId: true,
+  ...EVENT_ENVELOPE_OMIT,
 });
 
 export const GameEventPayloadSchema = z.discriminatedUnion("type", [
@@ -309,54 +296,287 @@ export const GameEventPayloadSchema = z.discriminatedUnion("type", [
 ]);
 
 export const MAX_GAME_SAVE_EVENTS = 10000;
+export const GAME_SAVE_HASH_ALGORITHM = "fnv1a-64" as const;
+
+type CanonicalJsonValue =
+  | null
+  | string
+  | number
+  | boolean
+  | CanonicalJsonValue[]
+  | { [key: string]: CanonicalJsonValue };
+
+function toCanonicalJsonValue(input: unknown): CanonicalJsonValue {
+  if (input == null) return null;
+  if (typeof input === "string") return input;
+  if (typeof input === "number") {
+    return Number.isFinite(input) ? input : String(input);
+  }
+  if (typeof input === "boolean") return input;
+  if (Array.isArray(input)) {
+    return input.map((entry) => toCanonicalJsonValue(entry));
+  }
+  if (typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const out: Record<string, CanonicalJsonValue> = {};
+    for (const key of keys) {
+      out[key] = toCanonicalJsonValue(record[key]);
+    }
+    return out;
+  }
+  // Symbols/functions/undefined should not appear in schema descriptors.
+  return String(input);
+}
+
+export function canonicalStringifyForSaveHash(value: unknown): string {
+  return JSON.stringify(toCanonicalJsonValue(value));
+}
+
+export function hashStringFnv1a64(input: string): string {
+  let hash = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const mask = 0xffffffffffffffffn;
+  for (let idx = 0; idx < input.length; idx += 1) {
+    hash ^= BigInt(input.charCodeAt(idx));
+    hash = (hash * prime) & mask;
+  }
+  return hash.toString(16).padStart(16, "0");
+}
+
+export function hashDescriptorForSave(value: unknown): string {
+  return hashStringFnv1a64(canonicalStringifyForSaveHash(value));
+}
+
+const SAVE_SNAPSHOT_SCHEMA_DESCRIPTOR = {
+  snapshot: {
+    required: ["exportedAt", "initialState", "events"],
+    optional: ["origin", "format", "executedIntents"],
+  },
+  origin: {
+    required: ["backendCommitHash", "backendCommitUnixTs"],
+  },
+  format: {
+    required: [
+      "hashAlgorithm",
+      "saveSchemaHash",
+      "eventPayloadSchemaHash",
+      "rulesSchemaHash",
+    ],
+  },
+  executedIntents: {
+    move: [
+      "type",
+      "playerId",
+      "fromPileId",
+      "toPileId",
+      "cardId|cardIds",
+      "targetIndex",
+      "turnNumber",
+      "timestamp",
+    ],
+    action: ["type", "playerId", "action", "turnNumber", "timestamp"],
+  },
+} as const;
+
+const PERSISTED_EVENT_PAYLOAD_DESCRIPTOR = {
+  "move-cards": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "fromPileId",
+    "toPileId",
+    "cardIds",
+  ],
+  "set-current-player": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "player",
+  ],
+  "set-winner": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "winner",
+  ],
+  "set-rules-state": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "rulesState",
+  ],
+  "set-scoreboards": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "scoreboards",
+  ],
+  "set-actions": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "actions",
+  ],
+  "set-pile-visibility": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "pileId",
+    "visibility",
+  ],
+  "set-card-visuals": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "visuals",
+  ],
+  "set-pile-properties": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "properties",
+  ],
+  announce: [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "text",
+    "anchor",
+    "announceKind",
+  ],
+  "fatal-error": [
+    "type",
+    "id",
+    "playerId",
+    "initiatedByPlayerId",
+    "initiatedByIntentType",
+    "executorRole",
+    "message",
+    "source",
+  ],
+} as const;
+
+export const GAME_SAVE_SCHEMA_HASH = hashDescriptorForSave(
+  SAVE_SNAPSHOT_SCHEMA_DESCRIPTOR
+);
+export const GAME_SAVE_EVENT_PAYLOAD_SCHEMA_HASH = hashDescriptorForSave(
+  PERSISTED_EVENT_PAYLOAD_DESCRIPTOR
+);
+
+export const GameSaveOriginSchema = z.object({
+  backendCommitHash: z.string().min(1),
+  backendCommitUnixTs: z.number().int().nonnegative().nullable(),
+});
+
+export const GameSaveFormatSchema = z.object({
+  hashAlgorithm: z.literal(GAME_SAVE_HASH_ALGORITHM),
+  saveSchemaHash: z.string().regex(/^[0-9a-f]{16}$/),
+  eventPayloadSchemaHash: z.string().regex(/^[0-9a-f]{16}$/),
+  rulesSchemaHash: z.string().regex(/^[0-9a-f]{16}$/),
+});
+
+const PersistedEventIdSchema = z.number().int().nonnegative().optional();
 
 const MoveCardsPersistedEventSchema = MoveCardsEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetCurrentPlayerPersistedEventSchema = SetCurrentPlayerEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetWinnerPersistedEventSchema = SetWinnerEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetRulesStatePersistedEventSchema = SetRulesStateEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetScoreboardsPersistedEventSchema = SetScoreboardsEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetActionsPersistedEventSchema = SetActionsEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetPileVisibilityPersistedEventSchema = SetPileVisibilityEventSchema.omit(
   {
     id: true,
     gameId: true,
   }
-);
+).extend({
+  id: PersistedEventIdSchema,
+});
 const SetCardVisualsPersistedEventSchema = SetCardVisualsEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const SetPilePropertiesPersistedEventSchema = SetPilePropertiesEventSchema.omit(
   {
     id: true,
     gameId: true,
   }
-);
+).extend({
+  id: PersistedEventIdSchema,
+});
 const AnnouncePersistedEventSchema = AnnounceEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 const FatalErrorPersistedEventSchema = FatalErrorEventSchema.omit({
   id: true,
   gameId: true,
+}).extend({
+  id: PersistedEventIdSchema,
 });
 
 export const PersistedGameEventSchema = z.discriminatedUnion("type", [
@@ -373,11 +593,78 @@ export const PersistedGameEventSchema = z.discriminatedUnion("type", [
   FatalErrorPersistedEventSchema,
 ]);
 
+const PersistedMoveIntentBaseSchema = z.object({
+  type: z.literal("move"),
+  playerId: z.string(),
+  fromPileId: z.string(),
+  toPileId: z.string(),
+  cardId: CardIdSchema.optional(),
+  cardIds: z.array(CardIdSchema).optional(),
+  targetIndex: z.number().int().nonnegative().optional(),
+  turnNumber: z.number().int().nonnegative(),
+  timestamp: z.string().datetime(),
+});
+
+function validatePersistedMoveIntentShape(
+  data: z.infer<typeof PersistedMoveIntentBaseSchema>,
+  ctx: z.RefinementCtx
+): void {
+  const hasCardId = data.cardId !== undefined;
+  const hasCardIds = data.cardIds !== undefined;
+
+  if (hasCardId === hasCardIds) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Exactly one of 'cardId' or 'cardIds' must be provided",
+    });
+  }
+
+  if (hasCardIds) {
+    const cardIds = data.cardIds ?? [];
+    if (cardIds.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cardIds array cannot be empty",
+      });
+    }
+    const unique = new Set(cardIds);
+    if (unique.size !== cardIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cardIds contains duplicate card IDs",
+      });
+    }
+  }
+}
+
+export const PersistedActionIntentSchema = z.object({
+  type: z.literal("action"),
+  playerId: z.string(),
+  action: z.string(),
+  turnNumber: z.number().int().nonnegative(),
+  timestamp: z.string().datetime(),
+});
+
+export const PersistedExecutedIntentSchema = z
+  .discriminatedUnion("type", [
+    PersistedMoveIntentBaseSchema,
+    PersistedActionIntentSchema,
+  ])
+  .superRefine((data, ctx) => {
+    if (data.type !== "move") return;
+    validatePersistedMoveIntentShape(data, ctx);
+  });
+
 export const GameSaveSnapshotSchema = z.object({
-  version: z.literal(1),
   exportedAt: z.string().datetime(),
+  origin: GameSaveOriginSchema.optional(),
+  format: GameSaveFormatSchema.optional(),
   initialState: GameStateSchema,
   events: z.array(PersistedGameEventSchema).max(MAX_GAME_SAVE_EVENTS),
+  executedIntents: z
+    .array(PersistedExecutedIntentSchema)
+    .max(MAX_GAME_SAVE_EVENTS)
+    .optional(),
 });
 
 export const GameSaveExportAckSchema = z.discriminatedUnion("ok", [
@@ -403,6 +690,73 @@ export const GameSaveImportAckSchema = z.discriminatedUnion("ok", [
   }),
 ]);
 
+export const GameLogKindSchema = z.enum([
+  "setup",
+  "action",
+  "move",
+  "turn",
+  "round",
+  "announce",
+  "score",
+  "winner",
+  "recap",
+  "system",
+  "error",
+]);
+
+export const GameLogEntrySchema = z.object({
+  index: z.number().int().nonnegative(),
+  turnNumber: z.number().int().nonnegative(),
+  kind: GameLogKindSchema,
+  message: z.string().min(1),
+  timestamp: z.string().datetime().optional(),
+  imported: z.boolean().optional(),
+  actorId: z.string().nullable().optional(),
+  eventType: z.string().optional(),
+});
+
+export const GameLogFetchAckSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    gameId: z.string(),
+    generatedAt: z.string().datetime(),
+    entries: z.array(GameLogEntrySchema),
+  }),
+  z.object({
+    ok: z.literal(false),
+    message: z.string().min(1),
+  }),
+]);
+
+export const AiLogEntrySchema = z.object({
+  gameId: z.string(),
+  turnNumber: z.number().int(),
+  playerId: z.string(),
+  phase: z.enum([
+    "schedule",
+    "candidates",
+    "llm",
+    "llm-markdown",
+    "llm-raw",
+    "llm-parsed",
+    "fallback",
+    "execution",
+    "game",
+    "error",
+  ]),
+  level: z.enum(["info", "warn", "error"]),
+  message: z.string(),
+  source: z.enum(["backend", "frontend"]).optional(),
+  details: z.unknown().optional(),
+  timestamp: z.string().optional(),
+});
+
+export const AiLogFetchAckSchema = z.object({
+  gameId: z.string(),
+  entries: z.array(AiLogEntrySchema),
+  historicalUnavailable: z.boolean().optional(),
+});
+
 export type MoveCardsEvent = z.infer<typeof MoveCardsEventSchema>;
 export type SetCurrentPlayerEvent = z.infer<typeof SetCurrentPlayerEventSchema>;
 export type SetWinnerEvent = z.infer<typeof SetWinnerEventSchema>;
@@ -417,14 +771,28 @@ export type SetPilePropertiesEvent = z.infer<
   typeof SetPilePropertiesEventSchema
 >;
 export type AnnounceEvent = z.infer<typeof AnnounceEventSchema>;
+export type AnnounceKind = z.infer<typeof AnnounceKindSchema>;
 export type FatalErrorEvent = z.infer<typeof FatalErrorEventSchema>;
 export type GameEvent = z.infer<typeof GameEventSchema>;
 export type GameEventPayload = z.infer<typeof GameEventPayloadSchema>;
 export type AnnounceEventPayload = z.infer<typeof AnnounceEventPayloadSchema>;
 export type PersistedGameEvent = z.infer<typeof PersistedGameEventSchema>;
+export type PersistedExecutedIntent = z.infer<
+  typeof PersistedExecutedIntentSchema
+>;
+export type GameSaveOrigin = z.infer<typeof GameSaveOriginSchema>;
+export type GameSaveFormat = z.infer<typeof GameSaveFormatSchema>;
 export type GameSaveSnapshot = z.infer<typeof GameSaveSnapshotSchema>;
 export type GameSaveExportAck = z.infer<typeof GameSaveExportAckSchema>;
 export type GameSaveImportAck = z.infer<typeof GameSaveImportAckSchema>;
+export type GameLogKind = z.infer<typeof GameLogKindSchema>;
+export type GameLogEntry = z.infer<typeof GameLogEntrySchema>;
+export type GameLogFetchAck = z.infer<typeof GameLogFetchAckSchema>;
+export type AiLogEntryPayload = z.infer<typeof AiLogEntrySchema>;
+export type AiLogFetchAck = z.infer<typeof AiLogFetchAckSchema>;
+export type EventExecutorRole = NonNullable<
+  z.infer<typeof EventBaseSchema.shape.executorRole>
+>;
 
 // Base move intent schema
 const MoveIntentBaseSchema = z.object({

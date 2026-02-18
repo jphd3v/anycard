@@ -21,6 +21,7 @@ import {
   getEnvironmentVariablesInfo,
   isServerAiEnabled,
 } from "./config.js";
+import { getBackendBuildInfo } from "./build-info.js";
 
 dotenv.config();
 
@@ -92,11 +93,14 @@ app.get("/healthz", (_req, res) => {
 });
 
 app.get("/config", (_req, res) => {
+  const buildInfo = getBackendBuildInfo();
   res.json({
     ruleEngineMode: RULE_ENGINE_MODE,
     serverAiEnabled: isServerAiEnabled(),
     llmShowPromptsInFrontend: config.llmShowPromptsInFrontend,
     llmShowExceptionsInFrontend: config.llmShowExceptionsInFrontend,
+    backendCommitHash: buildInfo.commitHash,
+    backendCommitUnixTs: buildInfo.commitUnixTs,
   });
 });
 
@@ -111,8 +115,16 @@ const io = new Server(server, {
 initSocket(io);
 
 server.listen(PORT, "0.0.0.0", () => {
+  const buildInfo = getBackendBuildInfo();
   console.log(`Server listening on port ${PORT}`);
   console.log(`[Startup] Rule engine mode: ${RULE_ENGINE_MODE}`);
+  console.log(
+    `[Startup] Backend build: ${buildInfo.commitHash} ${
+      buildInfo.commitUnixTs != null
+        ? `@ ${buildInfo.commitUnixTs}`
+        : "(ts n/a)"
+    }`
+  );
 
   // Log environment variables
   console.log(`[Environment] Configuration:`);

@@ -1,18 +1,21 @@
 import { io, Socket } from "socket.io-client";
 import type {
   ClientIntent,
+  GameLogEntry,
   GameSaveSnapshot,
   GameView,
   SeatStatus,
 } from "../../shared/schemas";
 import {
+  AiLogFetchAckSchema,
+  GameLogFetchAckSchema,
   GameSaveExportAckSchema,
   GameSaveImportAckSchema,
-  GameSaveSnapshotSchema,
 } from "../../shared/schemas";
 import type {
   ActiveGameSummary,
   AvailableGame,
+  BackendRuntimeInfo,
   GameSummary,
   RuleEngineMode,
   StatusSource,
@@ -71,6 +74,15 @@ export const SERVER_URL = readServerUrlOverride() ?? defaultServerUrl;
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 const SOCKET_ACK_TIMEOUT_MS = 10000;
+const SHORT_COMMIT_HASH_LENGTH = 7;
+
+function normalizeCommitHash(raw: unknown): string {
+  if (typeof raw !== "string") return "dev";
+  const trimmed = raw.trim();
+  if (!trimmed) return "dev";
+  if (!/^[0-9a-fA-F]+$/.test(trimmed)) return trimmed;
+  return trimmed.slice(0, SHORT_COMMIT_HASH_LENGTH).toLowerCase();
+}
 
 export function getServerUrlOverride(): string | null {
   return readServerUrlOverride();
@@ -172,7 +184,11 @@ type Handlers = {
   onGameEnded?: () => void;
   onGameNotFound?: () => void; // NEW
   onInvalidMove?: () => void;
-  onAiLog?: (payload: { gameId: string; entries: AiLogEntry[] }) => void;
+  onAiLog?: (payload: {
+    gameId: string;
+    entries: AiLogEntry[];
+    historicalUnavailable?: boolean;
+  }) => void;
 };
 
 let socket: Socket | null = null;
@@ -266,7 +282,11 @@ export function setupSocketHandlers({
     onGameEnded?.();
   };
 
-  const handleAiLog = (payload: { gameId: string; entries: AiLogEntry[] }) => {
+  const handleAiLog = (payload: {
+    gameId: string;
+    entries: AiLogEntry[];
+    historicalUnavailable?: boolean;
+  }) => {
     onAiLog?.(payload);
   };
 
@@ -451,15 +471,6 @@ export async function exportGameSave(
 export async function importGameSave(
   rawSnapshot: unknown
 ): Promise<{ gameId: string; rulesId: string }> {
-  const parsedSnapshot = GameSaveSnapshotSchema.safeParse(rawSnapshot);
-  if (!parsedSnapshot.success) {
-    const firstIssue = parsedSnapshot.error.issues[0];
-    const issuePath = firstIssue?.path?.join(".") ?? "root";
-    const issueMessage = firstIssue?.message ?? "Invalid save payload";
-    throw new Error(`Invalid save payload at ${issuePath}: ${issueMessage}`);
-  }
-
-  const snapshot = parsedSnapshot.data;
   const s = ensureSocket();
 
   return new Promise((resolve, reject) => {
@@ -467,7 +478,7 @@ export async function importGameSave(
       reject(new Error("Timed out while loading save"));
     }, SOCKET_ACK_TIMEOUT_MS);
 
-    s.emit("game:save-import", snapshot, (rawAck: unknown) => {
+    s.emit("game:save-import", rawSnapshot, (rawAck: unknown) => {
       clearTimeout(timeout);
 
       const parsedAck = GameSaveImportAckSchema.safeParse(rawAck);
@@ -623,6 +634,7 @@ export type ServerConfig = {
   serverAiEnabled?: boolean;
   llmShowPromptsInFrontend?: boolean;
   llmShowExceptionsInFrontend?: boolean;
+  backendRuntime?: BackendRuntimeInfo;
 };
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
@@ -632,7 +644,16 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
     serverAiEnabled?: unknown;
     llmShowPromptsInFrontend?: unknown;
     llmShowExceptionsInFrontend?: unknown;
+    backendCommitHash?: unknown;
+    backendCommitUnixTs?: unknown;
   };
+  const backendCommitHash = normalizeCommitHash(data.backendCommitHash);
+  const backendCommitUnixTs =
+    typeof data.backendCommitUnixTs === "number" &&
+    Number.isFinite(data.backendCommitUnixTs) &&
+    data.backendCommitUnixTs >= 0
+      ? Math.floor(data.backendCommitUnixTs)
+      : null;
   if (data.ruleEngineMode && data.ruleEngineMode !== "code") {
     console.warn(
       `Server reported legacy ruleEngineMode="${String(
@@ -645,19 +666,63 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
     serverAiEnabled: data.serverAiEnabled === true,
     llmShowPromptsInFrontend: data.llmShowPromptsInFrontend === true,
     llmShowExceptionsInFrontend: data.llmShowExceptionsInFrontend === true,
+    backendRuntime: {
+      commitHash: backendCommitHash,
+      commitUnixTs: backendCommitUnixTs,
+    },
   };
 }
 
-export async function fetchAiLog(gameId: string): Promise<AiLogEntry[]> {
+export async function fetchAiLog(gameId: string): Promise<{
+  entries: AiLogEntry[];
+  historicalUnavailable: boolean;
+}> {
   const s = ensureSocket();
-  return new Promise((resolve) => {
-    s.emit(
-      "game:get-ai-log",
-      { gameId },
-      (data: { gameId: string; entries: AiLogEntry[] }) => {
-        resolve(data.entries ?? []);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Timed out while fetching AI log"));
+    }, SOCKET_ACK_TIMEOUT_MS);
+
+    s.emit("game:get-ai-log", { gameId }, (rawAck: unknown) => {
+      clearTimeout(timeout);
+      const parsedAck = AiLogFetchAckSchema.safeParse(rawAck);
+      if (!parsedAck.success) {
+        reject(new Error("Invalid response while fetching AI log"));
+        return;
       }
-    );
+
+      resolve({
+        entries: parsedAck.data.entries,
+        historicalUnavailable: parsedAck.data.historicalUnavailable === true,
+      });
+    });
+  });
+}
+
+export async function fetchGameLog(gameId: string): Promise<GameLogEntry[]> {
+  const s = ensureSocket();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Timed out while fetching game log"));
+    }, SOCKET_ACK_TIMEOUT_MS);
+
+    s.emit("game:get-log", { gameId }, (rawAck: unknown) => {
+      clearTimeout(timeout);
+      const parsedAck = GameLogFetchAckSchema.safeParse(rawAck);
+      if (!parsedAck.success) {
+        reject(new Error("Invalid response while fetching game log"));
+        return;
+      }
+
+      const ack = parsedAck.data;
+      if (!ack.ok) {
+        reject(new Error(ack.message));
+        return;
+      }
+
+      resolve(ack.entries);
+    });
   });
 }
 

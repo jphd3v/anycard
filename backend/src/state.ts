@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import type {
   AiRuntimeLocation,
+  ClientIntent,
   GameEvent,
+  PersistedExecutedIntent,
   GameState,
   MoveCardsEvent,
 } from "../../shared/schemas.js";
@@ -82,10 +84,33 @@ const initialStateByGame = new Map<string, GameState>();
 const eventsByGame = new Map<string, GameEvent[]>();
 const finishedAtByGame = new Map<string, number>();
 const viewSaltByGameId = new Map<string, string>();
+const executedIntentsByGame = new Map<string, PersistedExecutedIntent[]>();
+const importedEventCountByGame = new Map<string, number>();
+const importedExecutedIntentCountByGame = new Map<string, number>();
 const humanTurnByGame = new Map<
   string,
   { currentPlayerId: string | null; turnNumber: number }
 >();
+
+function deriveHumanTurnFromHistory(
+  initialState: GameState,
+  events: GameEvent[]
+): { currentPlayerId: string | null; turnNumber: number } {
+  let currentPlayerId = initialState.currentPlayer ?? null;
+  let turnNumber = currentPlayerId ? 1 : 0;
+
+  for (const event of events) {
+    if (event.type !== "set-current-player") continue;
+    if (event.player === currentPlayerId) continue;
+
+    currentPlayerId = event.player;
+    if (currentPlayerId) {
+      turnNumber = turnNumber === 0 ? 1 : turnNumber + 1;
+    }
+  }
+
+  return { currentPlayerId, turnNumber };
+}
 
 export function getViewSalt(gameId: string): string {
   const salt = viewSaltByGameId.get(gameId);
@@ -121,6 +146,9 @@ export function initGame(state: GameState) {
   const snapshot: GameState = JSON.parse(JSON.stringify(state));
   initialStateByGame.set(state.gameId, snapshot);
   eventsByGame.set(state.gameId, []);
+  executedIntentsByGame.set(state.gameId, []);
+  importedEventCountByGame.set(state.gameId, 0);
+  importedExecutedIntentCountByGame.set(state.gameId, 0);
 }
 
 export function getInitialState(gameId: string): GameState | null {
@@ -135,6 +163,10 @@ export function getEvents(gameId: string): GameEvent[] {
   return eventsByGame.get(gameId) ?? [];
 }
 
+export function getExecutedIntents(gameId: string): PersistedExecutedIntent[] {
+  return executedIntentsByGame.get(gameId) ?? [];
+}
+
 export function appendEvent(gameId: string, event: GameEvent) {
   const events = eventsByGame.get(gameId) ?? [];
   events.push(event);
@@ -145,12 +177,112 @@ export function appendEvent(gameId: string, event: GameEvent) {
   }
 }
 
+export function appendExecutedIntent(
+  gameId: string,
+  intent: PersistedExecutedIntent
+): void {
+  const intents = executedIntentsByGame.get(gameId) ?? [];
+  intents.push(intent);
+  executedIntentsByGame.set(gameId, intents);
+}
+
+export function appendExecutedIntentFromClientIntent(
+  gameId: string,
+  intent: ClientIntent,
+  turnNumber: number
+): void {
+  const timestamp = new Date().toISOString();
+
+  if (intent.type === "action") {
+    appendExecutedIntent(gameId, {
+      type: "action",
+      playerId: intent.playerId,
+      action: intent.action,
+      turnNumber,
+      timestamp,
+    });
+    return;
+  }
+
+  if (intent.cardId !== undefined) {
+    appendExecutedIntent(gameId, {
+      type: "move",
+      playerId: intent.playerId,
+      fromPileId: intent.fromPileId,
+      toPileId: intent.toPileId,
+      cardId: intent.cardId,
+      ...(typeof intent.targetIndex === "number"
+        ? { targetIndex: intent.targetIndex }
+        : {}),
+      turnNumber,
+      timestamp,
+    });
+    return;
+  }
+
+  if (Array.isArray(intent.cardIds) && intent.cardIds.length > 0) {
+    appendExecutedIntent(gameId, {
+      type: "move",
+      playerId: intent.playerId,
+      fromPileId: intent.fromPileId,
+      toPileId: intent.toPileId,
+      cardIds: [...intent.cardIds],
+      ...(typeof intent.targetIndex === "number"
+        ? { targetIndex: intent.targetIndex }
+        : {}),
+      turnNumber,
+      timestamp,
+    });
+    return;
+  }
+
+  console.warn(
+    "[state] Skipped executed-intent journal entry for invalid move intent shape.",
+    { gameId, intentType: intent.type }
+  );
+}
+
+export function setExecutedIntents(
+  gameId: string,
+  intents: PersistedExecutedIntent[]
+): void {
+  executedIntentsByGame.set(gameId, [...intents]);
+}
+
+export function getImportedEventCount(gameId: string): number {
+  return importedEventCountByGame.get(gameId) ?? 0;
+}
+
+export function setImportedEventCount(gameId: string, count: number): void {
+  const normalized = Number.isFinite(count)
+    ? Math.max(0, Math.trunc(count))
+    : 0;
+  importedEventCountByGame.set(gameId, normalized);
+}
+
+export function getImportedExecutedIntentCount(gameId: string): number {
+  return importedExecutedIntentCountByGame.get(gameId) ?? 0;
+}
+
+export function setImportedExecutedIntentCount(
+  gameId: string,
+  count: number
+): void {
+  const normalized = Number.isFinite(count)
+    ? Math.max(0, Math.trunc(count))
+    : 0;
+  importedExecutedIntentCountByGame.set(gameId, normalized);
+}
+
 export function resetGame(gameId: string) {
   if (!initialStateByGame.has(gameId)) {
     throw new Error(`Game ${gameId} not initialized`);
   }
   eventsByGame.set(gameId, []);
-  clearAiLogForGame(gameId);
+  executedIntentsByGame.set(gameId, []);
+  importedEventCountByGame.set(gameId, 0);
+  importedExecutedIntentCountByGame.set(gameId, 0);
+  clearAiLogForGame(gameId, { preserveHistoricalUnavailable: true });
   humanTurnByGame.delete(gameId);
 }
 
@@ -164,8 +296,11 @@ export function resetGameWithSeed(gameId: string, seed: string): boolean {
   const reshuffled = applyShuffleToState(snapshot, seed);
   initialStateByGame.set(gameId, reshuffled);
   eventsByGame.set(gameId, []);
+  executedIntentsByGame.set(gameId, []);
+  importedEventCountByGame.set(gameId, 0);
+  importedExecutedIntentCountByGame.set(gameId, 0);
   finishedAtByGame.delete(gameId);
-  clearAiLogForGame(gameId);
+  clearAiLogForGame(gameId, { preserveHistoricalUnavailable: true });
   humanTurnByGame.delete(gameId);
   return true;
 }
@@ -177,6 +312,9 @@ export function closeGame(gameId: string): boolean {
 
   initialStateByGame.delete(gameId);
   eventsByGame.delete(gameId);
+  executedIntentsByGame.delete(gameId);
+  importedEventCountByGame.delete(gameId);
+  importedExecutedIntentCountByGame.delete(gameId);
   finishedAtByGame.delete(gameId);
   viewSaltByGameId.delete(gameId);
   humanTurnByGame.delete(gameId);
@@ -191,6 +329,9 @@ export function trimFinishedGamesNow() {
     if (now - finishedAt > FINISHED_GAME_TTL_MS) {
       initialStateByGame.delete(gameId);
       eventsByGame.delete(gameId);
+      executedIntentsByGame.delete(gameId);
+      importedEventCountByGame.delete(gameId);
+      importedExecutedIntentCountByGame.delete(gameId);
       finishedAtByGame.delete(gameId);
       viewSaltByGameId.delete(gameId);
       humanTurnByGame.delete(gameId);
@@ -249,12 +390,20 @@ export function getHumanTurnNumber(gameId: string): number {
   const previous = humanTurnByGame.get(gameId);
 
   if (!previous) {
-    const initialTurn = currentPlayerId ? 1 : 0;
-    humanTurnByGame.set(gameId, {
-      currentPlayerId,
-      turnNumber: initialTurn,
-    });
-    return initialTurn;
+    const initialState = initialStateByGame.get(gameId);
+    const events = eventsByGame.get(gameId) ?? [];
+    if (!initialState) {
+      const initialTurn = currentPlayerId ? 1 : 0;
+      humanTurnByGame.set(gameId, {
+        currentPlayerId,
+        turnNumber: initialTurn,
+      });
+      return initialTurn;
+    }
+
+    const derived = deriveHumanTurnFromHistory(initialState, events);
+    humanTurnByGame.set(gameId, derived);
+    return derived.turnNumber;
   }
 
   if (currentPlayerId && currentPlayerId !== previous.currentPlayerId) {

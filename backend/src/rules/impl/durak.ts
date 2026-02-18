@@ -498,6 +498,7 @@ export const durakRules: GameRuleModule = {
       } else if (intent.action === "take" && isDefender) {
         engineEvents.push({
           type: "announce",
+          announceKind: "action",
           text: `${defenderId} takes`,
           anchor: { type: "pile", pileId: "table" },
         });

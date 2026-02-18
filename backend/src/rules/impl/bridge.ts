@@ -9,7 +9,10 @@ import type {
   ActionCell,
   ActionGrid,
   ClientIntent,
+  GameEvent,
+  GameLogEntry,
   GameState,
+  PersistedExecutedIntent,
   Scoreboard,
 } from "../../../../shared/schemas.js";
 import type {
@@ -24,6 +27,7 @@ import {
   shuffleAllCards,
   distributeRoundRobin,
 } from "../util/dealing.js";
+import { applyEvent } from "../../state.js";
 
 const META = loadGameMeta("bridge");
 
@@ -199,6 +203,230 @@ function formatTrickSummary(
     .map((card) => `${card.player} ${formatCardLabel(card)}`)
     .join(", ");
   return `Trick ${trickNumber}: ${plays}; winner ${winner}.`;
+}
+
+function formatBidCallForLog(call: string): string {
+  if (call === "pass") return "Pass";
+  if (call === "double") return "Double";
+  if (call === "redouble") return "Redouble";
+  const parsed = parseBid(call);
+  if (!parsed) return call;
+  return formatBid(parsed.level, parsed.denomination);
+}
+
+function formatContractForLog(
+  contract: NonNullable<BridgeRulesState["contract"]>
+): string {
+  const doubled = contract.redoubled ? " XX" : contract.doubled ? " X" : "";
+  return `${formatBid(contract.level, contract.trumpSuit)}${doubled} by ${contract.declarer}`;
+}
+
+function formatCardForLog(
+  card: { rank: string; suit: string } | undefined
+): string {
+  if (!card) return "Unknown";
+  return `${card.rank}${getSuitSymbol(card.suit)}`;
+}
+
+const MIN_VALID_EVENT_TIMESTAMP_MS = Date.UTC(2000, 0, 1);
+const MAX_VALID_EVENT_TIMESTAMP_MS = Date.UTC(2100, 0, 1);
+
+function eventTimestampToIso(eventId: number): string | undefined {
+  if (!Number.isFinite(eventId)) return undefined;
+  const ts = Math.trunc(eventId);
+  if (ts < MIN_VALID_EVENT_TIMESTAMP_MS || ts > MAX_VALID_EVENT_TIMESTAMP_MS) {
+    return undefined;
+  }
+  return new Date(ts).toISOString();
+}
+
+function getNewRecapLinesForLog(
+  previous: BridgeRulesState,
+  next: BridgeRulesState
+): string[] {
+  const prevRecap = Array.isArray(previous.recap) ? previous.recap : [];
+  const nextRecap = Array.isArray(next.recap) ? next.recap : [];
+  if (nextRecap.length <= prevRecap.length) return [];
+  const isPrefix = prevRecap.every((line, idx) => nextRecap[idx] === line);
+  if (!isPrefix) {
+    return nextRecap[nextRecap.length - 1]
+      ? [nextRecap[nextRecap.length - 1]]
+      : [];
+  }
+  return nextRecap.slice(prevRecap.length);
+}
+
+function formatBridgeGameLog(
+  initialState: GameState,
+  events: GameEvent[],
+  importedEventCount: number
+): GameLogEntry[] {
+  const entries: GameLogEntry[] = [];
+  const pushEntry = (entry: Omit<GameLogEntry, "index">) => {
+    entries.push({
+      ...entry,
+      index: entries.length,
+    });
+  };
+
+  let state = initialState;
+  let currentPlayer = initialState.currentPlayer;
+  let turnNumber = currentPlayer ? 1 : 0;
+  let previousRulesState = getBridgeRulesState(initialState.rulesState);
+  const setupTimestamp =
+    events.length > 0 ? eventTimestampToIso(events[0].id) : undefined;
+  const setupImported = importedEventCount > 0;
+
+  pushEntry({
+    turnNumber: 0,
+    kind: "setup",
+    message: `Bridge started.`,
+    timestamp: setupTimestamp,
+    imported: setupImported,
+  });
+
+  for (const [eventIndex, event] of events.entries()) {
+    const eventTimestamp = eventTimestampToIso(event.id);
+    const isImported = eventIndex < importedEventCount;
+    switch (event.type) {
+      case "move-cards": {
+        if (event.toPileId === "trick" && event.cardIds.length === 1) {
+          const actor = event.playerId ?? currentPlayer ?? "Unknown";
+          const cardId = event.cardIds[0];
+          const card = state.cards[cardId];
+          pushEntry({
+            turnNumber,
+            kind: "move",
+            message: `Play ${actor}: ${formatCardForLog(card)}.`,
+            actorId: actor,
+            eventType: event.type,
+            timestamp: eventTimestamp,
+            imported: isImported,
+          });
+        }
+        break;
+      }
+      case "set-rules-state": {
+        const nextRulesState = getBridgeRulesState(event.rulesState);
+
+        if (nextRulesState.dealNumber !== previousRulesState.dealNumber) {
+          pushEntry({
+            turnNumber,
+            kind: "round",
+            message: `Deal ${nextRulesState.dealNumber} (dealer ${nextRulesState.dealerSeat}).`,
+            actorId: event.playerId,
+            eventType: event.type,
+            timestamp: eventTimestamp,
+            imported: isImported,
+          });
+        }
+
+        const prevHistory = previousRulesState.bidding.history;
+        const nextHistory = nextRulesState.bidding.history;
+        if (nextHistory.length > prevHistory.length) {
+          const isPrefix = prevHistory.every(
+            (entry, idx) =>
+              nextHistory[idx]?.player === entry.player &&
+              nextHistory[idx]?.call === entry.call
+          );
+          const startIdx = isPrefix
+            ? prevHistory.length
+            : nextHistory.length - 1;
+          for (const bid of nextHistory.slice(Math.max(0, startIdx))) {
+            pushEntry({
+              turnNumber,
+              kind: "move",
+              message: `Bid ${bid.player}: ${formatBidCallForLog(bid.call)}.`,
+              actorId: bid.player,
+              eventType: event.type,
+              timestamp: eventTimestamp,
+              imported: isImported,
+            });
+          }
+        }
+
+        if (!previousRulesState.contract && nextRulesState.contract) {
+          pushEntry({
+            turnNumber,
+            kind: "round",
+            message: `Contract: ${formatContractForLog(nextRulesState.contract)}.`,
+            actorId: nextRulesState.contract.declarer,
+            eventType: event.type,
+            timestamp: eventTimestamp,
+            imported: isImported,
+          });
+        }
+
+        const recapLines = getNewRecapLinesForLog(
+          previousRulesState,
+          nextRulesState
+        );
+        for (const line of recapLines) {
+          pushEntry({
+            turnNumber,
+            kind: "recap",
+            message: line,
+            actorId: event.playerId,
+            eventType: event.type,
+            timestamp: eventTimestamp,
+            imported: isImported,
+          });
+        }
+
+        previousRulesState = nextRulesState;
+        break;
+      }
+      case "announce":
+        pushEntry({
+          turnNumber,
+          kind: "announce",
+          message: event.text,
+          actorId: event.playerId,
+          eventType: event.type,
+          timestamp: eventTimestamp,
+          imported: isImported,
+        });
+        break;
+      case "set-current-player": {
+        if (event.player !== currentPlayer) {
+          currentPlayer = event.player;
+          if (currentPlayer) {
+            turnNumber = turnNumber === 0 ? 1 : turnNumber + 1;
+            pushEntry({
+              turnNumber,
+              kind: "turn",
+              message: `Turn: ${currentPlayer}.`,
+              actorId: currentPlayer,
+              eventType: event.type,
+              timestamp: eventTimestamp,
+              imported: isImported,
+            });
+          }
+        }
+        break;
+      }
+      case "set-winner": {
+        if (event.winner) {
+          pushEntry({
+            turnNumber,
+            kind: "winner",
+            message: `Rubber winner: ${event.winner}.`,
+            actorId: event.winner,
+            eventType: event.type,
+            timestamp: eventTimestamp,
+            imported: isImported,
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    state = applyEvent(state, event);
+  }
+
+  return entries;
 }
 
 function isHigherBid(
@@ -873,6 +1101,24 @@ function handlePlay(
 }
 
 export const bridgeRules: GameRuleModule = {
+  formatGameLog(
+    initialState: GameState,
+    events: GameEvent[],
+    _genericEntries: GameLogEntry[],
+    options?: {
+      importedEventCount?: number;
+      importedExecutedIntentCount?: number;
+      executedIntents?: PersistedExecutedIntent[];
+      viewerId?: string;
+    }
+  ): GameLogEntry[] {
+    const importedEventCount = Math.max(
+      0,
+      Math.trunc(options?.importedEventCount ?? 0)
+    );
+    return formatBridgeGameLog(initialState, events, importedEventCount);
+  },
+
   listLegalIntentsForPlayer(
     state: ValidationState,
     playerId: string

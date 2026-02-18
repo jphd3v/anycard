@@ -1,16 +1,20 @@
 import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import {
   aiLogAtom,
+  aiHistoricalUnavailableAtom,
   aiLogVisibleAtom,
+  gameLogAtom,
   gameIdAtom,
   seatStatusAtom,
 } from "../state";
-import { fetchAiLog } from "../socket";
+import { fetchAiLog, fetchGameLog } from "../socket";
 
 export function useAiLog() {
   const gameId = useAtomValue(gameIdAtom);
   const seats = useAtomValue(seatStatusAtom);
   const setAiLog = useSetAtom(aiLogAtom);
+  const setAiHistoricalUnavailable = useSetAtom(aiHistoricalUnavailableAtom);
+  const setGameLog = useSetAtom(gameLogAtom);
   const [isAiLogVisible, setAiLogVisible] = useAtom(aiLogVisibleAtom);
 
   const hasAiPlayer = seats.some(
@@ -20,16 +24,32 @@ export function useAiLog() {
   async function openAiLog() {
     if (!gameId) return;
     try {
-      const entries = await fetchAiLog(gameId);
-      setAiLog(entries);
+      const [gameEntries, aiEntries] = await Promise.all([
+        fetchGameLog(gameId),
+        fetchAiLog(gameId),
+      ]);
+      setGameLog(gameEntries);
+      setAiLog(aiEntries.entries);
+      setAiHistoricalUnavailable(aiEntries.historicalUnavailable);
       setAiLogVisible(true);
     } catch (err) {
-      console.error("Failed to fetch AI log:", err);
+      console.error("Failed to fetch game log:", err);
+    }
+  }
+
+  async function refreshGameLog() {
+    if (!gameId) return;
+    try {
+      const entries = await fetchGameLog(gameId);
+      setGameLog(entries);
+    } catch (err) {
+      console.error("Failed to refresh game log:", err);
     }
   }
 
   return {
     openAiLog,
+    refreshGameLog,
     isAiLogVisible,
     setAiLogVisible,
     hasAiPlayer,

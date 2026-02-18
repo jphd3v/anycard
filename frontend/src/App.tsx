@@ -24,6 +24,8 @@ import {
   pendingDragMoveAtom,
   fatalErrorAtom,
   aiLogAtom,
+  aiHistoricalUnavailableAtom,
+  gameLogAtom,
   isMenuOpenAtom,
   isActionsOpenAtom,
   isScoreboardOpenAtom,
@@ -32,6 +34,7 @@ import {
   frontendAiSponsorsAtom,
   serverAiEnabledAtom,
   aiShowExceptionsAtom,
+  backendRuntimeAtom,
   localAiConfigAtom,
   themeSettingAtom,
   highlightedActionIdAtom,
@@ -147,7 +150,9 @@ export default function App() {
   );
   const setServerAiEnabled = useSetAtom(serverAiEnabledAtom);
   const setAiShowExceptions = useSetAtom(aiShowExceptionsAtom);
+  const setBackendRuntime = useSetAtom(backendRuntimeAtom);
   const serverAiEnabled = useAtomValue(serverAiEnabledAtom);
+  const backendRuntime = useAtomValue(backendRuntimeAtom);
   const lastAuthoritativeViewRef = useRef<GameView | null>(null);
   const lastStartActionIdRef = useRef<string | null>(null);
   const stateQueueRef = useRef<IncomingStatePayload[]>([]);
@@ -168,6 +173,8 @@ export default function App() {
   const setPendingDragMove = useSetAtom(pendingDragMoveAtom);
   const setFatalError = useSetAtom(fatalErrorAtom);
   const setAiLog = useSetAtom(aiLogAtom);
+  const setAiHistoricalUnavailable = useSetAtom(aiHistoricalUnavailableAtom);
+  const setGameLog = useSetAtom(gameLogAtom);
   const [startingGameType, setStartingGameType] = useState<string | null>(null);
   const [isCreator, setIsCreator] = useState(false);
   const [joinedGameId, setJoinedGameId] = useState<string | null>(null);
@@ -300,8 +307,14 @@ export default function App() {
       setIsStartGameAnimating(false);
       startGameActionIdRef.current = null;
       setStartGamePendingKind(null);
+      setAiHistoricalUnavailable(false);
     }
-  }, [clearSkipStartGameAnimations, clearStartGamePending, gameId]);
+  }, [
+    clearSkipStartGameAnimations,
+    clearStartGamePending,
+    gameId,
+    setAiHistoricalUnavailable,
+  ]);
 
   const activeRulesId = view?.rulesId ?? rulesId;
   const gameLayout = useGameLayout(activeRulesId ?? "");
@@ -326,8 +339,9 @@ export default function App() {
 
     if (isFirstStart) {
       setAiLog([]);
+      setGameLog([]);
     }
-  }, [lastAction, setAiLog, view?.rulesState]);
+  }, [lastAction, setAiLog, setGameLog, view?.rulesState]);
 
   // Helper to check if a widget exists in the current layout
   const hasWidgetInLayout = useCallback(
@@ -916,6 +930,7 @@ export default function App() {
     setRuleEngineMode,
     setServerAiEnabled,
     setAiShowExceptions,
+    setBackendRuntime,
     isLobbyView,
   });
 
@@ -1270,6 +1285,8 @@ export default function App() {
     setStartGamePendingKind,
     setView,
     setAiLog,
+    setAiHistoricalUnavailable,
+    setGameLog,
     setJoinedGameId,
     setPlayerId,
     setIsCreator,
@@ -1918,6 +1935,7 @@ export default function App() {
             sortedAvailableGames={sortedAvailableGames}
             activeGames={activeGames}
             recentGames={recentGames}
+            backendRuntime={backendRuntime}
           />
         )}
 
@@ -2070,6 +2088,7 @@ export default function App() {
               }
             }}
             showBackArrow={isAboutFromMenu}
+            backendRuntime={backendRuntime}
           />
         )}
 

@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchGameInfo, importGameSave } from "../../socket";
-import {
-  GameSaveSnapshotSchema,
-  type GameSaveSnapshot,
-} from "../../../../shared/schemas";
+import { GameSaveSnapshotSchema } from "../../../../shared/schemas";
 import type { GameSummary } from "../../state";
 
 interface JoinGameInputProps {
@@ -28,7 +25,7 @@ type SaveValidation =
   | {
       status: "valid";
       message: string;
-      snapshot: GameSaveSnapshot;
+      payload: unknown;
     };
 
 export function JoinGameInput({ onJoin }: JoinGameInputProps) {
@@ -132,19 +129,25 @@ export function JoinGameInput({ onJoin }: JoinGameInputProps) {
     }
 
     const validated = GameSaveSnapshotSchema.safeParse(parsed);
-    if (!validated.success) {
-      const firstIssue = validated.error.issues[0];
-      const issuePath = firstIssue?.path?.join(".") ?? "root";
+    if (validated.success) {
+      return {
+        status: "valid",
+        message: `${validated.data.initialState.gameName} · ${validated.data.events.length} events`,
+        payload: parsed,
+      };
+    }
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return {
         status: "invalid",
-        message: `Invalid save format at ${issuePath}.`,
+        message: "Save root must be a JSON object.",
       };
     }
 
     return {
       status: "valid",
-      message: `${validated.data.initialState.gameName} · ${validated.data.events.length} events`,
-      snapshot: validated.data,
+      message: "JSON parsed. Server will attempt best-effort recovery.",
+      payload: parsed,
     };
   }, [saveJson]);
 
@@ -159,7 +162,7 @@ export function JoinGameInput({ onJoin }: JoinGameInputProps) {
     setIsLoadingSave(true);
     setSaveLoadServerError(null);
     try {
-      const imported = await importGameSave(saveValidation.snapshot);
+      const imported = await importGameSave(saveValidation.payload);
       setIsSaveExpanded(false);
       setSaveJson("");
       setInputMode("join");

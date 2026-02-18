@@ -1,21 +1,34 @@
 import { useCallback } from "react";
 import { copyToClipboard } from "../../utils/clipboard";
+import type { BackendRuntimeInfo } from "../../state";
 
 interface Props {
   onAboutClick?: () => void;
+  backendRuntime: BackendRuntimeInfo | null;
 }
 
-export function LobbyFooter({ onAboutClick }: Props) {
+function formatUnixTs(unixTs: number | null): string {
+  if (unixTs == null) return "n/a";
+  try {
+    return new Date(unixTs * 1000).toISOString().slice(0, 16).replace("T", " ");
+  } catch {
+    return "n/a";
+  }
+}
+
+export function LobbyFooter({ onAboutClick, backendRuntime }: Props) {
   const commitHash =
     typeof __COMMIT_HASH__ !== "undefined" ? __COMMIT_HASH__ : "dev";
   const commitDate =
     typeof __COMMIT_DATE__ !== "undefined" ? __COMMIT_DATE__ : "";
   const year = new Date().getFullYear();
+  const backendCommitHash = backendRuntime?.commitHash ?? "unknown";
+  const backendCommitDate = formatUnixTs(backendRuntime?.commitUnixTs ?? null);
 
   const handleCopyVersion = useCallback(async () => {
-    const text = `version #${commitHash} ${commitDate && `• ${commitDate}`} UTC`;
+    const text = `frontend #${commitHash} ${commitDate && `• ${commitDate}`} UTC\nbackend #${backendCommitHash} ${backendCommitDate !== "n/a" ? `• ${backendCommitDate}` : ""} UTC`;
     await copyToClipboard(text);
-  }, [commitHash, commitDate]);
+  }, [backendCommitDate, backendCommitHash, commitDate, commitHash]);
 
   return (
     <footer className="pt-3 pb-2 text-center text-ink-muted opacity-60 relative">
@@ -29,7 +42,10 @@ export function LobbyFooter({ onAboutClick }: Props) {
           className="font-mono opacity-80 hover:opacity-100 hover:text-ink transition-all cursor-pointer focus:outline-none active:scale-95"
           title="Click to copy version info"
         >
-          version #{commitHash} {commitDate && `• ${commitDate}`} UTC
+          frontend #{commitHash} {commitDate && `• ${commitDate}`} UTC
+          <br />
+          backend #{backendCommitHash}{" "}
+          {backendCommitDate !== "n/a" && `• ${backendCommitDate}`} UTC
         </button>
       </div>
       {onAboutClick && (

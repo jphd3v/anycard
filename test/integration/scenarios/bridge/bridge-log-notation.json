@@ -1,0 +1,54 @@
+{
+  "id": "bridge-log-notation",
+  "rulesId": "bridge",
+  "seed": "BRIDGE-LOG-1",
+  "mode": "scripted",
+  "intents": [
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "N",
+      "action": "start-game"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "N",
+      "action": "1H"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "E",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "S",
+      "action": "2H"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "W",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "N",
+      "action": "pass"
+    },
+    {
+      "type": "action",
+      "gameId": "bridge-log-notation",
+      "playerId": "E",
+      "action": "pass"
+    }
+  ],
+  "expectLog": {
+    "minEntries": 8,
+    "contains": ["Bid N: 1", "Bid S: 2", "Contract: 2", "by N", "Turn: E."]
+  }
+}

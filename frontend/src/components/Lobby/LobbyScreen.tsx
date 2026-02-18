@@ -2,6 +2,7 @@ import type {
   ActiveGameSummary,
   AiRuntimePreference,
   AvailableGame,
+  BackendRuntimeInfo,
   LocalAiConfig,
   RecentGameEntry,
   ThemeSetting,
@@ -35,6 +36,7 @@ type LobbyScreenProps = {
   sortedAvailableGames: AvailableGame[];
   activeGames: ActiveGameSummary[];
   recentGames: RecentGameEntry[];
+  backendRuntime: BackendRuntimeInfo | null;
 };
 
 export function LobbyScreen({
@@ -56,6 +58,7 @@ export function LobbyScreen({
   sortedAvailableGames,
   activeGames,
   recentGames,
+  backendRuntime,
 }: LobbyScreenProps) {
   return (
     <div className="flex-1 w-full flex flex-col max-w-lg landscape:max-w-none landscape:px-12 mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
@@ -210,7 +213,10 @@ export function LobbyScreen({
         <div className="relative mt-auto flex flex-col justify-end pt-2 pb-2">
           <BottomCornerOrnaments />
           <div className="relative z-10">
-            <LobbyFooter onAboutClick={onAboutClick} />
+            <LobbyFooter
+              onAboutClick={onAboutClick}
+              backendRuntime={backendRuntime}
+            />
           </div>
         </div>
       </div>

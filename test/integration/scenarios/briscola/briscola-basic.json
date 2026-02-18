@@ -45,5 +45,14 @@
       "result": null,
       "roundNumber": 1
     }
+  },
+  "expectLog": {
+    "minEntries": 4,
+    "contains": [
+      "Game started: Briscola.",
+      "Turn started: Player 1.",
+      "System moved",
+      "moved"
+    ]
   }
 }

@@ -324,6 +324,15 @@ Common types:
 | `announce`            | Broadcast a transient UI announcement  |
 | `fatal-error`         | Catastrophic failure (engine/AI/rules) |
 
+Event envelope metadata (written by the engine when persisting events):
+
+- `playerId`: seat that initiated the accepted intent batch (legacy-compatible field).
+- `initiatedByPlayerId`: explicit initiator seat for this event.
+- `initiatedByIntentType`: source intent type (`"move"` or `"action"`).
+- `executorRole`: `"player"` when the event is the direct executed move intent,
+  `"system"` for automatic consequences emitted by rules (deals, follow-up
+  draws, score updates, etc.).
+
 ### 4.1 Pile order and `move-cards` semantics
 
 Piles are ordered stacks. The canonical ordering is `pile.cardIds`.
@@ -1317,23 +1326,33 @@ Also:
 
 ## 10. Development and debugging tools
 
-- **AI debug log:** When there are AI seats, the current-turn pill in the UI is
-  clickable and opens the AI log:
-  - shows human-readable traces grouped by “turn”,
-  - useful when debugging `listLegalIntentsForPlayer` and AI policy.
+- **Deterministic game log:** The current-turn pill opens the game log modal:
+  - default stream is generated from authoritative event history (`initialState + event log`),
+  - available for active games and imported saves,
+  - grouped by turn for readable post-hoc replay.
+
+- **AI telemetry overlay:** The game log modal includes a `Show AI events` toggle:
+  - AI events are session telemetry and may be unavailable for imported history,
+  - new AI events still appear live while play continues,
+  - useful for debugging `listLegalIntentsForPlayer` and AI policy choices.
 
 - **Fatal error overlay:** Triggered by `fatal-error` engine events, used for
   catastrophic problems (AI, rules, engine). Offers retry/inspect/exit options.
 
 - **Manual save/load JSON (copy/paste):**
   - Save export is requested via socket `game:save-export` for the active room.
-  - The backend returns a strict, versioned snapshot:
+  - The backend returns a strict snapshot:
+    - `origin` (backend build provenance: commit hash + commit unix timestamp when available),
+    - `format` (automatic schema fingerprint hashes for envelope + event payload + rules contract),
     - `initialState` (the original `GameState`),
-    - `events` (the full event log without transport-only fields like `id` and `gameId`).
+    - `events` (the full event log without transport-only fields like `gameId`,
+      including attribution metadata like `initiatedByPlayerId` and `executorRole` when available).
+    - `executedIntents` (optional non-authoritative journal of accepted `move`/`action` intents for human-readable history).
   - Save import is requested via socket `game:save-import` from lobby context.
-  - The backend validates the payload with `GameSaveSnapshotSchema`, creates a
-    fresh `gameId`, replays the event log onto that new game, and only then
-    exposes the room.
+  - The backend first attempts strict `GameSaveSnapshotSchema` parsing; if that
+    fails, it runs a best-effort lax parser (recovering what it safely can),
+    then creates a fresh `gameId`, replays the recovered event log onto that
+    new game, and only then exposes the room.
   - Imported rooms are created as private rooms and keep deterministic behaviour
     because the replayed event log is authoritative.
 

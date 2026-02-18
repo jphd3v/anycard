@@ -23,9 +23,6 @@ interface GameMenuProps {
   isGodMode: boolean;
   onToggleGodMode: () => void;
   onRestartHand: () => void;
-  onCopySaveJson: () => void;
-  isCopyingSaveJson?: boolean;
-  isSaveCopySuccess?: boolean;
   onExit: () => void;
   onAbout: () => void;
   displayName: string;
@@ -40,9 +37,6 @@ export function GameMenu({
   isGodMode,
   onToggleGodMode,
   onRestartHand,
-  onCopySaveJson,
-  isCopyingSaveJson = false,
-  isSaveCopySuccess = false,
   onExit,
   onAbout,
   displayName,
@@ -297,44 +291,6 @@ export function GameMenu({
                         className="w-full sm:w-40 px-6 py-2 text-sm font-semibold rounded-lg transition-colors border bg-surface-2 border-surface-3 hover:border-surface-4 text-ink hover:bg-surface-3 shadow-sm"
                       >
                         New Hand
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Save Game */}
-                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-ink text-sm mb-0.5">
-                        Save to Clipboard
-                      </h4>
-                      <p className="text-xs text-ink-muted leading-relaxed">
-                        Copy this room's save data to your clipboard.
-                      </p>
-                    </div>
-                    <div className="flex sm:justify-end shrink-0">
-                      <button
-                        onClick={onCopySaveJson}
-                        disabled={isBlocked || isCopyingSaveJson}
-                        className="w-full sm:w-40 px-6 py-2 bg-surface-2 border border-surface-3 hover:border-surface-4 hover:bg-surface-3 text-ink text-sm font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          <span>Copy</span>
-                          {isSaveCopySuccess && (
-                            <svg
-                              className="w-4 h-4 text-green-600"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2.5}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </span>
                       </button>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import type { MutableRefObject } from "react";
 import type {
   CardView,
+  GameLogEntry,
   GameLayout,
   GameView,
   SeatStatus,
@@ -98,6 +99,8 @@ type GameSocketHandlersOptions = {
   setStartGamePendingKind: SetState<"first" | "next" | null>;
   setView: SetState<GameView | null>;
   setAiLog: SetState<AiLogEntry[]>;
+  setAiHistoricalUnavailable: SetState<boolean>;
+  setGameLog: SetState<GameLogEntry[]>;
   setJoinedGameId: SetState<string | null>;
   setPlayerId: SetState<string | null>;
   setIsCreator: SetState<boolean>;
@@ -155,6 +158,8 @@ export function useGameSocketHandlers({
   setStartGamePendingKind,
   setView,
   setAiLog,
+  setAiHistoricalUnavailable,
+  setGameLog,
   setJoinedGameId,
   setPlayerId,
   setIsCreator,
@@ -895,6 +900,8 @@ export function useGameSocketHandlers({
       },
       onGameEnded: () => {
         setAiLog([]);
+        setAiHistoricalUnavailable(false);
+        setGameLog([]);
       },
       onGameNotFound: () => {
         // Only handle this once; if routeError already set, ignore
@@ -915,6 +922,7 @@ export function useGameSocketHandlers({
         setSeats([]);
         setRoomSeed(null);
         setView(null);
+        setAiHistoricalUnavailable(false);
         setJoinedGameId(null);
         lastJoinRef.current = null;
 
@@ -943,6 +951,9 @@ export function useGameSocketHandlers({
         pendingDragMoveRef.current = null;
       },
       onAiLog: (payload) => {
+        if (typeof payload.historicalUnavailable === "boolean") {
+          setAiHistoricalUnavailable(payload.historicalUnavailable);
+        }
         setAiLog((prev) => [...prev, ...payload.entries]);
       },
     });
@@ -974,6 +985,8 @@ export function useGameSocketHandlers({
     routeError,
     setActiveTransitionCardIds,
     setAiLog,
+    setAiHistoricalUnavailable,
+    setGameLog,
     setFatalError,
     setGameId,
     setGameType,

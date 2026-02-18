@@ -614,14 +614,6 @@ export async function chooseAiIntent(
       playerId,
       candidateId: chosen?.id,
     });
-    appendAiLogEntry({
-      gameId,
-      turnNumber,
-      playerId,
-      phase: "execution",
-      level: "info",
-      message: `Using deterministic default candidate mode: ${chosen?.id ?? "none"}`,
-    });
     return chosen?.intent ?? null;
   }
 

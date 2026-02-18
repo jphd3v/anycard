@@ -1,6 +1,7 @@
 // backend/src/intent-handler.ts
 
 import {
+  appendExecutedIntentFromClientIntent,
   appendEvent,
   applyEvent,
   getEvents,
@@ -24,6 +25,7 @@ import { resolveEngineCardId } from "./view-ids.js";
 import { getSuitSymbol } from "./util/card-notation.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 import { appendAiLogEntry } from "./ai/ai-log.js";
+import { resolveEventAttribution } from "./event-attribution.js";
 
 /**
  * Normalize a MoveIntent to always return an array of card IDs.
@@ -355,15 +357,22 @@ export async function handleClientIntent(
     const turnNumberForLog = getHumanTurnNumber(gameId);
     // Apply engine events (dealer events)
     let workingState = state;
+    const attributionContext = { directMoveAssigned: false };
 
     const appliedEngineEvents: EngineEvent[] = [];
     for (const ev of validation.engineEvents ?? []) {
       let dealerEvent: GameEvent;
       try {
+        const attribution = resolveEventAttribution(
+          intentForEngine,
+          ev,
+          attributionContext
+        );
         dealerEvent = GameEventSchema.parse({
           id: Date.now(),
           gameId: intent.gameId,
-          playerId: null,
+          playerId: intentForEngine.playerId,
+          ...attribution,
           ...ev,
         });
       } catch (error) {
@@ -410,6 +419,11 @@ export async function handleClientIntent(
     }
 
     appendGameLogIntent(state, intentForEngine, turnNumberForLog);
+    appendExecutedIntentFromClientIntent(
+      intent.gameId,
+      intentForEngine,
+      turnNumberForLog
+    );
 
     // Schedule next AI turn if needed (for AI players).
     // Forward the broadcast callback so chained AI turns continue to sync clients.

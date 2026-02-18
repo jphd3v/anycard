@@ -1,5 +1,10 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { aiLogAtom, aiLogVisibleAtom, fatalErrorAtom } from "../state";
+import {
+  aiHistoricalUnavailableAtom,
+  aiLogAtom,
+  aiLogVisibleAtom,
+  fatalErrorAtom,
+} from "../state";
 import { ensureSocket, fetchAiLog } from "../socket";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
 import { Overlay } from "./Overlay";
@@ -13,6 +18,7 @@ export function FatalErrorOverlay({ gameId, onExitToSelection }: Props) {
   const fatalError = useAtomValue(fatalErrorAtom);
   const setFatalError = useSetAtom(fatalErrorAtom);
   const setAiLog = useSetAtom(aiLogAtom);
+  const setAiHistoricalUnavailable = useSetAtom(aiHistoricalUnavailableAtom);
   const setAiLogVisible = useSetAtom(aiLogVisibleAtom);
 
   if (!fatalError) return null;
@@ -22,8 +28,9 @@ export function FatalErrorOverlay({ gameId, onExitToSelection }: Props) {
 
   async function handleOpenAiLog() {
     try {
-      const entries = await fetchAiLog(gameId);
-      setAiLog(entries);
+      const result = await fetchAiLog(gameId);
+      setAiLog(result.entries);
+      setAiHistoricalUnavailable(result.historicalUnavailable);
       setAiLogVisible(true);
     } catch (err) {
       console.error("Failed to fetch AI log from fatal error overlay", err);

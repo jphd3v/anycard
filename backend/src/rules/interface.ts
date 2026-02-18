@@ -1,6 +1,9 @@
 import type {
   ClientIntent,
+  GameEvent,
+  GameLogEntry,
   GameState,
+  PersistedExecutedIntent,
   Scoreboard,
 } from "../../../shared/schemas.js";
 import type { ValidationResult } from "../../../shared/validation.js";
@@ -95,6 +98,24 @@ export interface GameRuleModule {
     gameState: GameState,
     viewerId: string
   ): Scoreboard[];
+
+  /**
+   * Optional: customize deterministic game-log entries derived from event history.
+   *
+   * Return custom entries to override the generic formatter. Return null/undefined
+   * to fall back to the generic formatter output.
+   */
+  formatGameLog?(
+    initialState: GameState,
+    events: GameEvent[],
+    genericEntries: GameLogEntry[],
+    options?: {
+      importedEventCount?: number;
+      importedExecutedIntentCount?: number;
+      executedIntents?: PersistedExecutedIntent[];
+      viewerId?: string;
+    }
+  ): GameLogEntry[] | null | undefined;
 }
 
 export interface GamePlugin {

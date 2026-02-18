@@ -1,17 +1,26 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from "react";
 import { useAtom, useAtomValue } from "jotai";
+import { GameSaveSnapshotSchema } from "../../../shared/schemas";
 import {
   availableGamesAtom,
   rulesIdAtom,
   gameViewAtom,
   aiLogAtom,
+  aiHistoricalUnavailableAtom,
+  gameLogAtom,
   allSeatsAutomatedAtom,
   soundEnabledAtom,
   isMenuOpenAtom,
 } from "../state";
 import type { AiLogEntry } from "../state";
 
-import { exportGameSave, resetGameWithSeed, setGodMode } from "../socket";
+import {
+  exportGameSave,
+  importGameSave,
+  leaveGame,
+  resetGameWithSeed,
+  setGodMode,
+} from "../socket";
 import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { useAiLog } from "../hooks/useAiLog";
 import { useToast } from "../hooks/useToast";
@@ -32,6 +41,26 @@ interface GameHUDProps {
 }
 
 type ConfirmType = "restartHand" | "exit" | "restartSeed" | null;
+type SaveValidationState =
+  | { status: "empty"; message: string; payload: null }
+  | { status: "invalid"; message: string; payload: null }
+  | { status: "valid"; message: string; payload: unknown };
+
+type RenderLogEntry =
+  | {
+      source: "game";
+      order: number;
+      message: string;
+      actorId: string | null;
+      timestamp?: string;
+      kind?: string;
+      imported?: boolean;
+    }
+  | {
+      source: "ai";
+      order: number;
+      entry: AiLogEntry;
+    };
 
 export function GameHUD({
   gameId,
@@ -42,8 +71,10 @@ export function GameHUD({
   const view = useAtomValue(gameViewAtom);
   const rulesId = useAtomValue(rulesIdAtom);
   const availableGames = useAtomValue(availableGamesAtom);
-  const { isAiLogVisible, setAiLogVisible } = useAiLog();
+  const { isAiLogVisible, setAiLogVisible, refreshGameLog } = useAiLog();
   const aiLog = useAtomValue(aiLogAtom);
+  const aiHistoricalUnavailable = useAtomValue(aiHistoricalUnavailableAtom);
+  const gameLog = useAtomValue(gameLogAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
   const soundEnabled = useAtomValue(soundEnabledAtom);
   const [, setIsMenuOpen] = useAtom(isMenuOpenAtom);
@@ -68,6 +99,13 @@ export function GameHUD({
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
   const [isCopyingSaveJson, setIsCopyingSaveJson] = useState(false);
   const [isSaveCopySuccess, setIsSaveCopySuccess] = useState(false);
+  const [isLoadPanelOpen, setIsLoadPanelOpen] = useState(false);
+  const [saveJson, setSaveJson] = useState("");
+  const [isLoadingSave, setIsLoadingSave] = useState(false);
+  const [saveLoadServerError, setSaveLoadServerError] = useState<string | null>(
+    null
+  );
+  const [showAiEvents, setShowAiEvents] = useState(false);
   const saveCopySuccessTimeoutRef = useRef<number | null>(null);
 
   const currentGameType = view?.rulesId ?? rulesId ?? "";
@@ -113,38 +151,84 @@ export function GameHUD({
     safeStartViewTransition(() => setIsMenuOpen(false));
   };
 
-  const { groupedByTurn, renderedAiLogCount } = useMemo(() => {
-    const filteredAiLog = aiLog.filter(isRenderableAiLogEntry);
+  const { groupedByTurn, renderedEntryCount } = useMemo(() => {
     const groups = new Map<
       number,
-      { playerId: string | null; entries: AiLogEntry[] }
+      { playerId: string | null; entries: RenderLogEntry[] }
     >();
 
-    for (const entry of filteredAiLog) {
-      const existing = groups.get(entry.turnNumber);
+    const pushEntry = (
+      turnNumber: number,
+      playerId: string | null,
+      entry: RenderLogEntry
+    ) => {
+      const existing = groups.get(turnNumber);
       if (!existing) {
-        groups.set(entry.turnNumber, {
-          playerId: entry.playerId,
-          entries: [entry],
+        groups.set(turnNumber, { playerId, entries: [entry] });
+        return;
+      }
+      if (!existing.playerId && playerId) {
+        existing.playerId = playerId;
+      }
+      existing.entries.push(entry);
+    };
+
+    for (const entry of gameLog) {
+      pushEntry(entry.turnNumber, entry.actorId ?? null, {
+        source: "game",
+        order: entry.index * 10,
+        message: entry.message,
+        actorId: entry.actorId ?? null,
+        timestamp: entry.timestamp,
+        kind: entry.kind,
+        imported: entry.imported,
+      });
+    }
+
+    if (showAiEvents) {
+      for (const entry of aiLog.filter(shouldRenderAiLogEntry)) {
+        const timestamp = new Date(entry.timestamp ?? 0).getTime();
+        const normalizedOrder = Number.isFinite(timestamp)
+          ? timestamp
+          : Number.MAX_SAFE_INTEGER;
+        pushEntry(entry.turnNumber ?? 0, entry.playerId ?? null, {
+          source: "ai",
+          order: normalizedOrder,
+          entry,
         });
-      } else {
-        existing.entries.push(entry);
       }
     }
 
     const grouped = Array.from(groups.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([turnNumber, { playerId, entries }]) => ({
+      .sort(([left], [right]) => left - right)
+      .map(([turnNumber, value]) => ({
         turnNumber,
-        playerId,
-        entries: entries.sort(
-          (a, b) =>
-            new Date(a.timestamp ?? 0).getTime() -
-            new Date(b.timestamp ?? 0).getTime()
-        ),
+        playerId: value.playerId,
+        entries: value.entries.sort((left, right) => {
+          if (left.order !== right.order) {
+            return left.order - right.order;
+          }
+          if (left.source === right.source) return 0;
+          return left.source === "game" ? -1 : 1;
+        }),
       }));
-    return { groupedByTurn: grouped, renderedAiLogCount: filteredAiLog.length };
-  }, [aiLog]);
+
+    const renderedCount = grouped.reduce(
+      (count, group) => count + group.entries.length,
+      0
+    );
+    return { groupedByTurn: grouped, renderedEntryCount: renderedCount };
+  }, [aiLog, gameLog, showAiEvents]);
+
+  useEffect(() => {
+    if (!isAiLogVisible) return;
+    void refreshGameLog();
+  }, [
+    isAiLogVisible,
+    refreshGameLog,
+    view?.stateVersion,
+    view?.lastAction?.id,
+  ]);
 
   const seatMetaById = useMemo(() => {
     const map = new Map<string, { label: string; aiRuntime?: string }>();
@@ -203,7 +287,7 @@ export function GameHUD({
     const node = aiLogScrollRef.current;
     if (!node || !aiLogAutoScrollRef.current) return;
     node.scrollTop = node.scrollHeight;
-  }, [isAiLogVisible, renderedAiLogCount]);
+  }, [isAiLogVisible, renderedEntryCount]);
 
   const handleToggleGodMode = () => {
     if (!gameId) return;
@@ -243,6 +327,101 @@ export function GameHUD({
     }
   }, [gameId, isCopyingSaveJson]);
 
+  const saveValidation = useMemo<SaveValidationState>(() => {
+    const trimmed = saveJson.trim();
+    if (!trimmed) {
+      return {
+        status: "empty",
+        message: "Paste save JSON to load a game.",
+        payload: null,
+      };
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      return {
+        status: "invalid",
+        message: "Input is not valid JSON.",
+        payload: null,
+      };
+    }
+
+    const validated = GameSaveSnapshotSchema.safeParse(parsed);
+    if (validated.success) {
+      return {
+        status: "valid",
+        message: `${validated.data.initialState.gameName} · ${validated.data.events.length} events`,
+        payload: parsed,
+      };
+    }
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {
+        status: "invalid",
+        message: "Save root must be a JSON object.",
+        payload: null,
+      };
+    }
+
+    return {
+      status: "valid",
+      message: "JSON parsed. Server will attempt best-effort recovery.",
+      payload: parsed,
+    };
+  }, [saveJson]);
+
+  const handleLoadSave = useCallback(async () => {
+    if (isLoadingSave) return;
+    if (saveValidation.status !== "valid") {
+      setSaveLoadServerError("Paste a valid save JSON first.");
+      return;
+    }
+
+    setIsLoadingSave(true);
+    setSaveLoadServerError(null);
+
+    try {
+      let imported: { gameId: string; rulesId: string } | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          imported = await importGameSave(saveValidation.payload);
+          break;
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "Failed to load save.";
+          if (
+            attempt === 0 &&
+            message.toLowerCase().includes("leave the current game")
+          ) {
+            leaveGame();
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!imported) {
+        throw new Error("Failed to load save.");
+      }
+
+      setIsLoadPanelOpen(false);
+      setSaveJson("");
+      setAiLogVisible(false);
+
+      const nextPath = `/${encodeURIComponent(imported.rulesId)}/${encodeURIComponent(imported.gameId)}`;
+      window.location.assign(nextPath);
+    } catch (err) {
+      setSaveLoadServerError(
+        err instanceof Error ? err.message : "Failed to load save."
+      );
+    } finally {
+      setIsLoadingSave(false);
+    }
+  }, [isLoadingSave, saveValidation, setAiLogVisible]);
+
   // Close on Escape for AI Log
   useEffect(() => {
     if (!isAiLogVisible) return;
@@ -255,6 +434,13 @@ export function GameHUD({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isAiLogVisible, setAiLogVisible]);
 
+  useEffect(() => {
+    if (isAiLogVisible) return;
+    setIsLoadPanelOpen(false);
+    setSaveJson("");
+    setSaveLoadServerError(null);
+  }, [isAiLogVisible]);
+
   return (
     <>
       <GameMenu
@@ -265,9 +451,6 @@ export function GameHUD({
         isGodMode={isGodMode}
         onToggleGodMode={handleToggleGodMode}
         onRestartHand={() => setConfirmType("restartHand")}
-        onCopySaveJson={handleCopySaveJson}
-        isCopyingSaveJson={isCopyingSaveJson}
-        isSaveCopySuccess={isSaveCopySuccess}
         onExit={() => setConfirmType("exit")}
         onAbout={() => {
           safeStartViewTransition(() => setIsMenuOpen(false));
@@ -360,38 +543,128 @@ export function GameHUD({
           >
             <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="ai-log-title text-sm font-bold text-indigo-600 uppercase tracking-wide">
-                    Game log
-                  </span>
-                  <div className="flex gap-1.5 flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
-                        Game
-                      </span>
-                      <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
-                        <span className="ai-log-meta-value font-sans text-xs text-ink">
-                          {displayName}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="ai-log-title text-sm font-bold text-indigo-600 uppercase tracking-wide">
+                      Game log
+                    </span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                          Game
                         </span>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
-                        Room ID
-                      </span>
-                      <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
-                        {gameId}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
-                        Seed
-                      </span>
-                      <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
-                        {seed}
-                      </span>
+                        <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                          <span className="ai-log-meta-value font-sans text-xs text-ink">
+                            {displayName}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                          Room ID
+                        </span>
+                        <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                          {gameId}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="ai-log-meta-label text-2xs text-ink-muted uppercase font-bold">
+                          Seed
+                        </span>
+                        <span className="ai-log-meta-value font-mono text-xs text-ink bg-surface-2 px-1.5 py-0.5 rounded">
+                          {seed}
+                        </span>
+                      </div>
+                      <label className="flex items-center gap-2 pl-2">
+                        <input
+                          type="checkbox"
+                          checked={showAiEvents}
+                          onChange={(event) =>
+                            setShowAiEvents(event.target.checked)
+                          }
+                          className="h-3.5 w-3.5 rounded border border-surface-4"
+                        />
+                        <span className="text-2xs text-ink-muted uppercase font-bold tracking-wide">
+                          Show AI events
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopySaveJson()}
+                        disabled={isCopyingSaveJson}
+                        className="px-2 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-bold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isCopyingSaveJson
+                          ? "Exporting..."
+                          : isSaveCopySuccess
+                            ? "Exported"
+                            : "Export"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsLoadPanelOpen((open) => !open);
+                          setSaveLoadServerError(null);
+                        }}
+                        className="px-2 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-bold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors"
+                      >
+                        Import
+                      </button>
                     </div>
                   </div>
+                  {isLoadPanelOpen && (
+                    <div className="rounded-md border border-surface-3 bg-surface-1 p-2 w-full max-w-[820px]">
+                      <textarea
+                        value={saveJson}
+                        onChange={(event) => {
+                          setSaveJson(event.target.value);
+                          setSaveLoadServerError(null);
+                        }}
+                        placeholder="Paste save JSON"
+                        rows={5}
+                        className="w-full resize-y rounded border border-surface-3 bg-surface-1 px-2 py-1.5 text-xs font-mono text-ink placeholder:text-ink-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+                      />
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleLoadSave()}
+                          disabled={
+                            isLoadingSave || saveValidation.status !== "valid"
+                          }
+                          className="px-2.5 py-1 rounded border border-surface-3 bg-surface-2 text-2xs font-bold uppercase tracking-wide text-ink hover:bg-surface-3 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {isLoadingSave ? "Importing..." : "Import"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsLoadPanelOpen(false);
+                            setSaveLoadServerError(null);
+                          }}
+                          disabled={isLoadingSave}
+                          className="px-2.5 py-1 rounded border border-surface-3 bg-surface-1 text-2xs font-semibold uppercase tracking-wide text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <span
+                          className={`text-2xs ${
+                            saveValidation.status === "valid"
+                              ? "text-green-700"
+                              : saveValidation.status === "invalid"
+                                ? "text-red-600"
+                                : "text-ink-muted"
+                          }`}
+                        >
+                          {saveValidation.message}
+                        </span>
+                      </div>
+                      {saveLoadServerError && (
+                        <p className="mt-2 text-2xs text-red-600">
+                          {saveLoadServerError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -400,6 +673,9 @@ export function GameHUD({
                   className="button-base button-icon text-ink-muted hover:text-ink"
                   onClick={() => {
                     let logContent = `Game log: ${displayName} (room id: ${gameId}, seed ${seed})\n\n`;
+                    if (showAiEvents) {
+                      logContent += "AI events: included\n\n";
+                    }
 
                     for (const {
                       turnNumber,
@@ -411,11 +687,25 @@ export function GameHUD({
                         playerId
                       )}\n`;
                       for (const entry of entries) {
+                        if (entry.source === "game") {
+                          if (entry.timestamp) {
+                            const time = formatTimestampWithMs(entry.timestamp);
+                            logContent += `${time} ${entry.message}\n`;
+                          } else {
+                            const prefix = entry.kind
+                              ? `[${entry.kind}] `
+                              : "[event] ";
+                            logContent += `${prefix}${entry.message}\n`;
+                          }
+                          continue;
+                        }
+
+                        const aiEntry = entry.entry;
                         const time = formatTimestampWithMs(
-                          entry.timestamp ?? ""
+                          aiEntry.timestamp ?? ""
                         );
-                        const details = parseAiLogDetails(entry.details);
-                        logContent += `${time} ${details ? formatAiLogDetailsForCopy(details, entry.message) : entry.message}\n`;
+                        const details = parseAiLogDetails(aiEntry.details);
+                        logContent += `${time} ${details ? formatAiLogDetailsForCopy(details, aiEntry.message) : aiEntry.message}\n`;
                       }
                       logContent += "\n";
                     }
@@ -454,6 +744,14 @@ export function GameHUD({
               onScroll={handleAiLogScroll}
             >
               <div className="px-4 py-3 w-fit min-w-full">
+                {showAiEvents &&
+                  aiHistoricalUnavailable &&
+                  aiLog.length === 0 && (
+                    <div className="mb-3 rounded border border-surface-3 bg-surface-1 px-3 py-2 text-[11px] text-ink-muted">
+                      Historical AI telemetry is unavailable for this session.
+                      New AI events will appear as play continues.
+                    </div>
+                  )}
                 {groupedByTurn.length === 0 ? (
                   <div className="text-ink-muted px-1">
                     No game log entries yet.
@@ -471,22 +769,60 @@ export function GameHUD({
                           </div>
                           <ul className="px-4 py-2 space-y-1">
                             {entries.map((entry, idx) => {
+                              if (entry.source === "game") {
+                                return (
+                                  <li
+                                    key={`${entry.source}-${entry.order}-${idx}`}
+                                    className="grid grid-cols-[20px_92px_92px_minmax(0,1fr)] lg:grid-cols-[22px_124px_92px_minmax(0,1fr)] gap-x-2 lg:gap-x-3 gap-y-0.5 items-start"
+                                  >
+                                    <button
+                                      type="button"
+                                      className="button-base button-ghost text-ink-muted hover:text-ink h-5 w-5 p-0 self-start"
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        handleCopy(
+                                          entry.message,
+                                          "Game log entry"
+                                        );
+                                      }}
+                                      aria-label="Copy game log entry"
+                                    >
+                                      📋
+                                    </button>
+                                    <span className="text-ink-muted tabular-nums leading-5">
+                                      {formatGameLogTimestamp(entry.timestamp)}
+                                    </span>
+                                    <span className="text-[10px] leading-5 uppercase tracking-wide text-ink-muted/80 whitespace-nowrap">
+                                      {(entry.kind ?? "event").toUpperCase()}
+                                    </span>
+                                    <div className="col-start-2 col-span-3 lg:col-auto lg:col-span-1 text-ink break-words leading-5 min-w-0">
+                                      {entry.message}
+                                      {entry.imported ? (
+                                        <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-700/90 align-middle whitespace-nowrap">
+                                          Imported
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                );
+                              }
+
                               const time = formatTimestampWithMs(
-                                entry.timestamp ?? ""
+                                entry.entry.timestamp ?? ""
                               );
-                              const details = parseAiLogDetails(entry.details);
+                              const details = parseAiLogDetails(
+                                entry.entry.details
+                              );
 
                               return (
                                 <li
-                                  key={`${entry.timestamp ?? idx}-${idx}`}
-                                  className="flex gap-2 items-start"
+                                  key={`${entry.source}-${entry.entry.timestamp ?? idx}-${idx}`}
+                                  className="grid grid-cols-[20px_92px_92px_minmax(0,1fr)] lg:grid-cols-[22px_124px_92px_minmax(0,1fr)] gap-x-2 lg:gap-x-3 gap-y-0.5 items-start"
                                 >
-                                  <span className="text-ink-muted shrink-0 tabular-nums w-[96px]">
-                                    {time}
-                                  </span>
                                   <button
                                     type="button"
-                                    className="button-base button-ghost text-ink-muted hover:text-ink shrink-0 self-start ml-1"
+                                    className="button-base button-ghost text-ink-muted hover:text-ink h-5 w-5 p-0 self-start"
                                     onClick={(event) => {
                                       event.preventDefault();
                                       event.stopPropagation();
@@ -494,9 +830,9 @@ export function GameHUD({
                                         details
                                           ? getAiLogCopyPayload(
                                               details,
-                                              entry.message
+                                              entry.entry.message
                                             )
-                                          : entry.message,
+                                          : entry.entry.message,
                                         "Game log entry"
                                       );
                                     }}
@@ -504,13 +840,19 @@ export function GameHUD({
                                   >
                                     📋
                                   </button>
-                                  <div className="flex-1 text-ink break-words">
+                                  <span className="text-ink-muted tabular-nums leading-5">
+                                    {time}
+                                  </span>
+                                  <span className="text-[10px] leading-5 uppercase tracking-wide text-ink-muted/80 whitespace-nowrap">
+                                    AI
+                                  </span>
+                                  <div className="col-start-2 col-span-3 lg:col-auto lg:col-span-1 text-ink break-words min-w-0">
                                     {details
                                       ? renderAiLogDetails(
                                           details,
-                                          entry.message
+                                          entry.entry.message
                                         )
-                                      : entry.message}
+                                      : entry.entry.message}
                                   </div>
                                 </li>
                               );
@@ -579,6 +921,17 @@ type AiLogDetails =
 
 function isRenderableAiLogEntry(entry: AiLogEntry): boolean {
   return !!entry.message || parseAiLogDetails(entry.details) !== null;
+}
+
+function shouldRenderAiLogEntry(entry: AiLogEntry): boolean {
+  if (!isRenderableAiLogEntry(entry)) return false;
+  const details = parseAiLogDetails(entry.details);
+  // The deterministic game log already includes canonical executed actions and
+  // moves. Hide mirrored AI telemetry `game-intent` rows to avoid duplicates.
+  if (details?.kind === "game-intent") {
+    return false;
+  }
+  return true;
 }
 
 function parseAiLogDetails(details: unknown): AiLogDetails | null {
@@ -925,6 +1278,11 @@ function toCompactJson(value: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+function formatGameLogTimestamp(timestamp?: string): string {
+  if (!timestamp) return "--:--:--.---";
+  return formatTimestampWithMs(timestamp);
 }
 
 function formatTimestampWithMs(value: string): string {

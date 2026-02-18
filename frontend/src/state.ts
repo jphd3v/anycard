@@ -2,7 +2,7 @@ import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import { DEFAULT_CARD_SET, type CardSetId } from "./cardSets";
-import type { GameView, SeatStatus } from "../../shared/schemas";
+import type { GameLogEntry, GameView, SeatStatus } from "../../shared/schemas";
 import type { AiLogEntry } from "../../shared/ai-log";
 export type { AiLogEntry };
 
@@ -50,6 +50,10 @@ export type RecentGameEntry = {
 
 export type RuleEngineMode = "code";
 export type AiRuntimePreference = "backend" | "frontend" | "off";
+export type BackendRuntimeInfo = {
+  commitHash: string;
+  commitUnixTs: number | null;
+};
 
 export type StatusTone = "success" | "error" | "neutral" | "warning";
 export type StatusSource = "app" | "engine" | "ai";
@@ -109,6 +113,8 @@ export const recentGamesAtom = atomWithStorage<RecentGameEntry[]>(
 );
 
 export const aiLogAtom = atom<AiLogEntry[]>([]);
+export const aiHistoricalUnavailableAtom = atom<boolean>(false);
+export const gameLogAtom = atom<GameLogEntry[]>([]);
 export const aiLogVisibleAtom = atom(false);
 export const isMenuOpenAtom = atom(false);
 export const isActionsOpenAtom = atom(false);
@@ -192,6 +198,7 @@ export const frontendAiSponsorsAtom = atomWithStorage<Record<string, string[]>>(
 
 export const serverAiEnabledAtom = atom<boolean>(false);
 export const aiShowExceptionsAtom = atom<boolean>(false);
+export const backendRuntimeAtom = atom<BackendRuntimeInfo | null>(null);
 
 export const freeDragEnabledAtom = atomWithStorage<boolean>(
   "free-drag-enabled",

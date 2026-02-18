@@ -3,6 +3,7 @@ import type {
   ActiveGameSummary,
   AiRuntimePreference,
   AvailableGame,
+  BackendRuntimeInfo,
   RuleEngineMode,
 } from "../state";
 import {
@@ -21,6 +22,7 @@ type UseLobbyDataOptions = {
   setRuleEngineMode: SetState<RuleEngineMode>;
   setServerAiEnabled: SetState<boolean>;
   setAiShowExceptions: SetState<boolean>;
+  setBackendRuntime: SetState<BackendRuntimeInfo | null>;
   isLobbyView: boolean;
 };
 
@@ -38,6 +40,7 @@ export function useLobbyData({
   setRuleEngineMode,
   setServerAiEnabled,
   setAiShowExceptions,
+  setBackendRuntime,
   isLobbyView,
 }: UseLobbyDataOptions): UseLobbyDataResult {
   const [isLobbyLoading, setIsLobbyLoading] = useState(true);
@@ -64,6 +67,7 @@ export function useLobbyData({
       // Game Log is always enabled for all games.
       // config.llmShowPromptsInFrontend determines if we get detailed AI internals for backend AI.
       setAiShowExceptions(config.llmShowExceptionsInFrontend ?? false);
+      setBackendRuntime(config.backendRuntime ?? null);
 
       // Handle AI Runtime Preference Defaults
       const storedPref = window.localStorage.getItem("ai-runtime-preference");
@@ -105,6 +109,7 @@ export function useLobbyData({
     setAvailableGames,
     setRuleEngineMode,
     setServerAiEnabled,
+    setBackendRuntime,
   ]);
 
   useEffect(() => {

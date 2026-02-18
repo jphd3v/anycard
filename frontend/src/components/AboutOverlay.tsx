@@ -2,22 +2,39 @@ import { useEffect, useCallback } from "react";
 import { Overlay } from "./Overlay";
 import { copyToClipboard } from "../utils/clipboard";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
+import type { BackendRuntimeInfo } from "../state";
 
 interface Props {
   onClose: () => void;
   showBackArrow?: boolean;
+  backendRuntime: BackendRuntimeInfo | null;
 }
 
-export function AboutOverlay({ onClose, showBackArrow = false }: Props) {
+function formatUnixTs(unixTs: number | null): string {
+  if (unixTs == null) return "n/a";
+  try {
+    return new Date(unixTs * 1000).toISOString().slice(0, 16).replace("T", " ");
+  } catch {
+    return "n/a";
+  }
+}
+
+export function AboutOverlay({
+  onClose,
+  showBackArrow = false,
+  backendRuntime,
+}: Props) {
   const commitHash =
     typeof __COMMIT_HASH__ !== "undefined" ? __COMMIT_HASH__ : "dev";
   const commitDate =
     typeof __COMMIT_DATE__ !== "undefined" ? __COMMIT_DATE__ : "";
+  const backendCommitHash = backendRuntime?.commitHash ?? "unknown";
+  const backendCommitDate = formatUnixTs(backendRuntime?.commitUnixTs ?? null);
 
   const handleCopyVersion = useCallback(async () => {
-    const text = `version #${commitHash} ${commitDate}`;
+    const text = `frontend #${commitHash} ${commitDate} UTC\nbackend #${backendCommitHash} ${backendCommitDate !== "n/a" ? backendCommitDate : ""} UTC`;
     await copyToClipboard(text);
-  }, [commitHash, commitDate]);
+  }, [backendCommitDate, backendCommitHash, commitDate, commitHash]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -283,7 +300,10 @@ export function AboutOverlay({ onClose, showBackArrow = false }: Props) {
             className="about-modal-version font-mono text-2xs text-ink-muted opacity-60 truncate px-2 hover:text-ink hover:opacity-100 transition-all cursor-pointer focus:outline-none active:scale-95"
             title="Click to copy version info"
           >
-            version #{commitHash} {commitDate}
+            frontend #{commitHash} {commitDate} UTC
+            <br />
+            backend #{backendCommitHash}{" "}
+            {backendCommitDate !== "n/a" ? backendCommitDate : ""} UTC
           </button>
           <button
             onClick={onClose}

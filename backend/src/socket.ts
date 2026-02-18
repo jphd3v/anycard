@@ -3,10 +3,12 @@ import { z } from "zod";
 import type {
   ClientIntent,
   GameEvent,
+  GameLogFetchAck,
   GameSaveExportAck,
   GameSaveImportAck,
   GameState,
   LastAction,
+  PersistedExecutedIntent,
   PersistedGameEvent,
   SeatStatus,
 } from "../../shared/schemas.js";
@@ -19,8 +21,10 @@ import type { ValidationResult, EngineEvent } from "../../shared/validation.js";
 import { loadAndValidateGameConfig } from "./game-config.js";
 import {
   appendEvent,
+  appendExecutedIntentFromClientIntent,
   applyEvent,
   getEvents,
+  getExecutedIntents,
   getInitialState,
   initGame,
   projectState,
@@ -34,6 +38,11 @@ import {
   trimFinishedGamesNow,
   getHumanTurnNumber,
   getViewSalt,
+  setExecutedIntents,
+  getImportedEventCount,
+  getImportedExecutedIntentCount,
+  setImportedEventCount,
+  setImportedExecutedIntentCount,
 } from "./state.js";
 import { forceRunAiTurnOnce, maybeScheduleAiTurn } from "./ai/ai-scheduler.js";
 import { getWarmupWarningMessage } from "./ai/ai-llm-policy.js";
@@ -42,7 +51,8 @@ import { listLegalIntentsForView, validateMove } from "./rule-engine.js";
 import { generateGameId } from "./util/game-id.js";
 import {
   appendAiLogEntry,
-  getAiLog,
+  getAiLogSnapshot,
+  markHistoricalAiTelemetryUnavailable,
   initAiLogIo,
   sendGameStatus,
   type AiLogEntry,
@@ -52,6 +62,11 @@ import { resolveEngineCardId, toViewCardId } from "./view-ids.js";
 import { applyLegalActionsToView } from "./util/actions.js";
 import { getSuitSymbol } from "./util/card-notation.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
+import { getBackendBuildInfo } from "./build-info.js";
+import { buildGameSaveFormat } from "./save-fingerprint.js";
+import { parseSaveSnapshotForImport } from "./save-import.js";
+import { buildDeterministicGameLog } from "./game-log.js";
+import { resolveEventAttribution } from "./event-attribution.js";
 
 // Module-scoped state
 type PlayerRole = "player" | "spectator";
@@ -483,6 +498,22 @@ function seatKey(gameId: string, playerId: string): string {
 
 type GameSaveExportCallback = (response: GameSaveExportAck) => void;
 type GameSaveImportCallback = (response: GameSaveImportAck) => void;
+type GameLogFetchCallback = (response: GameLogFetchAck) => void;
+
+function buildExportInitialState(initialState: GameState): GameState {
+  const cards = Object.fromEntries(
+    Object.entries(initialState.cards).map(([cardId, card]) => {
+      const cardWithoutLabel = { ...card };
+      delete cardWithoutLabel.label;
+      return [cardId, cardWithoutLabel];
+    })
+  ) as GameState["cards"];
+
+  return {
+    ...initialState,
+    cards,
+  };
+}
 
 function buildGameSaveSnapshot(gameId: string) {
   const initialState = getInitialState(gameId);
@@ -490,18 +521,60 @@ function buildGameSaveSnapshot(gameId: string) {
     return null;
   }
 
+  const buildInfo = getBackendBuildInfo();
+
   const events: PersistedGameEvent[] = getEvents(gameId).map((event) => {
     return Object.fromEntries(
-      Object.entries(event).filter(([key]) => key !== "id" && key !== "gameId")
+      Object.entries(event).filter(([key]) => key !== "gameId")
     ) as PersistedGameEvent;
   });
+  const executedIntents: PersistedExecutedIntent[] = getExecutedIntents(gameId);
 
   return {
-    version: 1 as const,
     exportedAt: new Date().toISOString(),
-    initialState,
+    origin: {
+      backendCommitHash: buildInfo.commitHash,
+      backendCommitUnixTs: buildInfo.commitUnixTs,
+    },
+    format: buildGameSaveFormat(initialState),
+    initialState: buildExportInitialState(initialState),
     events,
+    ...(executedIntents.length > 0 ? { executedIntents } : {}),
   };
+}
+
+function resolveGameLogViewerId(socketId: string, gameId: string): string {
+  const registryEntry = playerRegistry.get(socketId);
+  if (registryEntry && registryEntry.gameId === gameId) {
+    if (registryEntry.isGodMode) return "__god__";
+    if (registryEntry.role === "spectator") return "__spectator__";
+    return registryEntry.playerId;
+  }
+
+  if (watchRegistry.get(socketId) === gameId) {
+    return "__spectator__";
+  }
+
+  // Defensive fallback for unexpected states after access checks.
+  return "__spectator__";
+}
+
+function buildGameLogEntries(gameId: string, viewerId: string) {
+  const initialState = getInitialState(gameId);
+  if (!initialState) {
+    return null;
+  }
+  const events = getEvents(gameId);
+  const executedIntents = getExecutedIntents(gameId);
+  const plugin = GAME_PLUGINS[initialState.rulesId];
+  const importedEventCount = getImportedEventCount(gameId);
+  const importedExecutedIntentCount = getImportedExecutedIntentCount(gameId);
+  return buildDeterministicGameLog(initialState, events, plugin, {
+    importedEventCount,
+    importedExecutedIntentCount,
+    executedIntents,
+    viewerId,
+  });
 }
 
 function hasGameAccess(socketId: string, gameId: string): boolean {
@@ -1352,13 +1425,17 @@ export function initSocket(io: Server) {
           return;
         }
 
-        const parsed = GameSaveSnapshotSchema.safeParse(rawSnapshot);
-        if (!parsed.success) {
-          respondError("Invalid save JSON payload");
+        const parsed = parseSaveSnapshotForImport(rawSnapshot);
+        if (!parsed.ok) {
+          respondError(parsed.message);
           return;
         }
 
-        const snapshot = parsed.data;
+        const {
+          snapshot,
+          mode: parseMode,
+          warnings: parseWarnings,
+        } = parsed.parsed;
         const rulesId = snapshot.initialState.rulesId;
         if (!GAME_PLUGINS[rulesId]) {
           respondError(`Unsupported rules id in save: ${rulesId}`);
@@ -1386,14 +1463,22 @@ export function initSocket(io: Server) {
           let workingState = initialState;
           for (let idx = 0; idx < snapshot.events.length; idx += 1) {
             const persistedEvent = snapshot.events[idx];
+            const { id: persistedId, ...persistedEventPayload } =
+              persistedEvent;
             const event = GameEventSchema.parse({
-              id: idx + 1,
+              id: persistedId ?? idx + 1,
               gameId,
-              ...persistedEvent,
+              ...persistedEventPayload,
             });
             workingState = applyEvent(workingState, event);
             appendEvent(gameId, event);
           }
+          setExecutedIntents(gameId, snapshot.executedIntents ?? []);
+          setImportedEventCount(gameId, snapshot.events.length);
+          setImportedExecutedIntentCount(
+            gameId,
+            snapshot.executedIntents?.length ?? 0
+          );
         } catch (error) {
           closeGame(gameId);
           const message =
@@ -1404,6 +1489,7 @@ export function initSocket(io: Server) {
 
         setRoomType(gameId, "private");
         clearPendingClose(gameId);
+        markHistoricalAiTelemetryUnavailable(gameId);
 
         socket.join(gameId);
         sendSeatStatus(socket, gameId);
@@ -1412,6 +1498,25 @@ export function initSocket(io: Server) {
           rulesId: initialState.rulesId,
           seed: initialState.seed,
         });
+
+        if (parseMode === "lax") {
+          socket.emit("game:status", {
+            message: "Save loaded with best-effort recovery mode.",
+            tone: "warning",
+            source: "engine",
+          });
+        }
+        for (const warning of parseWarnings) {
+          socket.emit("game:status", {
+            message: warning,
+            tone: "warning",
+            source: "engine",
+          });
+        }
+
+        // Resume backend AI flow immediately after import when the imported
+        // state is on a backend-controlled seat's turn.
+        maybeScheduleAiTurn(gameId, broadcastStateToGame);
 
         cb?.({ ok: true, gameId, rulesId: initialState.rulesId });
       }
@@ -1909,15 +2014,22 @@ export function initSocket(io: Server) {
 
           const turnNumberForLog = getHumanTurnNumber(gameId);
           let workingState: GameState = state;
+          const attributionContext = { directMoveAssigned: false };
           const appliedEngineEvents: EngineEvent[] = [];
 
           for (const ev of validation.engineEvents ?? []) {
             let dealerEvent: GameEvent;
             try {
+              const attribution = resolveEventAttribution(
+                intentForEngine,
+                ev,
+                attributionContext
+              );
               dealerEvent = GameEventSchema.parse({
                 id: Date.now(),
                 gameId: intent.gameId,
-                playerId: null,
+                playerId: intentForEngine.playerId,
+                ...attribution,
                 ...ev,
               });
             } catch (error) {
@@ -2011,6 +2123,11 @@ export function initSocket(io: Server) {
           );
 
           appendGameLogIntent(state, intentForEngine, turnNumberForLog);
+          appendExecutedIntentFromClientIntent(
+            intent.gameId,
+            intentForEngine,
+            turnNumberForLog
+          );
 
           // Check if we need to schedule an AI turn after successful move
           setTimeout(() => {
@@ -2611,17 +2728,62 @@ export function initSocket(io: Server) {
       "game:get-ai-log",
       (
         payload: { gameId: string },
-        cb?: (data: { gameId: string; entries: AiLogEntry[] }) => void
+        cb?: (data: {
+          gameId: string;
+          entries: AiLogEntry[];
+          historicalUnavailable?: boolean;
+        }) => void
       ) => {
         const { gameId } = payload;
-        const entries = getAiLog(gameId);
-        const response = { gameId, entries };
+        const { entries, historicalUnavailable } = getAiLogSnapshot(gameId);
+        const response = { gameId, entries, historicalUnavailable };
 
         if (cb) {
           cb(response);
         } else {
           socket.emit("game:ai-log", response);
         }
+      }
+    );
+
+    socket.on(
+      "game:get-log",
+      (
+        payload: { gameId?: unknown } | undefined,
+        cb?: GameLogFetchCallback
+      ) => {
+        const respond = (response: GameLogFetchAck) => {
+          if (cb) {
+            cb(response);
+            return;
+          }
+          socket.emit("game:log", response);
+        };
+
+        const gameId = payload?.gameId;
+        if (typeof gameId !== "string" || gameId.trim() === "") {
+          respond({ ok: false, message: "Invalid game log payload" });
+          return;
+        }
+
+        if (!hasGameAccess(socket.id, gameId)) {
+          respond({ ok: false, message: "You are not joined to this game" });
+          return;
+        }
+
+        const viewerId = resolveGameLogViewerId(socket.id, gameId);
+        const entries = buildGameLogEntries(gameId, viewerId);
+        if (!entries) {
+          respond({ ok: false, message: "Game not found" });
+          return;
+        }
+
+        respond({
+          ok: true,
+          gameId,
+          generatedAt: new Date().toISOString(),
+          entries,
+        });
       }
     );
 
