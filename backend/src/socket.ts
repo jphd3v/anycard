@@ -1782,23 +1782,6 @@ export function initSocket(io: Server) {
 
           let intentForEngine: ClientIntent = effectiveIntent;
           if (effectiveIntent.type === "move") {
-            // Verify player can see the pile they're moving from
-            const fromPile = state.piles[effectiveIntent.fromPileId];
-            if (
-              fromPile &&
-              !isPileVisibleToPlayer(fromPile, effectiveIntent.playerId)
-            ) {
-              const reason = "Cannot move from hidden pile";
-              socket.emit("game:validation", {
-                valid: false,
-                reason,
-                nextPlayer: null,
-                source: "app",
-              });
-              socket.emit("game:invalid", { reason });
-              return;
-            }
-
             const viewSalt = getViewSalt(gameId);
             const viewerKey = effectiveIntent.playerId;
             const viewToEngineCardId = (viewCardId: number): number | null =>
