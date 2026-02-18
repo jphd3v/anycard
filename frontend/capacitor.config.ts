@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const insecureMobileMode = process.env.MOBILE_INSECURE === "true";
 
 const config: CapacitorConfig = {
-  appId: "io.jph",
+  appId: "app.anycard.game",
   appName: "Anycard",
   webDir: "dist",
   server: {

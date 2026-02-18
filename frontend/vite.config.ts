@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -44,16 +44,86 @@ const commitDate = (() => {
   return buildTimestamp;
 })();
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  define: {
-    __COMMIT_HASH__: JSON.stringify(commitHash),
-    __COMMIT_DATE__: JSON.stringify(commitDate),
-  },
-  server: {
-    host: true,
-    fs: {
-      allow: [workspaceRoot],
+function isLocalhostLikeHost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1"
+  );
+}
+
+function validateSupabaseEnvForProductionBuild(
+  command: "build" | "serve",
+  mode: string
+): void {
+  if (command !== "build" || mode !== "production") {
+    return;
+  }
+
+  const loadedEnv = loadEnv(mode, process.cwd(), "");
+  const resolvedEnv = { ...loadedEnv, ...process.env };
+
+  const supabaseUrl = resolvedEnv.VITE_SUPABASE_URL?.trim();
+  const supabaseKey = resolvedEnv.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const supabaseRedirectTo =
+    resolvedEnv.VITE_SUPABASE_EMAIL_REDIRECT_TO?.trim();
+  const anySupabaseEnvSet = Boolean(
+    supabaseUrl || supabaseKey || supabaseRedirectTo
+  );
+
+  if (!anySupabaseEnvSet) {
+    return;
+  }
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      "Invalid Supabase env configuration: set both VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY for production builds."
+    );
+  }
+
+  if (!supabaseRedirectTo) {
+    throw new Error(
+      "Invalid Supabase env configuration: set VITE_SUPABASE_EMAIL_REDIRECT_TO to your public HTTPS app URL for production builds."
+    );
+  }
+
+  let parsedRedirectTo: URL;
+  try {
+    parsedRedirectTo = new URL(supabaseRedirectTo);
+  } catch {
+    throw new Error(
+      "Invalid Supabase env configuration: VITE_SUPABASE_EMAIL_REDIRECT_TO must be a full URL."
+    );
+  }
+
+  if (parsedRedirectTo.protocol !== "https:") {
+    throw new Error(
+      "Invalid Supabase env configuration: VITE_SUPABASE_EMAIL_REDIRECT_TO must use https:// in production builds."
+    );
+  }
+
+  if (isLocalhostLikeHost(parsedRedirectTo.hostname)) {
+    throw new Error(
+      "Invalid Supabase env configuration: VITE_SUPABASE_EMAIL_REDIRECT_TO cannot point to localhost in production builds."
+    );
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
+  validateSupabaseEnvForProductionBuild(command, mode);
+
+  return {
+    plugins: [react(), tailwindcss()],
+    define: {
+      __COMMIT_HASH__: JSON.stringify(commitHash),
+      __COMMIT_DATE__: JSON.stringify(commitDate),
     },
-  },
+    server: {
+      host: true,
+      fs: {
+        allow: [workspaceRoot],
+      },
+    },
+  };
 });

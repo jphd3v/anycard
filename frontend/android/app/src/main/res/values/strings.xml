@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Anycard</string>
     <string name="title_activity_main">Anycard</string>
-    <string name="package_name">io.jph</string>
-    <string name="custom_url_scheme">io.jph</string>
+    <string name="package_name">app.anycard.game</string>
+    <string name="custom_url_scheme">app.anycard.game</string>
 </resources>

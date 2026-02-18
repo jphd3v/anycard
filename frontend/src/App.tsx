@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 import { FullScreenMessage } from "./components/FullScreenMessage";
 import { TestHUD } from "./components/TestHUD";
 import { selectedCardAtom } from "./state";
@@ -79,6 +81,7 @@ import type {
   AnnounceAnchor,
 } from "../../shared/schemas";
 import {
+  formatMagicLinkSentMessage,
   INVALID_EMAIL_MESSAGE,
   INVALID_API_KEY_MESSAGE,
 } from "./auth/messages";
@@ -112,6 +115,7 @@ import {
   MAX_RECENT_GAMES,
 } from "./app/constants";
 import {
+  consumeSupabaseAuthCallbackFromUrl,
   getGuestId,
   signInWithEmailMagicLink,
   signOutSupabaseIdentity,
@@ -128,6 +132,7 @@ type PendingAnnouncement = {
   anchorKey: string;
   durationMs: number;
 };
+type AuthMessageTone = "error" | "success" | "neutral";
 
 const MAX_ANNOUNCEMENT_QUEUE_SIZE = 12;
 const ANNOUNCEMENT_BURST_WINDOW_MS = 350;
@@ -143,6 +148,53 @@ function getAnnouncementAnchorKey(anchor?: AnnounceAnchor): string {
 
 function isDeadlockAssertionMessage(message: string): boolean {
   return message.includes(DEADLOCK_ASSERT_PREFIX);
+}
+
+function toAppPathFromIncomingUrl(
+  rawUrl: string,
+  stripAuthCallbackParams = false
+): string | null {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      if (stripAuthCallbackParams) {
+        parsed.searchParams.delete("code");
+        parsed.searchParams.delete("type");
+        parsed.searchParams.delete("expires_in");
+        parsed.searchParams.delete("expires_at");
+        parsed.searchParams.delete("refresh_token");
+        parsed.searchParams.delete("token_type");
+        parsed.searchParams.delete("access_token");
+        parsed.searchParams.delete("token_hash");
+        parsed.searchParams.delete("sb");
+        parsed.searchParams.delete("provider_token");
+        parsed.searchParams.delete("provider_refresh_token");
+        parsed.hash = "";
+      }
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function hasSupabaseAuthCallbackParams(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (
+      parsed.searchParams.has("token_hash") ||
+      parsed.searchParams.has("code")
+    ) {
+      return true;
+    }
+
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+    return hashParams.has("access_token") || hashParams.has("refresh_token");
+  } catch {
+    return false;
+  }
 }
 
 export default function App() {
@@ -693,6 +745,82 @@ export default function App() {
   } | null>(null);
 
   useEffect(() => {
+    if (Capacitor.getPlatform() !== "android") {
+      return;
+    }
+
+    let disposed = false;
+    const applyIncomingUrl = async (rawUrl: string) => {
+      const consumedAuthCallback =
+        await consumeSupabaseAuthCallbackFromUrl(rawUrl);
+      const targetPath = toAppPathFromIncomingUrl(rawUrl, consumedAuthCallback);
+      if (!targetPath) return;
+
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (targetPath === currentPath) return;
+
+      window.history.replaceState({}, "", targetPath);
+      try {
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      } catch {
+        window.dispatchEvent(new Event("popstate"));
+      }
+    };
+
+    void CapacitorApp.getLaunchUrl()
+      .then((launch) => {
+        if (!disposed && launch?.url) {
+          void applyIncomingUrl(launch.url);
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn("Failed to process launch deep link", error);
+      });
+
+    const listenerPromise = CapacitorApp.addListener("appUrlOpen", (event) => {
+      if (disposed || !event.url) return;
+      void applyIncomingUrl(event.url);
+    });
+
+    return () => {
+      disposed = true;
+      void listenerPromise
+        .then((listener) => listener.remove())
+        .catch(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "android") {
+      return;
+    }
+
+    const rawUrl = window.location.href;
+    if (!hasSupabaseAuthCallbackParams(rawUrl)) {
+      return;
+    }
+
+    const applyIncomingUrl = async () => {
+      const consumedAuthCallback =
+        await consumeSupabaseAuthCallbackFromUrl(rawUrl);
+      const targetPath = toAppPathFromIncomingUrl(rawUrl, consumedAuthCallback);
+      if (!targetPath) return;
+
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (targetPath === currentPath) return;
+
+      window.history.replaceState({}, "", targetPath);
+      try {
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      } catch {
+        window.dispatchEvent(new Event("popstate"));
+      }
+    };
+
+    void applyIncomingUrl();
+  }, []);
+
+  useEffect(() => {
     setRecentGames((prev) =>
       prev.map((entry) => {
         if (entry.roomType) {
@@ -747,6 +875,8 @@ export default function App() {
   });
   const [authEmailInput, setAuthEmailInput] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [authMessageTone, setAuthMessageTone] =
+    useState<AuthMessageTone>("neutral");
   const [authBusy, setAuthBusy] = useState(false);
 
   const isCurrentPlayerSeated =
@@ -758,6 +888,7 @@ export default function App() {
       setIdentityState(identity);
       if (identity.mode === "user") {
         setAuthMessage(null);
+        setAuthMessageTone("neutral");
       }
     });
     return unsubscribe;
@@ -1159,25 +1290,24 @@ export default function App() {
       setAuthMessage(
         "Supabase sign-in is not available on this server. Continue as guest."
       );
+      setAuthMessageTone("error");
       return;
     }
 
     const normalized = authEmailInput.trim().toLowerCase();
     if (!normalized) {
       setAuthMessage("Enter an email address first.");
+      setAuthMessageTone("error");
       return;
     }
 
     setAuthBusy(true);
     setAuthMessage(null);
+    setAuthMessageTone("neutral");
     try {
       await signInWithEmailMagicLink(normalized);
-      setAuthMessage(`Magic link sent to ${normalized}.`);
-      showStatus({
-        tone: "success",
-        message: `Magic link sent to ${normalized}`,
-        source: "app",
-      });
+      setAuthMessage(formatMagicLinkSentMessage(normalized));
+      setAuthMessageTone("success");
     } catch (error) {
       const rawMessage =
         error instanceof Error ? error.message : "Failed to send magic link";
@@ -1190,24 +1320,20 @@ export default function App() {
           ? INVALID_API_KEY_MESSAGE
           : rawMessage;
       setAuthMessage(visibleMessage);
-      if (!invalidEmailError && !invalidApiKeyError) {
-        showStatus({
-          tone: "error",
-          message: rawMessage,
-          source: "app",
-        });
-      }
+      setAuthMessageTone("error");
     } finally {
       setAuthBusy(false);
     }
-  }, [authEmailInput, serverIdentityEnabled, showStatus]);
+  }, [authEmailInput, serverIdentityEnabled]);
 
   const handleSignOutIdentity = useCallback(async () => {
     setAuthBusy(true);
     setAuthMessage(null);
+    setAuthMessageTone("neutral");
     try {
       await signOutSupabaseIdentity();
       setAuthMessage("Signed out. You are now playing as guest.");
+      setAuthMessageTone("success");
       showStatus({
         tone: "neutral",
         message: "Signed out",
@@ -1217,6 +1343,7 @@ export default function App() {
       const message =
         error instanceof Error ? error.message : "Sign out failed";
       setAuthMessage(message);
+      setAuthMessageTone("error");
       showStatus({
         tone: "error",
         message,
@@ -2134,6 +2261,7 @@ export default function App() {
             authEmail={authEmailInput}
             authBusy={authBusy}
             authMessage={authMessage}
+            authMessageTone={authMessageTone}
             onAuthEmailChange={(value) => setAuthEmailInput(value)}
             onSendMagicLink={handleSendMagicLink}
             onSignOut={handleSignOutIdentity}

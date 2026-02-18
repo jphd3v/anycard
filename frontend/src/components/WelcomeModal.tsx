@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Overlay } from "./Overlay";
 
 interface Props {
@@ -7,22 +6,11 @@ interface Props {
 }
 
 export function WelcomeModal({ onClose, onSignInClick }: Props) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   return (
     <Overlay
       translucent
       blurred
       className="items-center justify-center p-4 md:p-8"
-      onClick={onClose}
     >
       <div
         className="relative w-full max-w-md bg-surface-1 rounded-2xl shadow-floating flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-surface-3"

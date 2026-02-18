@@ -1,4 +1,4 @@
-package io.jph;
+package app.anycard.game;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

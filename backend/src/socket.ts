@@ -167,8 +167,7 @@ const seatClaimsLoadedForGameId = new Set<string>();
 const hostUserIdByGameId = new Map<string, string>();
 let seatClaimCleanupTimer: NodeJS.Timeout | null = null;
 const authRefreshTimestamps = new Map<string, number>();
-const NO_HUMAN_CLOSE_DELAY_MS = 5 * 60 * 1000;
-const DEMO_ABANDONED_RESET_DELAY_MS = 30 * 1000;
+const NO_HUMAN_CLOSE_DELAY_MS = 15 * 60 * 1000;
 const DEFAULT_DEMO_SEED = "ESC0Q0";
 const AUTH_REFRESH_COOLDOWN_MS = 30_000;
 const GUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
@@ -791,7 +790,12 @@ function shouldCloseGameForNoHumans(gameId: string): boolean {
   if (!state) return false;
 
   const { playerCount, spectatorCount } = countConnectedHumans(gameId);
-  return playerCount + spectatorCount === 0;
+  if (playerCount + spectatorCount > 0) {
+    return false;
+  }
+
+  // Keep abandoned unfinished games available for later resume.
+  return state.winner != null;
 }
 
 function maybeCloseAbandonedGame(io: Server, gameId: string): boolean {
@@ -804,13 +808,8 @@ function maybeCloseAbandonedGame(io: Server, gameId: string): boolean {
     return false;
   }
 
-  const isDemo = isDemoRoom(gameId);
-
-  // All games wait for timeout - this allows human players to reconnect
-  // even if they were playing against AI and minimized their browser
-  const delay = isDemo
-    ? DEMO_ABANDONED_RESET_DELAY_MS
-    : NO_HUMAN_CLOSE_DELAY_MS;
+  // Eligible abandoned games wait for timeout to allow reconnecting users.
+  const delay = NO_HUMAN_CLOSE_DELAY_MS;
 
   const timer = setTimeout(() => {
     pendingCloseTimers.delete(gameId);
@@ -818,19 +817,7 @@ function maybeCloseAbandonedGame(io: Server, gameId: string): boolean {
       return;
     }
 
-    if (isDemoRoom(gameId)) {
-      const state = projectState(gameId);
-      if (state) {
-        const seed =
-          typeof state.seed === "string" ? state.seed : DEFAULT_DEMO_SEED;
-        resetGameWithSeed(gameId, seed);
-        // After an abandoned reset, we notify the room (though it should be empty)
-        broadcastSeatStatus(gameId);
-        broadcastStateToGame(gameId);
-      }
-    } else {
-      closeGameSession(io, gameId);
-    }
+    closeGameSession(io, gameId);
   }, delay);
 
   pendingCloseTimers.set(gameId, timer);

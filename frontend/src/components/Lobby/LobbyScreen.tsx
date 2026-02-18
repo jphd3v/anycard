@@ -18,10 +18,6 @@ import {
   TopCornerOrnaments,
 } from "./SuitDecorations";
 import { WelcomeModal } from "../WelcomeModal";
-import {
-  INVALID_EMAIL_MESSAGE,
-  INVALID_API_KEY_MESSAGE,
-} from "../../auth/messages";
 
 type LobbyScreenProps = {
   themeSetting: ThemeSetting;
@@ -45,6 +41,7 @@ type LobbyScreenProps = {
   authEmail: string;
   authBusy: boolean;
   authMessage?: string | null;
+  authMessageTone?: "error" | "success" | "neutral";
   onAuthEmailChange: (value: string) => void;
   onSendMagicLink: () => void;
   onSignOut: () => void;
@@ -77,6 +74,7 @@ export function LobbyScreen({
   authEmail,
   authBusy,
   authMessage,
+  authMessageTone = "neutral",
   onAuthEmailChange,
   onSendMagicLink,
   onSignOut,
@@ -223,6 +221,12 @@ export function LobbyScreen({
             }`}
             title="Identity & Sign In"
           >
+            {identityMode === "user" && (
+              <span
+                className="inline-flex h-2 w-2 rounded-full bg-success shrink-0"
+                aria-hidden
+              />
+            )}
             <span className="text-sm font-medium">
               {identityMode === "user" ? "Profile" : "Sign In"}
             </span>
@@ -364,10 +368,11 @@ export function LobbyScreen({
             {authMessage && (
               <div
                 className={`mt-3 text-[11px] p-2 rounded ${
-                  authMessage === INVALID_EMAIL_MESSAGE ||
-                  authMessage === INVALID_API_KEY_MESSAGE
+                  authMessageTone === "error"
                     ? "text-red-700 bg-red-50 border border-red-100"
-                    : "text-primary bg-primary/5 border border-primary/10"
+                    : authMessageTone === "success"
+                      ? "text-success-ink bg-success-surface border border-success/30"
+                      : "text-primary bg-primary/5 border border-primary/10"
                 }`}
               >
                 {authMessage}

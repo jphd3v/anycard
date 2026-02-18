@@ -1,12 +1,17 @@
 import {
   createClient,
+  type EmailOtpType,
   type Session,
   type SupabaseClient,
 } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabasePublicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+const supabaseEmailRedirectTo =
+  import.meta.env.VITE_SUPABASE_EMAIL_REDIRECT_TO?.trim();
 const GUEST_ID_STORAGE_KEY = "guest-id";
+const SIGN_IN_CONFIGURATION_ERROR_MESSAGE =
+  "Sign-in is temporarily unavailable. Please try again later.";
 
 export type ClientIdentityState = {
   mode: "guest" | "user";
@@ -145,10 +150,10 @@ export async function signInWithEmailMagicLink(email: string): Promise<void> {
     throw new Error("Email is required");
   }
 
-  const redirectTo =
-    typeof window !== "undefined"
-      ? `${window.location.origin}${window.location.pathname}${window.location.search}`
-      : undefined;
+  const redirectTo = resolveEmailMagicLinkRedirectTo();
+  if (!redirectTo && !import.meta.env.DEV) {
+    throw new Error(SIGN_IN_CONFIGURATION_ERROR_MESSAGE);
+  }
 
   const { error } = await client.auth.signInWithOtp({
     email: normalized,
@@ -157,6 +162,136 @@ export async function signInWithEmailMagicLink(email: string): Promise<void> {
   if (error) {
     throw error;
   }
+}
+
+export async function consumeSupabaseAuthCallbackFromUrl(
+  rawUrl: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+
+  let consumed = false;
+
+  const tokenHash = parsed.searchParams.get("token_hash");
+  const tokenType = resolveEmailOtpType(parsed.searchParams.get("type"));
+  if (tokenHash && tokenType) {
+    const { error } = await client.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: tokenType,
+    });
+    if (error) {
+      console.warn(
+        "[Identity] Failed to verify token hash from deep link",
+        error
+      );
+    } else {
+      consumed = true;
+    }
+  }
+
+  const code = parsed.searchParams.get("code");
+  if (code) {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.warn("[Identity] Failed to exchange auth code", error);
+    } else {
+      consumed = true;
+    }
+  }
+
+  const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+  const accessToken = hashParams.get("access_token");
+  const refreshToken = hashParams.get("refresh_token");
+  if (accessToken && refreshToken) {
+    const { error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) {
+      console.warn("[Identity] Failed to set session from deep link", error);
+    } else {
+      consumed = true;
+    }
+  }
+
+  return consumed;
+}
+
+function resolveEmailOtpType(type: string | null): EmailOtpType | null {
+  const normalized = type?.trim() ?? "";
+  if (isSupportedEmailOtpType(normalized)) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function isSupportedEmailOtpType(type: string): type is EmailOtpType {
+  return (
+    type === "signup" ||
+    type === "invite" ||
+    type === "magiclink" ||
+    type === "recovery" ||
+    type === "email_change" ||
+    type === "email"
+  );
+}
+
+function resolveEmailMagicLinkRedirectTo(): string | undefined {
+  if (supabaseEmailRedirectTo) {
+    let parsedConfiguredRedirect: URL;
+    try {
+      parsedConfiguredRedirect = new URL(supabaseEmailRedirectTo);
+    } catch {
+      throw new Error(SIGN_IN_CONFIGURATION_ERROR_MESSAGE);
+    }
+
+    if (
+      !import.meta.env.DEV &&
+      isLocalhostLikeHostname(parsedConfiguredRedirect.hostname)
+    ) {
+      throw new Error(SIGN_IN_CONFIGURATION_ERROR_MESSAGE);
+    }
+
+    return parsedConfiguredRedirect.toString();
+  }
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const candidate = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+  try {
+    const parsed = new URL(candidate);
+    const isLocalhostLike = isLocalhostLikeHostname(parsed.hostname);
+
+    // In mobile/web production builds, Capacitor origin is often https://localhost.
+    // Fail fast to avoid sending incorrect localhost links in emails.
+    if (!import.meta.env.DEV && isLocalhostLike) {
+      throw new Error(SIGN_IN_CONFIGURATION_ERROR_MESSAGE);
+    }
+
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function isLocalhostLikeHostname(hostname: string): boolean {
+  const normalizedHostname = hostname.toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "::1"
+  );
 }
 
 export async function signOutSupabaseIdentity(): Promise<void> {

@@ -251,6 +251,8 @@ export function setupSocketHandlers({
   onAiLog,
 }: Handlers) {
   const s = ensureSocket();
+  const isIgnorableAuthRefreshError = (message: string): boolean =>
+    message.trim().toLowerCase() === "token refresh too frequent";
 
   const markEvaluationComplete = () => {
     onEvaluationComplete?.();
@@ -261,6 +263,11 @@ export function setupSocketHandlers({
     markEvaluationComplete();
   };
   const handleError = (payload: { message: string; source?: StatusSource }) => {
+    if (isIgnorableAuthRefreshError(payload.message)) {
+      markEvaluationComplete();
+      return;
+    }
+
     onStatus({
       tone: "error",
       message: payload.message,
@@ -307,6 +314,13 @@ export function setupSocketHandlers({
   }) => onSeats(payload);
 
   const handleGameStatus = (payload: StatusPayload) => {
+    if (
+      payload.tone === "error" &&
+      isIgnorableAuthRefreshError(payload.message)
+    ) {
+      return;
+    }
+
     onStatus(payload);
   };
 

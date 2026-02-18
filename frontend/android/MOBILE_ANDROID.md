@@ -67,7 +67,7 @@ Without `MOBILE_INSECURE=true`, HTTP endpoints are rejected (the server override
 ## 4. Where to put Android customizations
 
 - Activity/app behavior (fullscreen, lifecycle):  
-  `frontend/android/app/src/main/java/io/jph/MainActivity.java`
+  `frontend/android/app/src/main/java/app/anycard/game/MainActivity.java`
 - Manifest permissions/network/security:  
   `frontend/android/app/src/main/AndroidManifest.xml`
 - Styles/themes/resources:  
@@ -123,3 +123,31 @@ npm --prefix frontend run android:aab:release
     - `android:apk:debug:insecure` / `android:insecure` scripts
 - Port/cors issues:
   - Backend must allow Capacitor origins and listen on LAN.
+
+## 8. Android App Links (open app from https invite links)
+
+Android App Links host is derived from:
+
+- `VITE_SUPABASE_EMAIL_REDIRECT_TO`
+
+Example:
+
+```bash
+VITE_SUPABASE_EMAIL_REDIRECT_TO=https://your-public-app.example.com/
+```
+
+The Android scripts extract the hostname from that URL and pass it to Gradle as
+`appLinkHost`.
+
+Files involved:
+
+- Intent filter: `frontend/android/app/src/main/AndroidManifest.xml`
+- Verification file served from web root:
+  `frontend/public/.well-known/assetlinks.json`
+
+Notes:
+
+- `assetlinks.json` currently contains the local debug-keystore fingerprint.
+- For release builds, replace/add the release signing certificate SHA-256.
+- Re-sync after changes:
+  `npm --prefix frontend run android:sync`

@@ -1,16 +1,17 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "io.jph"
+    namespace = "app.anycard.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.jph"
+        applicationId "app.anycard.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         manifestPlaceholders = [
-            usesCleartextTraffic: (project.findProperty('usesCleartextTraffic') ?: "false")
+            usesCleartextTraffic: (project.findProperty('usesCleartextTraffic') ?: "false"),
+            appLinkHost: (project.findProperty('appLinkHost') ?: "example.com")
         ]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

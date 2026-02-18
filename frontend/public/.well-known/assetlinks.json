@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.anycard.game",
+      "sha256_cert_fingerprints": [
+        "54:7A:1A:91:A0:38:DA:82:3A:C9:A0:D8:DF:14:A9:09:B8:3A:2F:B2:B5:80:68:B0:E6:B6:2D:3D:F0:EE:1E:6B",
+        "CE:D3:CB:F3:8B:EF:C3:FD:45:44:33:4C:8D:C9:37:4F:51:F2:17:D7:0B:2E:6B:C7:F4:18:8E:0D:E4:2E:99:EC"
+      ]
+    }
+  }
+]
