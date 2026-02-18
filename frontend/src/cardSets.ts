@@ -6,7 +6,8 @@ export type CardSetId =
   | "digitaldesignlabs_xl"
   | "htdebeer"
   | "brescia"
-  | "atlasnye";
+  | "atlasnye"
+  | "napoletane";
 
 export type CardSetDefinition = {
   id: CardSetId;
@@ -34,6 +35,7 @@ export const CARD_SETS: CardSetDefinition[] = [
   { id: "htdebeer", label: "htdebeer", supportsJokers: true },
   { id: "atlasnye", label: "atlasnye", supportsJokers: true },
   { id: "brescia", label: "brescia", supportsJokers: true },
+  { id: "napoletane", label: "napoletane", supportsJokers: true },
 ];
 
 export const DEFAULT_CARD_SET: CardSetId = "digitaldesignlabs_xl";
