@@ -49,6 +49,7 @@ import {
 } from "./ai/ai-log.js";
 import { GAME_PLUGINS } from "./rules/registry.js";
 import { resolveEngineCardId, toViewCardId } from "./view-ids.js";
+import { applyLegalActionsToView } from "./util/actions.js";
 import { getSuitSymbol } from "./util/card-notation.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 
@@ -841,7 +842,7 @@ function broadcastState(
             : info.isGodMode
               ? "__god__"
               : "__spectator__";
-        const view = buildViewForPlayer(state, viewId, socket.id);
+        const baseView = buildViewForPlayer(state, viewId, socket.id);
 
         const viewerKey = viewId;
 
@@ -878,6 +879,10 @@ function broadcastState(
                 }
               )
             : undefined;
+        const view =
+          info.role === "player"
+            ? applyLegalActionsToView(baseView, legalIntents)
+            : baseView;
 
         const lastFatalErrors =
           rawLastEngineEvents.filter((event) => event.type === "fatal-error") ??
@@ -1564,7 +1569,7 @@ export function initSocket(io: Server) {
 
       const viewId =
         role === "player" ? playerId : isGodMode ? "__god__" : "__spectator__";
-      const view = buildViewForPlayer(state, viewId, socket.id);
+      const baseView = buildViewForPlayer(state, viewId, socket.id);
 
       const viewSalt = getViewSalt(gameId);
       const legalIntents =
@@ -1588,6 +1593,10 @@ export function initSocket(io: Server) {
               return intent;
             })
           : undefined;
+      const view =
+        role === "player"
+          ? applyLegalActionsToView(baseView, legalIntents)
+          : baseView;
 
       socket.emit("game:state", {
         ...view,

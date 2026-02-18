@@ -6,6 +6,7 @@ import type {
   GameState,
 } from "../../../shared/schemas.js";
 import { GameEventPayloadSchema } from "../../../shared/schemas.js";
+import { filterActionsByLegalIntents } from "../../../backend/src/util/actions.js";
 
 export type LegalIntentLister = (
   state: GameState,
@@ -111,6 +112,50 @@ export function assertTerminalStateContract(
   }
 }
 
+function isGloballyAllowedActionId(actionId: string): boolean {
+  return actionId === "start-game" || actionId === "call-last-card";
+}
+
+export function assertEnabledActionsAreLegal(
+  state: GameState,
+  events: GameEvent[],
+  listLegalIntentsForPlayer: LegalIntentLister,
+  context: string
+): void {
+  const actingPlayers = state.currentPlayer
+    ? [state.currentPlayer]
+    : state.players.map((player) => player.id);
+
+  const legalIntents: ClientIntent[] = [];
+  const legalActionIds = new Set<string>();
+  for (const playerId of actingPlayers) {
+    const intents = listLegalIntentsForPlayer(state, events, playerId);
+    legalIntents.push(...intents);
+    for (const intent of intents) {
+      if (intent.type === "action") {
+        legalActionIds.add(intent.action);
+      }
+    }
+  }
+
+  const visibleActions = filterActionsByLegalIntents(
+    state.actions,
+    legalIntents
+  );
+  const enabledActionCells = visibleActions.cells.filter(
+    (cell) => cell.enabled
+  );
+
+  for (const cell of enabledActionCells) {
+    const isAllowed =
+      legalActionIds.has(cell.id) || isGloballyAllowedActionId(cell.id);
+    assert.ok(
+      isAllowed,
+      `[integration] ${context}: visible action '${cell.id}' is exposed but not legal for current state`
+    );
+  }
+}
+
 export function assertGlobalStateInvariants(
   state: GameState,
   events: GameEvent[],
@@ -118,6 +163,12 @@ export function assertGlobalStateInvariants(
   context: string
 ): void {
   assertCardConservation(state, context);
+  assertEnabledActionsAreLegal(
+    state,
+    events,
+    listLegalIntentsForPlayer,
+    context
+  );
   assertTurnOwnership(state, events, listLegalIntentsForPlayer, context);
   assertTerminalStateContract(
     state,

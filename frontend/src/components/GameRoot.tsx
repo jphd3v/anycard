@@ -400,10 +400,21 @@ export function GameRoot({
   const handleActionClick = useCallback(
     (actionName: string) => {
       if (isAutomatedSeat) return;
+      const matchingIntent = view.legalIntents?.find(
+        (intent) => intent.type === "action" && intent.action === actionName
+      );
+      if (view.legalIntents && !matchingIntent) {
+        showToast("This action is not available right now.", "error", "app");
+        return;
+      }
       sfx.playClick();
+      if (matchingIntent && matchingIntent.type === "action") {
+        sendClientIntent(matchingIntent);
+        return;
+      }
       sendActionIntent(gameId, playerId, actionName);
     },
-    [gameId, isAutomatedSeat, playerId]
+    [gameId, isAutomatedSeat, playerId, showToast, view.legalIntents]
   );
 
   const handleDragEnd = useCallback(

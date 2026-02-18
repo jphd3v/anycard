@@ -138,6 +138,37 @@ function getCardsForHand(set: number, handInSet: number): number {
   return SET_STRUCTURES[set - 1][handInSet - 1];
 }
 
+function buildBidActions(
+  state: ValidationState,
+  rs: JokerRulesState,
+  bidderId: string
+): { rows: number; cols: number; cells: ActionCell[] } {
+  const bidderIndex = state.players.findIndex(
+    (player) => player.id === bidderId
+  );
+  const isDealer = bidderIndex === rs.dealerSeat;
+  const totalSoFar = rs.bids.reduce((sum, bid) => sum + bid.bid, 0);
+
+  const cells: ActionCell[] = [];
+  for (let bidValue = 0; bidValue <= rs.cardsThisHand; bidValue++) {
+    const violatesDealerRestriction =
+      isDealer && totalSoFar + bidValue === rs.cardsThisHand;
+    cells.push({
+      id: `bid-${bidValue}`,
+      label: bidValue === 0 ? "Pass (0)" : `${bidValue}`,
+      enabled: !violatesDealerRestriction,
+      row: 0,
+      col: bidValue,
+    });
+  }
+
+  return {
+    rows: 1,
+    cols: rs.cardsThisHand + 1,
+    cells,
+  };
+}
+
 function getTotalHandsInSet(set: number): number {
   return SET_STRUCTURES[set - 1].length;
 }
@@ -318,25 +349,9 @@ function buildDealEvents(
     player: firstBidder.id,
   });
 
-  // Set up bid actions
-  const bidCells: ActionCell[] = [];
-  for (let i = 0; i <= cardsPerPlayer; i++) {
-    bidCells.push({
-      id: `bid-${i}`,
-      label: i === 0 ? "Pass (0)" : `${i}`,
-      enabled: true,
-      row: 0,
-      col: i,
-    });
-  }
-
   events.push({
     type: "set-actions",
-    actions: {
-      rows: 1,
-      cols: cardsPerPlayer + 1,
-      cells: bidCells,
-    },
+    actions: buildBidActions(state, nextRulesState, firstBidder.id),
   });
 
   events.push({
@@ -577,6 +592,18 @@ const validate: GameRuleModule["validate"] = (
         events.push({
           type: "set-current-player",
           player: nextPlayer.id,
+        });
+
+        events.push({
+          type: "set-actions",
+          actions: buildBidActions(
+            state,
+            {
+              ...rs,
+              bids: newBids,
+            },
+            nextPlayer.id
+          ),
         });
 
         return { valid: true, engineEvents: events };
