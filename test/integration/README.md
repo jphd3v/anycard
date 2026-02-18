@@ -72,6 +72,27 @@ Run a specific scenario file:
 npm run test:integration -- durak/durak-basic.json
 ```
 
+## Coverage
+
+Collect integration coverage for game rule modules:
+
+```bash
+npm run test:integration:coverage
+```
+
+Run coverage and enforce per-game threshold (default 90% line coverage):
+
+```bash
+npm run test:integration:coverage:verify
+```
+
+The checker reports coverage per file under `backend/src/rules/impl/*.ts` and
+fails if any game rule module is below the threshold.
+Set `RULES_COVERAGE_THRESHOLD` to override (for local experiments).
+Use `COVERAGE_EXPLORE_VARIANTS` and `COVERAGE_EXPLORE_MAX_MOVES` to tune the
+extra deterministic coverage exploration phase.
+Set `COVERAGE_EXPLORE_PROBE_EVERY` (>0) to add periodic invalid-intent probes.
+
 ## Determinism and speed
 
 - Use a fixed `seed` for each scenario.
@@ -106,6 +127,8 @@ Optional fields:
 - `seed` (string)
 - `gameId` (string)
 - `players` (array of `{ id, name?, isAi? }`)
+- `initialRulesState` (object) - shallow-merged into the loaded game
+  `rulesState` before the first intent; useful for targeted regression setups
 - `expect` (object with `winner`, `currentPlayer`, `actions`, `scoreboards`, `rulesState`, and optional pile/pileProperties/cardVisuals checks)
 
 `intents[]` supports additional assertion helpers:
@@ -116,6 +139,9 @@ Optional fields:
   - `excludeTypes`: event types that must not appear
   - `exactTypes`: exact multiset of emitted event types (order-insensitive)
   - `minCounts` / `maxCounts`: per-type lower/upper bounds
+- `probeLegalIntents` (number): call `listLegalIntentsForPlayer` this many times
+  before executing the intent (useful for guarding against validation probe
+  side-effects)
 
 Example (assert trick completion emits an announcement):
 
@@ -200,6 +226,30 @@ Example (Kasino):
 ```bash
 npm --prefix backend exec -- tsx -e "import { loadAndValidateGameConfig } from './backend/src/game-config.ts'; import { validateMove } from './backend/src/rule-engine.ts'; import { applyEvent } from './backend/src/state.ts'; const seed='KASINO-INTEGRATION-1'; const base=loadAndValidateGameConfig('kasino', seed); const gameId='kasino-integration'; const state={...base, gameId}; const intent={type:'action', gameId, playerId:'P1', action:'start-game'}; const run=async()=>{ const result=await validateMove(state, [], intent); let next=state; for (const e of result.engineEvents) next=applyEvent(next, e); console.log('P1', next.piles['P1-hand'].cardIds); console.log('P2', next.piles['P2-hand'].cardIds); console.log('table', next.piles['table'].cardIds); }; run();"
 ```
+
+## Built-in runner invariants
+
+Before scenarios are executed, the integration runner performs global checks:
+
+- Deterministic shuffle/deal checks:
+  - seed repeatability / reset behavior / pile order
+  - deterministic initial `start-game` deal across all registered rulesets
+- Legal-intent isolation checks across all registered games:
+  - `listLegalIntentsForPlayer` must be idempotent for the same snapshot.
+  - every listed legal intent must validate successfully.
+  - Legal-intent probing must not mutate live `GameState`.
+  - Legal-intent probing must not mutate its `ValidationState` snapshot.
+  - `validateMove` must be deterministic/idempotent for the same pre-move inputs.
+- Engine event contract checks:
+  - every emitted engine event must match `GameEventPayloadSchema`.
+- State integrity checks during scenario execution:
+  - card conservation: each card ID must appear in exactly one pile.
+  - turn ownership: non-turn players must not have playable intents (except global
+    `start-game` action).
+  - terminal contract: when `winner` is set, `currentPlayer` must be `null` and no
+    legal intents may remain.
+  - deferred round reset guard: between-round transitions must not gather/reset the
+    table too early before the next `start-game`.
 
 Use the printed `cardIds` to author deterministic `move` intents.
 

@@ -1,0 +1,15 @@
+{
+  "id": "scopa-requires-start-game",
+  "rulesId": "scopa",
+  "seed": "SCOPA-START-GAME-GUARD",
+  "intents": [
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "table",
+      "cardId": 1,
+      "expectedError": "The game has not been dealt yet. Use the 'Start Game' action."
+    }
+  ]
+}

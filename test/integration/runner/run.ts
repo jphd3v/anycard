@@ -15,6 +15,11 @@ import { GAME_PLUGINS } from "../../../backend/src/rules/registry.js";
 import { validateMove } from "../../../backend/src/rule-engine.js";
 import { applyEvent } from "../../../backend/src/state.js";
 import { runDeterministicShuffleTests } from "./deterministic-shuffle.js";
+import { runLegalIntentIsolationTests } from "./legal-intent-isolation.js";
+import {
+  assertEngineEventPayloads,
+  assertGlobalStateInvariants,
+} from "./invariants.js";
 
 type ScenarioExpect = {
   winner?: string | null;
@@ -66,6 +71,7 @@ type ScenarioAuto = {
 type ScenarioIntent = ClientIntent & {
   expectedError?: string;
   expectEvents?: ScenarioEventExpect;
+  probeLegalIntents?: number;
 };
 
 type Scenario = {
@@ -75,6 +81,7 @@ type Scenario = {
   seed?: string;
   gameId?: string;
   players?: ScenarioPlayer[];
+  initialRulesState?: unknown;
   mode?: "scripted" | "auto";
   intents?: ScenarioIntent[];
   auto?: ScenarioAuto;
@@ -419,6 +426,24 @@ function initializeScenarioState(scenario: Scenario) {
     state = { ...state, players: normalizedPlayers };
   }
 
+  if (
+    scenario.initialRulesState &&
+    typeof scenario.initialRulesState === "object" &&
+    !Array.isArray(scenario.initialRulesState)
+  ) {
+    const baseRulesState =
+      state.rulesState && typeof state.rulesState === "object"
+        ? (state.rulesState as Record<string, unknown>)
+        : {};
+    state = {
+      ...state,
+      rulesState: {
+        ...baseRulesState,
+        ...(scenario.initialRulesState as Record<string, unknown>),
+      },
+    };
+  }
+
   return { state, gameId };
 }
 
@@ -427,6 +452,13 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
   let state = initialState;
   const events: GameEvent[] = [];
   const intents = scenario.intents ?? [];
+
+  assertGlobalStateInvariants(
+    state,
+    events,
+    listLegalIntentsForPlayerLocal,
+    `${label}: initial state`
+  );
 
   if (intents.length === 0) {
     console.warn(`[integration] ${label}: no intents provided`);
@@ -443,6 +475,16 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
         `[integration] ${label}: intent ${index} missing playerId`
       );
     }
+    const actingPlayerId = (intentWithGameId as { playerId: string }).playerId;
+    const probeCount = Math.max(
+      0,
+      Math.floor(
+        (intent as { probeLegalIntents?: number }).probeLegalIntents ?? 0
+      )
+    );
+    for (let probeIndex = 0; probeIndex < probeCount; probeIndex += 1) {
+      listLegalIntentsForPlayerLocal(state, events, actingPlayerId);
+    }
 
     const result = await validateMove(state, events, intentWithGameId);
     if (!result.valid) {
@@ -453,6 +495,10 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
             index,
             result.engineEvents,
             intent.expectEvents
+          );
+          assertEngineEventPayloads(
+            result.engineEvents,
+            `${label}: intent ${index} (expected error)`
           );
           // Expected failure, continue to next intent (but this intent didn't change state)
           continue;
@@ -477,6 +523,7 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
       result.engineEvents,
       intent.expectEvents
     );
+    assertEngineEventPayloads(result.engineEvents, `${label}: intent ${index}`);
 
     for (const event of result.engineEvents) {
       events.push(event);
@@ -490,6 +537,12 @@ async function runScriptedScenario(label: string, scenario: Scenario) {
       state,
       result.engineEvents,
       `scripted intent ${index}`
+    );
+    assertGlobalStateInvariants(
+      state,
+      events,
+      listLegalIntentsForPlayerLocal,
+      `${label}: scripted intent ${index}`
     );
   }
 
@@ -506,6 +559,13 @@ async function runAutoScenario(label: string, scenario: Scenario) {
   const logEvery = auto.logEvery ?? 0;
   const stopWhen = auto.stopWhen;
   let stopReached = false;
+
+  assertGlobalStateInvariants(
+    state,
+    events,
+    listLegalIntentsForPlayerLocal,
+    `${label}: initial state`
+  );
 
   for (let index = 0; index < maxMoves; index += 1) {
     if (state.winner) break;
@@ -586,6 +646,10 @@ async function runAutoScenario(label: string, scenario: Scenario) {
         `[integration] ${label}: auto intent invalid at step ${index}: ${result.reason ?? "unknown"}`
       );
     }
+    assertEngineEventPayloads(
+      result.engineEvents,
+      `${label}: auto step ${index}`
+    );
 
     for (const event of result.engineEvents) {
       events.push(event);
@@ -599,6 +663,12 @@ async function runAutoScenario(label: string, scenario: Scenario) {
       state,
       result.engineEvents,
       `auto step ${index}`
+    );
+    assertGlobalStateInvariants(
+      state,
+      events,
+      listLegalIntentsForPlayerLocal,
+      `${label}: auto step ${index}`
     );
 
     if (stopWhen?.dealNumberAtLeast !== undefined) {
@@ -662,6 +732,7 @@ function findScenariosRecursive(dir: string): string[] {
 
 async function main() {
   await runDeterministicShuffleTests();
+  await runLegalIntentIsolationTests();
 
   const args = process.argv.slice(2);
   let files: string[] = [];

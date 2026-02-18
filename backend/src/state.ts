@@ -361,6 +361,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       nextState = {
         ...state,
         winner: event.winner,
+        currentPlayer: event.winner ? null : state.currentPlayer,
       };
       clearAiLogForGame(state.gameId);
       humanTurnByGame.delete(state.gameId);

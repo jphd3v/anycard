@@ -10,6 +10,7 @@ import {
   loadInitialState,
 } from "../../../backend/src/game-config.js";
 import { validateMove } from "../../../backend/src/rule-engine.js";
+import { GAME_PLUGINS } from "../../../backend/src/rules/registry.js";
 import {
   applyEvent,
   closeGame,
@@ -18,6 +19,10 @@ import {
   resetGameWithSeed,
 } from "../../../backend/src/state.js";
 import { applyShuffleToState } from "../../../backend/src/shuffler.js";
+import {
+  assertCardConservation,
+  assertEngineEventPayloads,
+} from "./invariants.js";
 
 function applyEvents(state: GameState, events: GameEvent[]): GameState {
   let nextState = state;
@@ -117,6 +122,7 @@ async function applyStartGame(state: GameState): Promise<GameState> {
     true,
     `start-game intent invalid: ${result.reason ?? "unknown"}`
   );
+  assertEngineEventPayloads(result.engineEvents, "deterministic-shuffle");
   return applyEvents(state, result.engineEvents);
 }
 
@@ -124,6 +130,7 @@ export async function runDeterministicShuffleTests() {
   await testDeterministicDealSameSeed();
   await testDeterministicDealResetSameSeed();
   await testDeterministicDealDifferentPileOrder();
+  await testDeterministicInitialDealAllRules();
 }
 
 async function testDeterministicDealSameSeed() {
@@ -208,4 +215,43 @@ async function testDeterministicDealDifferentPileOrder() {
   );
 
   console.log("[integration] deterministic deal: pile order ok");
+}
+
+function summarizePileLayout(state: GameState) {
+  const pileSummary: Record<string, number[]> = {};
+  for (const pileId of Object.keys(state.piles).sort()) {
+    pileSummary[pileId] = [...state.piles[pileId].cardIds];
+  }
+  return {
+    currentPlayer: state.currentPlayer,
+    piles: pileSummary,
+  };
+}
+
+async function testDeterministicInitialDealAllRules() {
+  const rulesIds = Object.keys(GAME_PLUGINS).sort();
+  for (const rulesId of rulesIds) {
+    const seed = `DEAL-SAME-SEED-${rulesId}`;
+    const stateA = loadAndValidateGameConfig(rulesId, seed);
+    const stateB = loadAndValidateGameConfig(rulesId, seed);
+    const dealtA = await applyStartGame({
+      ...stateA,
+      gameId: `${rulesId}-seed-a`,
+    });
+    const dealtB = await applyStartGame({
+      ...stateB,
+      gameId: `${rulesId}-seed-b`,
+    });
+
+    assertCardConservation(dealtA, `deterministic deal ${rulesId} A`);
+    assertCardConservation(dealtB, `deterministic deal ${rulesId} B`);
+
+    assert.deepStrictEqual(
+      summarizePileLayout(dealtA),
+      summarizePileLayout(dealtB),
+      `deterministic initial deal mismatch for rulesId='${rulesId}'`
+    );
+  }
+
+  console.log("[integration] deterministic deal: all rules ok");
 }

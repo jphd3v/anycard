@@ -104,7 +104,7 @@ function getRulesState(obj: unknown, players: string[]): ShitheadRulesState {
     playersFromState.length > 0 ? playersFromState : players;
 
   return {
-    players: resolvedPlayers,
+    players: [...resolvedPlayers],
     hasDealt: typeof o.hasDealt === "boolean" ? o.hasDealt : base.hasDealt,
     dealNumber:
       typeof o.dealNumber === "number" ? o.dealNumber : base.dealNumber,
@@ -122,7 +122,9 @@ function getRulesState(obj: unknown, players: string[]): ShitheadRulesState {
         ? o.firstPlayerId
         : base.firstPlayerId,
     ready: normalizeReady(o.ready, resolvedPlayers, base.ready),
-    recap: Array.isArray(o.recap) ? o.recap : base.recap,
+    recap: Array.isArray(o.recap)
+      ? o.recap.filter((line): line is string => typeof line === "string")
+      : base.recap,
     turnRankPlayed:
       typeof o.turnRankPlayed === "string" || o.turnRankPlayed === null
         ? (o.turnRankPlayed as string | null)

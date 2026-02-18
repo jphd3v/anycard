@@ -371,11 +371,11 @@ export const kasinoRules: GameRuleModule = {
       dealNumber: rawRulesState.dealNumber ?? 0,
       phase: rawRulesState.phase ?? "dealing",
       roundNumber: rawRulesState.roundNumber ?? 1,
-      players: rawRulesState.players ?? ["P1", "P2"],
+      players: [...(rawRulesState.players ?? ["P1", "P2"])],
       lastCapturer: rawRulesState.lastCapturer ?? null,
-      sweeps: rawRulesState.sweeps ?? {},
-      scores: rawRulesState.scores ?? {},
-      handPoints: rawRulesState.handPoints ?? {},
+      sweeps: { ...(rawRulesState.sweeps ?? {}) },
+      scores: { ...(rawRulesState.scores ?? {}) },
+      handPoints: { ...(rawRulesState.handPoints ?? {}) },
       isLastDeal: rawRulesState.isLastDeal ?? false,
       result: rawRulesState.result ?? null,
     };
@@ -446,11 +446,11 @@ export const kasinoRules: GameRuleModule = {
       dealNumber: rawRulesState.dealNumber ?? 0,
       phase: rawRulesState.phase ?? "dealing",
       roundNumber: rawRulesState.roundNumber ?? 1,
-      players: rawRulesState.players ?? ["P1", "P2"],
+      players: [...(rawRulesState.players ?? ["P1", "P2"])],
       lastCapturer: rawRulesState.lastCapturer ?? null,
-      sweeps: rawRulesState.sweeps ?? {},
-      scores: rawRulesState.scores ?? {},
-      handPoints: rawRulesState.handPoints ?? {},
+      sweeps: { ...(rawRulesState.sweeps ?? {}) },
+      scores: { ...(rawRulesState.scores ?? {}) },
+      handPoints: { ...(rawRulesState.handPoints ?? {}) },
       isLastDeal: rawRulesState.isLastDeal ?? false,
       result: rawRulesState.result ?? null,
     };
@@ -617,10 +617,13 @@ export const kasinoRules: GameRuleModule = {
               (rulesState.handPoints[playerId] || 0) + 1;
         });
 
+        const sweepsAllowed = rulesState.players.every(
+          (pid) => (rulesState.scores[pid] || 0) < 10
+        );
         if (
           tableCards.length === capturedIds.length &&
           !rulesState.isLastDeal &&
-          (rulesState.scores[playerId] || 0) < 10
+          sweepsAllowed
         ) {
           rulesState.sweeps[playerId] = (rulesState.sweeps[playerId] || 0) + 1;
           engineEvents.push({

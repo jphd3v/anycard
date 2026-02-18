@@ -67,6 +67,7 @@ export function listLegalIntentsForPlayer(
 ): ClientIntent[] {
   const gameState = projectState(gameId);
   if (!gameState) return [];
+  if (gameState.winner) return [];
 
   const events = getEvents(gameId);
   const plugin = GAME_PLUGINS[gameState.rulesId];
@@ -98,6 +99,7 @@ export function listLegalIntentsForView(
 ): ClientIntent[] {
   const gameState = projectState(gameId);
   if (!gameState) return [];
+  if (gameState.winner) return [];
 
   const events = getEvents(gameId);
   const plugin = GAME_PLUGINS[gameState.rulesId];

@@ -1,0 +1,58 @@
+{
+  "id": "kasino-sweep-disabled-when-opponent-at-ten",
+  "rulesId": "kasino",
+  "seed": "KASINO-SWEEP-SEARCH-57",
+  "initialRulesState": {
+    "hasDealt": false,
+    "dealNumber": 1,
+    "phase": "dealing",
+    "roundNumber": 1,
+    "players": ["P1", "P2"],
+    "lastCapturer": null,
+    "sweeps": {
+      "P1": 0,
+      "P2": 0
+    },
+    "scores": {
+      "P1": 0,
+      "P2": 10
+    },
+    "handPoints": {
+      "P1": 0,
+      "P2": 0
+    },
+    "isLastDeal": false,
+    "result": null
+  },
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-hand",
+      "toPileId": "P1-won",
+      "cardId": 35,
+      "expectEvents": {
+        "excludeTypes": ["announce"]
+      }
+    }
+  ],
+  "expect": {
+    "rulesState": {
+      "dealNumber": 1,
+      "handPoints": {},
+      "hasDealt": true,
+      "isLastDeal": false,
+      "lastCapturer": "P1",
+      "phase": "playing",
+      "result": null,
+      "players": ["P1", "P2"],
+      "roundNumber": 1,
+      "scores": {
+        "P1": 0,
+        "P2": 10
+      },
+      "sweeps": {}
+    }
+  }
+}

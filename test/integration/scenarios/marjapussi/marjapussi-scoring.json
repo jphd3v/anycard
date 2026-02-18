@@ -1,0 +1,47 @@
+{
+  "id": "marjapussi-scoring",
+  "tags": ["scoring"],
+  "rulesId": "marjapussi",
+  "seed": "MARJAPUSSI-AUTO-SCORING-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1200,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "winner": null,
+    "currentPlayer": "S",
+    "rulesState": {
+      "hasDealt": true,
+      "phase": "play",
+      "dealNumber": 2,
+      "dealerIndex": 1,
+      "trickNumber": 1,
+      "trickLeader": "S",
+      "currentTrick": {
+        "cards": [],
+        "leadSuit": null
+      },
+      "trumpSuit": null,
+      "marriages": [],
+      "gamePoints": {
+        "NS": 1,
+        "EW": 0
+      },
+      "marriagePoints": {
+        "NS": 0,
+        "EW": 0
+      },
+      "inTheBag": {
+        "NS": false,
+        "EW": false
+      },
+      "lastTrickWinner": null,
+      "canDeclare": true,
+      "result": "Hand 1 Result: Team NS 76 pts, Team EW 54 pts."
+    }
+  }
+}

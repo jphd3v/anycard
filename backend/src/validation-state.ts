@@ -52,6 +52,15 @@ export interface ValidationState {
   players: Array<{ id: string; name: string; isAi?: boolean }>;
 }
 
+function cloneRulesState<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  try {
+    return structuredClone(value);
+  } catch {
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+}
+
 function shouldIncludeFullCards(
   pile: Pile,
   intent: ClientIntent,
@@ -100,7 +109,7 @@ export function buildValidationState(
   const hints = plugin?.validationHints;
   const playedByLookup =
     hints?.buildPlayedByLookup?.(gameState) ?? new Map<number, string | null>();
-  const rulesState = gameState.rulesState;
+  const rulesState = cloneRulesState(gameState.rulesState);
 
   for (const [pileId, pile] of Object.entries(gameState.piles)) {
     const pileSummary: ValidationPileSummary = {

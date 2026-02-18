@@ -1,0 +1,11 @@
+{
+  "id": "shithead-auto-playthrough",
+  "tags": ["auto-playthrough"],
+  "rulesId": "shithead",
+  "seed": "SHITHEAD-AUTO-PLAY-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 2200
+  }
+}

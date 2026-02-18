@@ -1,0 +1,17 @@
+{
+  "id": "bridge-auto-playthrough-2",
+  "tags": ["auto-playthrough"],
+  "rulesId": "bridge",
+  "seed": "BRIDGE-AUTO-PLAY-2",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1400,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "winner": null
+  }
+}

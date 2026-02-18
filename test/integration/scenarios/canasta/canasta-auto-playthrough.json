@@ -1,0 +1,17 @@
+{
+  "id": "canasta-auto-playthrough",
+  "tags": ["auto-playthrough"],
+  "rulesId": "canasta",
+  "seed": "CANASTA-AUTO-PLAY-1",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 6000,
+    "stopWhen": {
+      "dealNumberAtLeast": 2
+    }
+  },
+  "expect": {
+    "winner": null
+  }
+}

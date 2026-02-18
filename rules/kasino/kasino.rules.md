@@ -62,7 +62,7 @@ These points are awarded the moment the card is captured:
 - **2♠️ (Small Kasino)**: 1 point.
 - **Mökki (Sweep)**: 1 point for clearing the entire table.
   - _Mökkis cancel out_: If both players get at least one mökki during a hand, they cancel each other and no sweep points are awarded.
-  - _Restrictions_: No mökki points are awarded during the last deal of a hand, or if a player has 10 or more points at the start of the deal.
+  - _Restrictions_: No mökki points are awarded during the last deal of a hand, or if either player has 10 or more points at the start of the deal.
 
 ### End of Hand Points
 

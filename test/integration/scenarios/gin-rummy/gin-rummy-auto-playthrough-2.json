@@ -1,0 +1,11 @@
+{
+  "id": "gin-rummy-auto-playthrough-2",
+  "tags": ["auto-playthrough"],
+  "rulesId": "gin-rummy",
+  "seed": "GIN-AUTO-PLAY-2",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 5000
+  }
+}

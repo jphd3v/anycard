@@ -21,6 +21,7 @@ This folder groups automated tests and test assets.
 
 ```bash
 npm run test:integration
+npm run test:integration:coverage:verify
 npm run test:ui-smoke
 ```
 

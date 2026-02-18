@@ -142,11 +142,46 @@ function getPinnacolaRulesState(
 
   if (!raw || typeof raw !== "object") return base;
   const obj = raw as Partial<PinnacolaRulesState>;
+  const teamScores =
+    obj.teamScores &&
+    typeof obj.teamScores === "object" &&
+    !Array.isArray(obj.teamScores)
+      ? {
+          A:
+            typeof (obj.teamScores as Record<string, unknown>).A === "number"
+              ? (obj.teamScores as Record<string, number>).A
+              : base.teamScores.A,
+          B:
+            typeof (obj.teamScores as Record<string, unknown>).B === "number"
+              ? (obj.teamScores as Record<string, number>).B
+              : base.teamScores.B,
+        }
+      : base.teamScores;
+  const cardsPlayedToMeldsThisTurn = Array.isArray(
+    obj.cardsPlayedToMeldsThisTurn
+  )
+    ? obj.cardsPlayedToMeldsThisTurn.filter(
+        (id): id is number => typeof id === "number"
+      )
+    : base.cardsPlayedToMeldsThisTurn;
+  const playersWhoDiscarded = Array.isArray(obj.playersWhoDiscarded)
+    ? obj.playersWhoDiscarded.filter(
+        (playerId): playerId is string => typeof playerId === "string"
+      )
+    : base.playersWhoDiscarded;
+  const aiPlayerIds = Array.isArray(obj.aiPlayerIds)
+    ? obj.aiPlayerIds.filter(
+        (playerId): playerId is string => typeof playerId === "string"
+      )
+    : base.aiPlayerIds;
 
   return {
     ...base,
     ...obj,
-    teamScores: obj.teamScores ?? base.teamScores,
+    cardsPlayedToMeldsThisTurn,
+    playersWhoDiscarded,
+    aiPlayerIds,
+    teamScores,
   };
 }
 
@@ -935,7 +970,7 @@ export const pinnacolaRules: GameRuleModule = {
       // Human players can still do these via the UI (validate() allows them).
     }
 
-    return intents;
+    return intents.filter((intent) => this.validate(state, intent).valid);
   },
 
   validate(state: ValidationState, intent: ClientIntent): ValidationResult {

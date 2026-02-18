@@ -1,0 +1,17 @@
+{
+  "id": "skruuvi-auto-playthrough-2",
+  "tags": ["auto-playthrough"],
+  "rulesId": "skruuvi",
+  "seed": "SKRUUVI-AUTO-PLAY-2",
+  "mode": "auto",
+  "auto": {
+    "policy": "first-legal",
+    "maxMoves": 1600,
+    "stopWhen": {
+      "dealNumberAtLeast": 3
+    }
+  },
+  "expect": {
+    "winner": null
+  }
+}
