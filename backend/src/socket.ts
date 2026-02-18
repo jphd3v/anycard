@@ -3,17 +3,25 @@ import { z } from "zod";
 import type {
   ClientIntent,
   GameEvent,
+  GameSaveExportAck,
+  GameSaveImportAck,
   GameState,
   LastAction,
+  PersistedGameEvent,
   SeatStatus,
 } from "../../shared/schemas.js";
-import { ClientIntentSchema, GameEventSchema } from "../../shared/schemas.js";
+import {
+  ClientIntentSchema,
+  GameEventSchema,
+  GameSaveSnapshotSchema,
+} from "../../shared/schemas.js";
 import type { ValidationResult, EngineEvent } from "../../shared/validation.js";
 import { loadAndValidateGameConfig } from "./game-config.js";
 import {
   appendEvent,
   applyEvent,
   getEvents,
+  getInitialState,
   initGame,
   projectState,
   projectStateWithEvents,
@@ -470,6 +478,29 @@ function enqueueGameWork(gameId: string, work: () => Promise<void>): void {
 
 function seatKey(gameId: string, playerId: string): string {
   return `${gameId}:${playerId}`;
+}
+
+type GameSaveExportCallback = (response: GameSaveExportAck) => void;
+type GameSaveImportCallback = (response: GameSaveImportAck) => void;
+
+function buildGameSaveSnapshot(gameId: string) {
+  const initialState = getInitialState(gameId);
+  if (!initialState) {
+    return null;
+  }
+
+  const events: PersistedGameEvent[] = getEvents(gameId).map((event) => {
+    return Object.fromEntries(
+      Object.entries(event).filter(([key]) => key !== "id" && key !== "gameId")
+    ) as PersistedGameEvent;
+  });
+
+  return {
+    version: 1 as const,
+    exportedAt: new Date().toISOString(),
+    initialState,
+    events,
+  };
 }
 
 function hasGameAccess(socketId: string, gameId: string): boolean {
@@ -1254,6 +1285,130 @@ export function initSocket(io: Server) {
             source: "app",
           });
         }
+      }
+    );
+
+    socket.on(
+      "game:save-export",
+      (
+        payload: { gameId?: unknown } | undefined,
+        cb?: GameSaveExportCallback
+      ) => {
+        const respondError = (message: string) => {
+          cb?.({ ok: false, message });
+          if (!cb) {
+            socket.emit("game:error", { message, source: "app" });
+          }
+        };
+
+        const gameId = payload?.gameId;
+        if (typeof gameId !== "string" || gameId.trim() === "") {
+          respondError("Invalid save export payload");
+          return;
+        }
+
+        if (!hasGameAccess(socket.id, gameId)) {
+          respondError("You are not joined to this game");
+          return;
+        }
+
+        const snapshot = buildGameSaveSnapshot(gameId);
+        if (!snapshot) {
+          respondError("Game not found");
+          return;
+        }
+
+        const parsed = GameSaveSnapshotSchema.safeParse(snapshot);
+        if (!parsed.success) {
+          console.error(
+            "[game:save-export] Generated snapshot failed schema validation",
+            parsed.error.flatten()
+          );
+          respondError("Failed to export save");
+          return;
+        }
+
+        cb?.({ ok: true, snapshot: parsed.data });
+      }
+    );
+
+    socket.on(
+      "game:save-import",
+      (rawSnapshot: unknown, cb?: GameSaveImportCallback) => {
+        const respondError = (message: string) => {
+          cb?.({ ok: false, message });
+          if (!cb) {
+            socket.emit("game:error", { message, source: "app" });
+          }
+        };
+
+        if (playerRegistry.has(socket.id) || watchRegistry.has(socket.id)) {
+          respondError("Leave the current game before loading a save");
+          return;
+        }
+
+        const parsed = GameSaveSnapshotSchema.safeParse(rawSnapshot);
+        if (!parsed.success) {
+          respondError("Invalid save JSON payload");
+          return;
+        }
+
+        const snapshot = parsed.data;
+        const rulesId = snapshot.initialState.rulesId;
+        if (!GAME_PLUGINS[rulesId]) {
+          respondError(`Unsupported rules id in save: ${rulesId}`);
+          return;
+        }
+
+        const gameId = generateGameId();
+        const initialState: GameState = {
+          ...snapshot.initialState,
+          gameId,
+        };
+
+        try {
+          initGame(initialState);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to create game from save";
+          respondError(message);
+          return;
+        }
+
+        try {
+          let workingState = initialState;
+          for (let idx = 0; idx < snapshot.events.length; idx += 1) {
+            const persistedEvent = snapshot.events[idx];
+            const event = GameEventSchema.parse({
+              id: idx + 1,
+              gameId,
+              ...persistedEvent,
+            });
+            workingState = applyEvent(workingState, event);
+            appendEvent(gameId, event);
+          }
+        } catch (error) {
+          closeGame(gameId);
+          const message =
+            error instanceof Error ? error.message : "Failed to load save";
+          respondError(`Failed to load save: ${message}`);
+          return;
+        }
+
+        setRoomType(gameId, "private");
+        clearPendingClose(gameId);
+
+        socket.join(gameId);
+        sendSeatStatus(socket, gameId);
+        socket.emit("game:start:success", {
+          gameId,
+          rulesId: initialState.rulesId,
+          seed: initialState.seed,
+        });
+
+        cb?.({ ok: true, gameId, rulesId: initialState.rulesId });
       }
     );
 

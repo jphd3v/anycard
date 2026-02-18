@@ -123,6 +123,14 @@ export function initGame(state: GameState) {
   eventsByGame.set(state.gameId, []);
 }
 
+export function getInitialState(gameId: string): GameState | null {
+  const initial = initialStateByGame.get(gameId);
+  if (!initial) {
+    return null;
+  }
+  return JSON.parse(JSON.stringify(initial)) as GameState;
+}
+
 export function getEvents(gameId: string): GameEvent[] {
   return eventsByGame.get(gameId) ?? [];
 }

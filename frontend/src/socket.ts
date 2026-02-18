@@ -1,5 +1,15 @@
 import { io, Socket } from "socket.io-client";
-import type { ClientIntent, GameView, SeatStatus } from "../../shared/schemas";
+import type {
+  ClientIntent,
+  GameSaveSnapshot,
+  GameView,
+  SeatStatus,
+} from "../../shared/schemas";
+import {
+  GameSaveExportAckSchema,
+  GameSaveImportAckSchema,
+  GameSaveSnapshotSchema,
+} from "../../shared/schemas";
 import type {
   ActiveGameSummary,
   AvailableGame,
@@ -24,6 +34,7 @@ const defaultServerUrl =
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? defaultServerUrl;
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+const SOCKET_ACK_TIMEOUT_MS = 10000;
 
 /**
  * Fetch with AbortController timeout to prevent indefinite hangs.
@@ -314,6 +325,78 @@ export function startGame(
 ) {
   const s = ensureSocket();
   s.emit("game:start", rulesId, seed, options);
+}
+
+export async function exportGameSave(
+  gameId: string
+): Promise<GameSaveSnapshot> {
+  const s = ensureSocket();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Timed out while exporting save"));
+    }, SOCKET_ACK_TIMEOUT_MS);
+
+    s.emit("game:save-export", { gameId }, (rawAck: unknown) => {
+      clearTimeout(timeout);
+
+      const parsedAck = GameSaveExportAckSchema.safeParse(rawAck);
+      if (!parsedAck.success) {
+        reject(new Error("Invalid response while exporting save"));
+        return;
+      }
+
+      const ack = parsedAck.data;
+      if (!ack.ok) {
+        reject(new Error(ack.message));
+        return;
+      }
+
+      resolve(ack.snapshot);
+    });
+  });
+}
+
+export async function importGameSave(
+  rawSnapshot: unknown
+): Promise<{ gameId: string; rulesId: string }> {
+  const parsedSnapshot = GameSaveSnapshotSchema.safeParse(rawSnapshot);
+  if (!parsedSnapshot.success) {
+    const firstIssue = parsedSnapshot.error.issues[0];
+    const issuePath = firstIssue?.path?.join(".") ?? "root";
+    const issueMessage = firstIssue?.message ?? "Invalid save payload";
+    throw new Error(`Invalid save payload at ${issuePath}: ${issueMessage}`);
+  }
+
+  const snapshot = parsedSnapshot.data;
+  const s = ensureSocket();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Timed out while loading save"));
+    }, SOCKET_ACK_TIMEOUT_MS);
+
+    s.emit("game:save-import", snapshot, (rawAck: unknown) => {
+      clearTimeout(timeout);
+
+      const parsedAck = GameSaveImportAckSchema.safeParse(rawAck);
+      if (!parsedAck.success) {
+        reject(new Error("Invalid response while loading save"));
+        return;
+      }
+
+      const ack = parsedAck.data;
+      if (!ack.ok) {
+        reject(new Error(ack.message));
+        return;
+      }
+
+      resolve({
+        gameId: ack.gameId,
+        rulesId: ack.rulesId,
+      });
+    });
+  });
 }
 
 export function setSeatAsAi(gameId: string, seatId: string, isAi: boolean) {

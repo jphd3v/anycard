@@ -308,6 +308,101 @@ export const GameEventPayloadSchema = z.discriminatedUnion("type", [
   FatalErrorEventPayloadSchema,
 ]);
 
+export const MAX_GAME_SAVE_EVENTS = 10000;
+
+const MoveCardsPersistedEventSchema = MoveCardsEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetCurrentPlayerPersistedEventSchema = SetCurrentPlayerEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetWinnerPersistedEventSchema = SetWinnerEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetRulesStatePersistedEventSchema = SetRulesStateEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetScoreboardsPersistedEventSchema = SetScoreboardsEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetActionsPersistedEventSchema = SetActionsEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetPileVisibilityPersistedEventSchema = SetPileVisibilityEventSchema.omit(
+  {
+    id: true,
+    gameId: true,
+  }
+);
+const SetCardVisualsPersistedEventSchema = SetCardVisualsEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const SetPilePropertiesPersistedEventSchema = SetPilePropertiesEventSchema.omit(
+  {
+    id: true,
+    gameId: true,
+  }
+);
+const AnnouncePersistedEventSchema = AnnounceEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+const FatalErrorPersistedEventSchema = FatalErrorEventSchema.omit({
+  id: true,
+  gameId: true,
+});
+
+export const PersistedGameEventSchema = z.discriminatedUnion("type", [
+  MoveCardsPersistedEventSchema,
+  SetCurrentPlayerPersistedEventSchema,
+  SetWinnerPersistedEventSchema,
+  SetRulesStatePersistedEventSchema,
+  SetScoreboardsPersistedEventSchema,
+  SetActionsPersistedEventSchema,
+  SetPileVisibilityPersistedEventSchema,
+  SetCardVisualsPersistedEventSchema,
+  SetPilePropertiesPersistedEventSchema,
+  AnnouncePersistedEventSchema,
+  FatalErrorPersistedEventSchema,
+]);
+
+export const GameSaveSnapshotSchema = z.object({
+  version: z.literal(1),
+  exportedAt: z.string().datetime(),
+  initialState: GameStateSchema,
+  events: z.array(PersistedGameEventSchema).max(MAX_GAME_SAVE_EVENTS),
+});
+
+export const GameSaveExportAckSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    snapshot: GameSaveSnapshotSchema,
+  }),
+  z.object({
+    ok: z.literal(false),
+    message: z.string().min(1),
+  }),
+]);
+
+export const GameSaveImportAckSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    gameId: z.string(),
+    rulesId: z.string(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    message: z.string().min(1),
+  }),
+]);
+
 export type MoveCardsEvent = z.infer<typeof MoveCardsEventSchema>;
 export type SetCurrentPlayerEvent = z.infer<typeof SetCurrentPlayerEventSchema>;
 export type SetWinnerEvent = z.infer<typeof SetWinnerEventSchema>;
@@ -326,6 +421,10 @@ export type FatalErrorEvent = z.infer<typeof FatalErrorEventSchema>;
 export type GameEvent = z.infer<typeof GameEventSchema>;
 export type GameEventPayload = z.infer<typeof GameEventPayloadSchema>;
 export type AnnounceEventPayload = z.infer<typeof AnnounceEventPayloadSchema>;
+export type PersistedGameEvent = z.infer<typeof PersistedGameEventSchema>;
+export type GameSaveSnapshot = z.infer<typeof GameSaveSnapshotSchema>;
+export type GameSaveExportAck = z.infer<typeof GameSaveExportAckSchema>;
+export type GameSaveImportAck = z.infer<typeof GameSaveImportAckSchema>;
 
 // Base move intent schema
 const MoveIntentBaseSchema = z.object({

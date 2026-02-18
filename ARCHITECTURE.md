@@ -1298,6 +1298,18 @@ Also:
 - **Fatal error overlay:** Triggered by `fatal-error` engine events, used for
   catastrophic problems (AI, rules, engine). Offers retry/inspect/exit options.
 
+- **Manual save/load JSON (copy/paste):**
+  - Save export is requested via socket `game:save-export` for the active room.
+  - The backend returns a strict, versioned snapshot:
+    - `initialState` (the original `GameState`),
+    - `events` (the full event log without transport-only fields like `id` and `gameId`).
+  - Save import is requested via socket `game:save-import` from lobby context.
+  - The backend validates the payload with `GameSaveSnapshotSchema`, creates a
+    fresh `gameId`, replays the event log onto that new game, and only then
+    exposes the room.
+  - Imported rooms are created as private rooms and keep deterministic behaviour
+    because the replayed event log is authoritative.
+
 ---
 
 ## 11. Design Philosophy: Explicit Intent over Automation

@@ -11,7 +11,7 @@ import {
 } from "../state";
 import type { AiLogEntry } from "../state";
 
-import { resetGameWithSeed, setGodMode } from "../socket";
+import { exportGameSave, resetGameWithSeed, setGodMode } from "../socket";
 import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { useAiLog } from "../hooks/useAiLog";
 import { useToast } from "../hooks/useToast";
@@ -66,6 +66,9 @@ export function GameHUD({
 
   const [confirmType, setConfirmType] = useState<ConfirmType>(null);
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
+  const [isCopyingSaveJson, setIsCopyingSaveJson] = useState(false);
+  const [isSaveCopySuccess, setIsSaveCopySuccess] = useState(false);
+  const saveCopySuccessTimeoutRef = useRef<number | null>(null);
 
   const currentGameType = view?.rulesId ?? rulesId ?? "";
   const displayName =
@@ -207,6 +210,39 @@ export function GameHUD({
     setGodMode(gameId, !isGodMode);
   };
 
+  useEffect(() => {
+    return () => {
+      if (saveCopySuccessTimeoutRef.current != null) {
+        window.clearTimeout(saveCopySuccessTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopySaveJson = useCallback(async () => {
+    if (!gameId || isCopyingSaveJson) return;
+    setIsCopyingSaveJson(true);
+    try {
+      const snapshot = await exportGameSave(gameId);
+      const serialized = JSON.stringify(snapshot, null, 2);
+      const copied = await copyToClipboard(serialized);
+      if (!copied) {
+        console.error("Failed to copy game save to clipboard");
+        return;
+      }
+      setIsSaveCopySuccess(true);
+      if (saveCopySuccessTimeoutRef.current != null) {
+        window.clearTimeout(saveCopySuccessTimeoutRef.current);
+      }
+      saveCopySuccessTimeoutRef.current = window.setTimeout(() => {
+        setIsSaveCopySuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to export save", err);
+    } finally {
+      setIsCopyingSaveJson(false);
+    }
+  }, [gameId, isCopyingSaveJson]);
+
   // Close on Escape for AI Log
   useEffect(() => {
     if (!isAiLogVisible) return;
@@ -229,6 +265,9 @@ export function GameHUD({
         isGodMode={isGodMode}
         onToggleGodMode={handleToggleGodMode}
         onRestartHand={() => setConfirmType("restartHand")}
+        onCopySaveJson={handleCopySaveJson}
+        isCopyingSaveJson={isCopyingSaveJson}
+        isSaveCopySuccess={isSaveCopySuccess}
         onExit={() => setConfirmType("exit")}
         onAbout={() => {
           safeStartViewTransition(() => setIsMenuOpen(false));
