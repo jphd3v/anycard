@@ -244,7 +244,179 @@ export function GameMenu({
           scrollRef={contentRef}
         >
           <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column: Visuals */}
+            {/* Left Column: Actions & Preferences */}
+            <div className="flex flex-col gap-6">
+              {/* Restart & Quit Section */}
+              <section className="bg-surface-2 rounded-xl p-5 border border-surface-3 flex flex-col">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted mb-4">
+                  Restart & Quit
+                </h3>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Restart Hand */}
+                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-ink text-sm mb-0.5">
+                        Restart Hand
+                      </h4>
+                      <p className="text-xs text-ink-muted leading-relaxed">
+                        Replay the current hand from the beginning using the
+                        same seed.
+                      </p>
+                    </div>
+                    <div className="flex sm:justify-end shrink-0">
+                      <button
+                        onClick={onRestartHand}
+                        className="w-full sm:w-40 px-6 py-2 bg-surface-2 border border-surface-3 hover:border-surface-4 hover:bg-surface-3 text-ink text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                      >
+                        Restart Hand
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Hand */}
+                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-ink text-sm mb-0.5">
+                        Shuffle a New Hand
+                      </h4>
+                      <p className="text-xs text-ink-muted leading-relaxed">
+                        Reset with a new seed to deal a completely fresh hand.
+                      </p>
+                    </div>
+
+                    <div className="flex sm:justify-end shrink-0">
+                      <button
+                        onClick={onResetSeed}
+                        className="w-full sm:w-40 px-6 py-2 text-sm font-semibold rounded-lg transition-colors border bg-surface-2 border-surface-3 hover:border-surface-4 text-ink hover:bg-surface-3 shadow-sm"
+                      >
+                        New Hand
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quit Game */}
+                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-ink text-sm mb-0.5">
+                        Quit Game
+                      </h4>
+                      <p className="text-xs text-ink-muted leading-relaxed">
+                        Leave your seat and return to the room lobby.
+                      </p>
+                    </div>
+                    <div className="flex sm:justify-end shrink-0">
+                      <button
+                        onClick={onExit}
+                        className="w-full sm:w-40 px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Quit Game
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Secondary Actions: About & Back to Game */}
+                  <div className="mt-2 pt-5 border-t border-surface-3 flex gap-3">
+                    <button
+                      onClick={onAbout}
+                      className="flex-1 py-2.5 px-4 bg-surface-1 border border-surface-3 hover:bg-surface-3 text-ink font-semibold text-xs rounded-lg transition-colors shadow-sm text-center"
+                    >
+                      About AnyCard
+                    </button>
+                    <button
+                      onClick={() =>
+                        safeStartViewTransition(() => setIsOpen(false))
+                      }
+                      className="flex-1 py-2.5 px-4 bg-surface-1 border border-surface-3 hover:bg-surface-3 text-ink font-semibold text-xs rounded-lg transition-colors shadow-sm text-center"
+                    >
+                      Back to Game
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Preferences Section */}
+              <section className="bg-surface-2 rounded-xl p-5 border border-surface-3">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted mb-4">
+                  Preferences
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3">
+                  <MenuToggle
+                    label="Sound Effects"
+                    enabled={soundEnabled}
+                    onChange={() => setSoundEnabled((prev) => !prev)}
+                  />
+                  <MenuToggle
+                    label="Auto-rotate View"
+                    enabled={autoRotateSeat}
+                    onChange={() => setAutoRotateSeat((prev) => !prev)}
+                  />
+                  <MenuToggle
+                    label="Auto-close Messages"
+                    enabled={toastAutoCloseEnabled}
+                    onChange={() => setToastAutoCloseEnabled((prev) => !prev)}
+                  />
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-1 border border-surface-3">
+                    <span className="text-xs font-medium text-ink ml-1">
+                      Move Type
+                    </span>
+                    <div className="flex bg-surface-3 rounded-md p-0.5">
+                      <button
+                        onClick={() => setMoveType("click")}
+                        className={`px-3 py-1 rounded text-2xs font-bold uppercase tracking-wider transition-all ${
+                          moveType === "click"
+                            ? "bg-surface-1 text-ink shadow-sm"
+                            : "text-ink-muted hover:text-ink"
+                        }`}
+                      >
+                        Click
+                      </button>
+                      <button
+                        onClick={() => setMoveType("drag")}
+                        className={`px-3 py-1 rounded text-2xs font-bold uppercase tracking-wider transition-all ${
+                          moveType === "drag"
+                            ? "bg-surface-1 text-ink shadow-sm"
+                            : "text-ink-muted hover:text-ink"
+                        }`}
+                      >
+                        Drag
+                      </button>
+                    </div>
+                  </div>
+
+                  <MenuToggle
+                    label="Free Move"
+                    enabled={freeDragEnabled}
+                    onChange={() => setFreeDragEnabled((prev) => !prev)}
+                  />
+
+                  {isSpectator && (
+                    <MenuToggle
+                      label="God Mode"
+                      enabled={isGodMode}
+                      onChange={onToggleGodMode}
+                    />
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {/* Right Column: Visuals */}
             <div className="space-y-6">
               {/* Theme Section */}
               <section className="bg-surface-2 rounded-xl p-5 border border-surface-3">
@@ -407,178 +579,6 @@ export function GameMenu({
                   ))}
                 </div>
               </section>
-            </div>
-
-            {/* Right Column: Restart & Preferences */}
-            <div className="flex flex-col gap-6">
-              {/* Restart & Quit Section */}
-              <section className="bg-surface-2 rounded-xl p-5 border border-surface-3 flex flex-col">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted mb-4">
-                  Restart & Quit
-                </h3>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {/* Restart Hand */}
-                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-ink text-sm mb-0.5">
-                        Restart Hand
-                      </h4>
-                      <p className="text-xs text-ink-muted leading-relaxed">
-                        Replay the current hand from the beginning using the
-                        same seed.
-                      </p>
-                    </div>
-                    <div className="flex sm:justify-end shrink-0">
-                      <button
-                        onClick={onRestartHand}
-                        className="w-full sm:w-40 px-6 py-2 bg-surface-2 border border-surface-3 hover:border-surface-4 hover:bg-surface-3 text-ink text-sm font-semibold rounded-lg transition-colors shadow-sm"
-                      >
-                        Restart Hand
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* New Hand */}
-                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-ink text-sm mb-0.5">
-                        Shuffle a New Hand
-                      </h4>
-                      <p className="text-xs text-ink-muted leading-relaxed">
-                        Reset with a new seed to deal a completely fresh hand.
-                      </p>
-                    </div>
-
-                    <div className="flex sm:justify-end shrink-0">
-                      <button
-                        onClick={onResetSeed}
-                        className="w-full sm:w-40 px-6 py-2 text-sm font-semibold rounded-lg transition-colors border bg-surface-2 border-surface-3 hover:border-surface-4 text-ink hover:bg-surface-3 shadow-sm"
-                      >
-                        New Hand
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quit Game */}
-                  <div className="p-4 bg-surface-1 rounded-xl border border-surface-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-ink text-sm mb-0.5">
-                        Quit Game
-                      </h4>
-                      <p className="text-xs text-ink-muted leading-relaxed">
-                        Leave your seat and return to the room lobby.
-                      </p>
-                    </div>
-                    <div className="flex sm:justify-end shrink-0">
-                      <button
-                        onClick={onExit}
-                        className="w-full sm:w-40 px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                          />
-                        </svg>
-                        Quit Game
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Preferences Section */}
-              <section className="bg-surface-2 rounded-xl p-5 border border-surface-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted mb-4">
-                  Preferences
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3">
-                  <MenuToggle
-                    label="Sound Effects"
-                    enabled={soundEnabled}
-                    onChange={() => setSoundEnabled((prev) => !prev)}
-                  />
-                  <MenuToggle
-                    label="Auto-rotate View"
-                    enabled={autoRotateSeat}
-                    onChange={() => setAutoRotateSeat((prev) => !prev)}
-                  />
-                  <MenuToggle
-                    label="Auto-close Messages"
-                    enabled={toastAutoCloseEnabled}
-                    onChange={() => setToastAutoCloseEnabled((prev) => !prev)}
-                  />
-
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-1 border border-surface-3">
-                    <span className="text-xs font-medium text-ink ml-1">
-                      Move Type
-                    </span>
-                    <div className="flex bg-surface-3 rounded-md p-0.5">
-                      <button
-                        onClick={() => setMoveType("click")}
-                        className={`px-3 py-1 rounded text-2xs font-bold uppercase tracking-wider transition-all ${
-                          moveType === "click"
-                            ? "bg-surface-1 text-ink shadow-sm"
-                            : "text-ink-muted hover:text-ink"
-                        }`}
-                      >
-                        Click
-                      </button>
-                      <button
-                        onClick={() => setMoveType("drag")}
-                        className={`px-3 py-1 rounded text-2xs font-bold uppercase tracking-wider transition-all ${
-                          moveType === "drag"
-                            ? "bg-surface-1 text-ink shadow-sm"
-                            : "text-ink-muted hover:text-ink"
-                        }`}
-                      >
-                        Drag
-                      </button>
-                    </div>
-                  </div>
-
-                  <MenuToggle
-                    label="Free Move"
-                    enabled={freeDragEnabled}
-                    onChange={() => setFreeDragEnabled((prev) => !prev)}
-                  />
-
-                  {isSpectator && (
-                    <MenuToggle
-                      label="God Mode"
-                      enabled={isGodMode}
-                      onChange={onToggleGodMode}
-                    />
-                  )}
-                </div>
-              </section>
-
-              {/* About & Close Buttons - Right-aligned below sections */}
-              <div className="flex justify-end gap-3 mt-auto pt-2">
-                <button
-                  onClick={onAbout}
-                  className="py-2 px-6 bg-surface-1 border border-surface-3 hover:bg-surface-3 text-ink font-medium text-xs rounded-lg transition-colors shadow-sm"
-                >
-                  About
-                </button>
-                <button
-                  onClick={() =>
-                    safeStartViewTransition(() => setIsOpen(false))
-                  }
-                  className="py-2 px-6 bg-surface-1 border border-surface-3 hover:bg-surface-3 text-ink font-medium text-xs rounded-lg transition-colors shadow-sm"
-                >
-                  Back to Game
-                </button>
-              </div>
             </div>
           </div>
         </ScrollShadowWrapper>
