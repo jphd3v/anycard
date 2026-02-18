@@ -958,6 +958,11 @@ body,
     border-radius: 8px;
   }
 
+  .card-immovable-dim {
+    filter: brightness(0.68) saturate(0.72) contrast(0.96);
+    transition: filter 140ms ease;
+  }
+
   .font-serif-display {
     font-family: var(--font-serif);
   }

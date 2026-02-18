@@ -48,11 +48,15 @@ function DraggableCard({
   pileId,
   disabled,
   isMoveTarget,
+  dimImmovable,
+  cardIndex,
 }: {
   card: CardView;
   pileId: string;
   disabled: boolean;
   isMoveTarget?: boolean;
+  dimImmovable?: boolean;
+  cardIndex?: number;
 }) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `pile-${pileId}-card-${card.id}`,
@@ -70,7 +74,13 @@ function DraggableCard({
         disabled ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
       }
     >
-      <Card card={card} pileId={pileId} isMoveTarget={isMoveTarget} />
+      <Card
+        card={card}
+        index={cardIndex}
+        pileId={pileId}
+        isMoveTarget={isMoveTarget}
+        dimImmovable={dimImmovable}
+      />
     </div>
   );
 }
@@ -80,11 +90,15 @@ function SortableCard({
   pileId,
   disabled,
   isMoveTarget,
+  dimImmovable,
+  cardIndex,
 }: {
   card: CardView;
   pileId: string;
   disabled: boolean;
   isMoveTarget?: boolean;
+  dimImmovable?: boolean;
+  cardIndex?: number;
 }) {
   const {
     attributes,
@@ -115,7 +129,13 @@ function SortableCard({
         disabled ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
       }
     >
-      <Card card={card} pileId={pileId} isMoveTarget={isMoveTarget} />
+      <Card
+        card={card}
+        index={cardIndex}
+        pileId={pileId}
+        isMoveTarget={isMoveTarget}
+        dimImmovable={dimImmovable}
+      />
     </div>
   );
 }
@@ -555,15 +575,17 @@ export function Pile({
                 return (
                   <div
                     key={card.id}
-                    style={{ ...cardStyle, ...animationStyle, zIndex: index }}
+                    style={{ ...cardStyle, ...animationStyle }}
                     data-testid={isTopCard ? `pile-top:${pile.id}` : undefined}
                     data-topcard={isTopCard ? "true" : undefined}
                   >
                     <CardComponent
                       card={card}
+                      cardIndex={index}
                       pileId={pile.id}
                       disabled={dragDisabled}
                       isMoveTarget={isDropTarget}
+                      dimImmovable={isHandPile && isMine}
                     />
                     {canReorderInClickMode && (
                       <div

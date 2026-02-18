@@ -128,6 +128,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   pileLayout?: PileLayout;
   pileId?: string;
   isMoveTarget?: boolean;
+  dimImmovable?: boolean;
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -139,6 +140,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       pileLayout = "complete",
       pileId,
       isMoveTarget,
+      dimImmovable = false,
       style,
       ...rest
     },
@@ -162,6 +164,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     const [isPressed, setIsPressed] = useState(false);
 
     const legalIntents = view?.legalIntents ?? [];
+    const hasAnyLegalCardMove = legalIntents.some(
+      (intent) => intent.type === "move"
+    );
     const isMovable =
       freeDragEnabled ||
       legalIntents.some(
@@ -173,7 +178,6 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
     const isClickable = isClickMoveActive && (isMovable || isMoveTarget);
 
-    void index;
     void pileLayout;
     const activeTransitionCardIds = useAtomValue(activeTransitionCardIdsAtom);
     const shouldAnimate = activeTransitionCardIds?.has(card.id) ?? false;
@@ -186,6 +190,16 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     const shouldAttentionGlow = !freeDragEnabled && isMovable && !isMoveTarget;
     const shouldAttentionWiggle =
       shouldAttentionGlow && !isHovered && !isPressed && !isSelected;
+    const shouldDimImmovable =
+      dimImmovable &&
+      !freeDragEnabled &&
+      hasAnyLegalCardMove &&
+      !isMovable &&
+      !isMoveTarget;
+
+    const restingZIndex =
+      typeof style?.zIndex === "number" ? style.zIndex : index + 1;
+    const activeZIndex = isSelected ? 1000 : isPressed ? 900 : restingZIndex;
 
     const mergedStyle: CSSProperties & { viewTransitionName?: string } = {
       width: "var(--card-width)",
@@ -199,7 +213,6 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       ...(isSelected
         ? {
             transform: `${style?.transform ?? ""} translateY(-12px)`,
-            zIndex: 100,
             transition: "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
           }
         : isPressed
@@ -208,6 +221,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
               transition: "transform 0.1s ease-out",
             }
           : {}),
+      zIndex: activeZIndex,
     };
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -310,7 +324,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         {...rest}
       >
         <div
-          className={`w-full h-full ${shouldAttentionGlow ? "card-attention-glow card-attention-sheen" : ""} ${shouldAttentionWiggle ? "animate-card-attention-wiggle" : ""}`}
+          className={`w-full h-full ${shouldDimImmovable ? "card-immovable-dim" : ""} ${shouldAttentionGlow ? "card-attention-glow card-attention-sheen" : ""} ${shouldAttentionWiggle ? "animate-card-attention-wiggle" : ""}`}
         >
           <div
             className={`card-flip ${card.faceDown ? "is-face-down" : "is-face-up"}`}
