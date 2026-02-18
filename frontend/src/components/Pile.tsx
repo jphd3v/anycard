@@ -180,10 +180,21 @@ export function Pile({
   const isVerticalHandLayout = isHandPile && layout === "vertical";
   const compactNameSource = labelText || ownerName || pile.ownerId || "";
   const compactOwnerLabel = (() => {
+    const seatId = typeof pile.ownerId === "string" ? pile.ownerId.trim() : "";
+    if (isVerticalHandLayout && /^P\d+$/i.test(seatId)) {
+      return seatId.toUpperCase();
+    }
+
     const trimmed = compactNameSource.trim();
     if (!trimmed) return "?";
     const firstToken = trimmed.split(/\s+/)[0] ?? trimmed;
-    if (isVerticalHandLayout) return firstToken.charAt(0).toUpperCase();
+    if (isVerticalHandLayout) {
+      const compactToken = firstToken.replace(/[^A-Za-z0-9]/g, "");
+      if (compactToken.length > 0 && compactToken.length <= 3) {
+        return compactToken.toUpperCase();
+      }
+      return firstToken.charAt(0).toUpperCase();
+    }
     return firstToken.toUpperCase();
   })();
   const ownerLabelText =

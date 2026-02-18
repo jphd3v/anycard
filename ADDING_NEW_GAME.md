@@ -584,6 +584,24 @@ Each zone is either:
 - **MANDATORY `piles` PROPERTY**: Every zone MUST include a `piles` property, even if it is an empty array (e.g. `"piles": []` for widget zones). The frontend assumes this array exists to map players to zones; omitting it will cause a runtime crash.
 - **GRID BOUNDS**: The `rows` and `cols` defined at the top of the layout file MUST be strictly greater than the maximum `row` and `col` indices used in any zone. (e.g. if you use `"row": 2`, you must have at least `"rows": 3`).
 
+### 4.2.1 Subgrids (advanced, use sparingly)
+
+`subgrid` + `pileGrid` lets you place piles in a mini-grid inside one zone.
+This is useful for more complex table structures, such as:
+
+- Three-player games
+- Golf hand zones with multiple fixed card positions plus a draw slot.
+- Zones such as the ones in Shithead where hand/up/down piles need a structured shape.
+
+For most games, prefer normal zone-level grid placement first. Use subgrids only
+when standard zone layout cannot express the structure clearly.
+
+When using subgrids:
+
+- Always define both `subgrid` and `pileGrid` together.
+- Ensure each pile listed in `zone.piles` has a corresponding `pileGrid` cell.
+- Keep the subgrid small and explicit; avoid using it as a default layout tool.
+
 Actions and scoreboards are always available in the top header UI. Usually,
 in-table widgets should be avoided in the layout zones. Exception: if a game has
 only a single action or a very small action set and the layout has room, it is

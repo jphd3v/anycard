@@ -549,6 +549,10 @@ Defines table layout.
 - Zones:
   - either list `piles`, or
   - specify a `widget` (`"actions"` or `"scoreboards"`).
+- Zones may optionally use `subgrid` + `pileGrid` for internal pile placement,
+  but this is an advanced feature and should be reserved for genuinely complex
+  layouts (for example: 3-player games, Golf hand structure, Shithead hand/up/down
+  zones), not routine two-pile or simple hand/table setups.
 
 Actions and scoreboards are always available in the top header UI. Usually,
 in-table widgets should be avoided in the layout zones. Exception: if a game has

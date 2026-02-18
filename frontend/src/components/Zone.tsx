@@ -132,7 +132,7 @@ export function Zone({ zone, renderPile, disabled }: Props) {
   const animationStyle: React.CSSProperties = { ...rotationStyle };
 
   const labelElement =
-    zone.label && zone.showLabel ? (
+    zone.label && zone.showLabel && !isSinglePileZone ? (
       <div className="absolute top-0 inset-x-0 flex justify-center pt-2 pointer-events-none z-20">
         <span className="text-[10px] font-bold uppercase tracking-widest text-ink leading-none inline-flex items-center gap-1.5">
           {isHandZone ? (

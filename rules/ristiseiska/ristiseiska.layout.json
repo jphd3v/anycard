@@ -1,54 +1,55 @@
 {
   "rulesId": "ristiseiska",
-  "rows": 5,
-  "cols": 2,
+  "rows": 4,
+  "cols": 4,
   "zones": [
     {
       "id": "p2-area",
       "label": "Player 2",
-      "cell": { "row": 0, "col": 0, "colspan": 2 },
+      "showLabel": true,
+      "handForPlayerId": "P2",
+      "cell": { "row": 0, "col": 0, "colspan": 4 },
       "piles": ["P2-hand"]
-    },
-    {
-      "id": "clubs",
-      "label": "Clubs",
-      "cell": { "row": 1, "col": 0 },
-      "piles": ["clubs-table"]
-    },
-    {
-      "id": "diamonds",
-      "label": "Diamonds",
-      "cell": { "row": 1, "col": 1 },
-      "piles": ["diamonds-table"]
-    },
-    {
-      "id": "hearts",
-      "label": "Hearts",
-      "cell": { "row": 2, "col": 0 },
-      "piles": ["hearts-table"]
-    },
-    {
-      "id": "spades",
-      "label": "Spades",
-      "cell": { "row": 2, "col": 1 },
-      "piles": ["spades-table"]
     },
     {
       "id": "p3-area",
       "label": "Player 3",
-      "cell": { "row": 3, "col": 0, "colspan": 2 },
+      "showLabel": true,
+      "handForPlayerId": "P3",
+      "cell": { "row": 1, "col": 0, "rowspan": 3 },
       "piles": ["P3-hand"]
+    },
+    {
+      "id": "table",
+      "label": "Table",
+      "showLabel": true,
+      "cell": { "row": 1, "col": 1, "rowspan": 3, "colspan": 2 },
+      "piles": [
+        "clubs-table",
+        "diamonds-table",
+        "hearts-table",
+        "spades-table"
+      ],
+      "subgrid": { "rows": 2, "cols": 2, "gap": "12px" },
+      "pileGrid": {
+        "clubs-table": { "row": 0, "col": 0 },
+        "diamonds-table": { "row": 0, "col": 1 },
+        "hearts-table": { "row": 1, "col": 0 },
+        "spades-table": { "row": 1, "col": 1 }
+      }
     },
     {
       "id": "p1-area",
       "label": "Player 1",
-      "cell": { "row": 4, "col": 0, "colspan": 2 },
+      "showLabel": true,
+      "handForPlayerId": "P1",
+      "cell": { "row": 1, "col": 3, "rowspan": 3 },
       "piles": ["P1-hand"]
     }
   ],
   "pileStyles": {
     "P1-hand": {
-      "layout": "horizontal",
+      "layout": "vertical",
       "isHand": true,
       "sort": {
         "default": "rank",
@@ -106,7 +107,7 @@
       }
     },
     "P3-hand": {
-      "layout": "horizontal",
+      "layout": "vertical",
       "isHand": true,
       "sort": {
         "default": "rank",

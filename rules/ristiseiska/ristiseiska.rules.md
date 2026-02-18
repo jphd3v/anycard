@@ -71,6 +71,13 @@ Each turn consists of either playing a card or passing:
 - **Victory**: The first player to empty their hand wins.
 - **Immediate end**: The game ends as soon as one player plays their last card.
 
+## Game Strategy
+
+- **Strategic Blocking**: Holding onto 7s or 6s is the most powerful way to block opponents. Since a 6 must be played before an 8, holding a 6 prevents anyone else from playing higher cards (8-K) or lower cards (5-2) in that suit.
+- **Unlocking Your Hand**: Prioritize playing cards that "open up" the sequence for other cards you hold. If you have the 9 and 10 of a suit, you want to encourage the play of the 8 as soon as possible.
+- **Pawn Avoidance**: Passing is highly disadvantageous because taking a random card from an opponent increases your hand size and helps them win faster. Always look for a legal move before considering a pass.
+- **Aces and Kings**: Be mindful of the cards at the ends of the sequences. Since Aces are played last, ensure you aren't left with an Ace that cannot be played because the suit sequence was never completed.
+
 ## Scoring
 
 - **Winner**: The player who plays all their cards first is the winner.
