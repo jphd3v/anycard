@@ -51,6 +51,10 @@ import {
 import { useGameMeta } from "./hooks/useGameMeta";
 import {
   fetchActiveGames,
+  getServerUrlOverride,
+  SERVER_URL,
+  setServerUrlOverride,
+  clearServerUrlOverride,
   joinGame,
   watchGame,
   leaveGame,
@@ -799,7 +803,7 @@ export default function App() {
   });
 
   const isLobbyView = !gameId && !routeError;
-  const { isLobbyLoading, refreshLobby } = useLobbyData({
+  const { isLobbyLoading, lobbyLoadError, refreshLobby } = useLobbyData({
     aiRuntimePreference,
     setAiRuntimePreference,
     setAvailableGames,
@@ -856,6 +860,32 @@ export default function App() {
 
   const [selectedGameForDetails, setSelectedGameForDetails] =
     useState<AvailableGame | null>(null);
+  const [serverUrlInput, setServerUrlInput] = useState(
+    () => getServerUrlOverride() ?? SERVER_URL
+  );
+  const [serverUrlInputError, setServerUrlInputError] = useState<string | null>(
+    null
+  );
+  const [hasServerUrlOverride, setHasServerUrlOverride] = useState(() =>
+    Boolean(getServerUrlOverride())
+  );
+
+  const applyServerUrlOverride = useCallback(() => {
+    const normalized = setServerUrlOverride(serverUrlInput);
+    if (!normalized) {
+      setServerUrlInputError("Enter a valid server URL or IP.");
+      return;
+    }
+    window.location.reload();
+  }, [serverUrlInput]);
+
+  const resetServerUrlOverride = useCallback(() => {
+    clearServerUrlOverride();
+    setHasServerUrlOverride(false);
+    setServerUrlInput(SERVER_URL);
+    setServerUrlInputError(null);
+    window.location.reload();
+  }, []);
 
   // When clicking a game in the list
   const handleGameSelect = (game: AvailableGame) => {
@@ -1583,9 +1613,65 @@ export default function App() {
         <FullScreenMessage
           title="Loading games"
           description={
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full max-w-sm flex-col items-center gap-4">
               <div className="h-10 w-10 spinner" aria-hidden="true" />
               <div>Waking up the game server. This can take a few seconds.</div>
+              <div className="mt-2 w-full rounded-xl border border-surface-3 bg-surface-1/70 p-3 text-left">
+                <div className="mt-1 text-xs text-ink-muted">
+                  Current:{" "}
+                  <span className="font-mono break-all">{SERVER_URL}</span>
+                </div>
+                <>
+                  <label className="mb-2 mt-3 block text-xs font-semibold text-ink-muted">
+                    Backend Server (Override)
+                  </label>
+                  <input
+                    type="text"
+                    value={serverUrlInput}
+                    onChange={(event) => {
+                      setServerUrlInput(event.target.value);
+                      setServerUrlInputError(null);
+                    }}
+                    placeholder="192.168.1.50:3000"
+                    className="w-full rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-sm text-ink outline-none focus:border-brand-500"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </>
+                {serverUrlInputError && (
+                  <div className="mt-2 text-xs text-red-500">
+                    {serverUrlInputError}
+                  </div>
+                )}
+                {lobbyLoadError && (
+                  <div className="mt-2 text-xs text-red-500">
+                    Last connection error: {lobbyLoadError}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="button-base button-primary rounded-full px-4 py-2 text-xs"
+                    onClick={applyServerUrlOverride}
+                  >
+                    Save and Retry
+                  </button>
+                  <button
+                    className="button-base rounded-full px-4 py-2 text-xs"
+                    onClick={refreshLobby}
+                  >
+                    Retry Now
+                  </button>
+                  {hasServerUrlOverride && (
+                    <button
+                      className="button-base rounded-full px-4 py-2 text-xs"
+                      onClick={resetServerUrlOverride}
+                    >
+                      Use Default
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           }
           translucent

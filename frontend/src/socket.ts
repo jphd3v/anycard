@@ -20,6 +20,42 @@ import type {
 } from "./state";
 import type { AiLogEntry } from "../../shared/ai-log";
 
+const ALLOW_INSECURE_HTTP = import.meta.env.VITE_ALLOW_INSECURE_HTTP === "true";
+const SERVER_URL_OVERRIDE_STORAGE_KEY = "server-url-override";
+
+function normalizeServerUrlInput(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const withProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmed)
+    ? trimmed
+    : `${ALLOW_INSECURE_HTTP ? "http" : "https"}://${trimmed}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+    if (!ALLOW_INSECURE_HTTP && parsed.protocol === "http:") {
+      return null;
+    }
+    if (!parsed.port && parsed.protocol === "http:") {
+      parsed.port = "3000";
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+function readServerUrlOverride(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SERVER_URL_OVERRIDE_STORAGE_KEY);
+    if (!raw) return null;
+    return normalizeServerUrlInput(raw);
+  } catch {
+    return null;
+  }
+}
+
 // In production we expect the backend to serve the frontend, so default to the
 // current origin. In Vite dev we still want the API on port 3000 unless
 // overridden via VITE_SERVER_URL.
@@ -31,10 +67,27 @@ const defaultServerUrl =
       ? window.location.origin
       : "http://localhost:3000");
 
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? defaultServerUrl;
+export const SERVER_URL = readServerUrlOverride() ?? defaultServerUrl;
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 const SOCKET_ACK_TIMEOUT_MS = 10000;
+
+export function getServerUrlOverride(): string | null {
+  return readServerUrlOverride();
+}
+
+export function setServerUrlOverride(raw: string): string | null {
+  if (typeof window === "undefined") return null;
+  const normalized = normalizeServerUrlInput(raw);
+  if (!normalized) return null;
+  window.localStorage.setItem(SERVER_URL_OVERRIDE_STORAGE_KEY, normalized);
+  return normalized;
+}
+
+export function clearServerUrlOverride(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(SERVER_URL_OVERRIDE_STORAGE_KEY);
+}
 
 /**
  * Fetch with AbortController timeout to prevent indefinite hangs.

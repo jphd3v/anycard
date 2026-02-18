@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_SERVER_URL: string;
+  readonly VITE_ALLOW_INSECURE_HTTP?: string;
   readonly VITE_BROWSER_LLM_ENABLED: string;
   readonly VITE_LLM_BASE_URL: string;
   readonly VITE_LLM_API_KEY: string;

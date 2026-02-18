@@ -26,6 +26,7 @@ type UseLobbyDataOptions = {
 
 type UseLobbyDataResult = {
   isLobbyLoading: boolean;
+  lobbyLoadError: string | null;
   refreshLobby: () => void;
 };
 
@@ -40,11 +41,13 @@ export function useLobbyData({
   isLobbyView,
 }: UseLobbyDataOptions): UseLobbyDataResult {
   const [isLobbyLoading, setIsLobbyLoading] = useState(true);
+  const [lobbyLoadError, setLobbyLoadError] = useState<string | null>(null);
   const lobbyRetryTimerRef = useRef<number | null>(null);
   const lobbyCancelledRef = useRef(false);
 
   const loadLobbyData = useCallback(async () => {
     setIsLobbyLoading(true);
+    setLobbyLoadError(null);
     try {
       const [available, active, config] = await Promise.all([
         fetchAvailableGames(),
@@ -84,6 +87,9 @@ export function useLobbyData({
     } catch (err) {
       if (lobbyCancelledRef.current) return;
       console.error("Failed to load lobby data; retrying shortly", err);
+      const message =
+        err instanceof Error ? err.message : "Unknown network error";
+      setLobbyLoadError(message);
       if (lobbyRetryTimerRef.current) {
         clearTimeout(lobbyRetryTimerRef.current);
       }
@@ -131,6 +137,7 @@ export function useLobbyData({
 
   return {
     isLobbyLoading,
+    lobbyLoadError,
     refreshLobby: () => {
       void loadLobbyData();
     },

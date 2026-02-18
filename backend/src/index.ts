@@ -110,7 +110,7 @@ const io = new Server(server, {
 
 initSocket(io);
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
   console.log(`[Startup] Rule engine mode: ${RULE_ENGINE_MODE}`);
 

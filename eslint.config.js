@@ -18,7 +18,7 @@ const tsconfigRootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default tseslint.config(
   {
-    ignores: ["frontend/dist", "backend/dist"],
+    ignores: ["frontend/dist", "frontend/android/**", "backend/dist"],
   },
   {
     name: "frontend-react",

@@ -1,0 +1,3 @@
+# Capacitor launcher activity must be exported to support app launch.
+# Semgrep's generic exported-activity rule flags this default.
+frontend/android/app/src/main/AndroidManifest.xml

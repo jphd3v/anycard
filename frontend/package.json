@@ -6,11 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:mobile": "GIT_COMMIT_SHA=$(git rev-parse HEAD) MOBILE_INSECURE=false VITE_ALLOW_INSECURE_HTTP=false npm run build",
+    "build:mobile:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure mobile build. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; GIT_COMMIT_SHA=$(git rev-parse HEAD) MOBILE_INSECURE=true VITE_ALLOW_INSECURE_HTTP=true VITE_SERVER_URL=${VITE_SERVER_URL:-http://10.0.2.2:3000} npm run build",
+    "android:add": "npx cap add android",
+    "android:sync": "MOBILE_INSECURE=false npm run build:mobile && MOBILE_INSECURE=false npx cap sync android",
+    "android:sync:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure Android sync. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; npm run build:mobile:insecure && MOBILE_INSECURE=true npx cap sync android",
+    "android": "npm run android:sync && ORG_GRADLE_PROJECT_usesCleartextTraffic=false npx cap run android",
+    "android:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure Android run. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; npm run android:sync:insecure && ORG_GRADLE_PROJECT_usesCleartextTraffic=true npx cap run android",
+    "android:apk:debug": "npm run android:sync && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=false ./gradlew assembleDebug)",
+    "android:apk:debug:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure Android APK build. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; npm run android:sync:insecure && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=true ./gradlew assembleDebug)",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^8.0.2",
     "@dnd-kit/core": "6.1.0",
     "@dnd-kit/sortable": "^8.0.0",
     "immer": "10.1.1",
@@ -24,6 +34,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/cli": "^8.0.2",
     "@eslint/js": "^9.9.0",
     "@tailwindcss/vite": "^4.0.0-alpha.13",
     "@types/node": "^22.5.4",

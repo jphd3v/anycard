@@ -34,6 +34,32 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     "http://localhost:5173",
     "http://127.0.0.1:5173",
   ];
+  const INSECURE_MOBILE_DEV_ORIGINS = [
+    "http://localhost",
+    "https://localhost",
+    "capacitor://localhost",
+  ];
+  const allowInsecureMobileOrigins = parseBooleanEnv(
+    process.env.ALLOW_INSECURE_MOBILE_ORIGINS
+  );
+  const envOrigins =
+    process.env.CLIENT_ORIGIN?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+  const clientOrigins =
+    envOrigins.length > 0
+      ? Array.from(
+          new Set([
+            ...envOrigins,
+            ...(allowInsecureMobileOrigins ? INSECURE_MOBILE_DEV_ORIGINS : []),
+          ])
+        )
+      : Array.from(
+          new Set([
+            ...DEFAULT_DEV_ORIGINS,
+            ...(allowInsecureMobileOrigins ? INSECURE_MOBILE_DEV_ORIGINS : []),
+          ])
+        );
 
   return {
     port: Number(process.env.PORT ?? 3000),
@@ -54,10 +80,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       process.env.LLM_MIN_THINK_TIME_MS !== undefined
         ? Number(process.env.LLM_MIN_THINK_TIME_MS)
         : 300,
-    clientOrigins:
-      process.env.CLIENT_ORIGIN?.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean) ?? DEFAULT_DEV_ORIGINS,
+    clientOrigins,
     backendAiEnabled: parseBooleanEnv(process.env.BACKEND_LLM_ENABLED),
     llmPolicyMode: (process.env.LLM_POLICY_MODE === "firstCandidate"
       ? "firstCandidate"
@@ -159,6 +182,12 @@ export function getEnvironmentVariablesInfo(): Array<{
       value: process.env.CLIENT_ORIGIN || "[DEFAULT]",
       defaultValue: "http://localhost:5173,http://127.0.0.1:5173",
       isSet: Boolean(process.env.CLIENT_ORIGIN),
+    },
+    {
+      key: "ALLOW_INSECURE_MOBILE_ORIGINS",
+      value: process.env.ALLOW_INSECURE_MOBILE_ORIGINS || "false",
+      defaultValue: "false",
+      isSet: Boolean(process.env.ALLOW_INSECURE_MOBILE_ORIGINS),
     },
     {
       key: "BACKEND_LLM_ENABLED",
