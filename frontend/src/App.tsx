@@ -1614,69 +1614,71 @@ export default function App() {
 
       {/* Toast Notifications */}
       <div
-        className="fixed bottom-4 right-4 z-[1100] flex flex-col gap-2 items-end pointer-events-none"
+        className="fixed bottom-4 right-4 z-[1100] flex flex-col gap-2 items-end pointer-events-none max-h-[calc(100vh-2rem)]"
         data-testid="status-message"
       >
         {!toastAutoCloseEnabled && activeToasts.length > 0 && (
           <button
             onClick={() => setActiveToasts([])}
-            className="pointer-events-auto button-base button-secondary px-3 py-1.5 text-2xs uppercase tracking-wider shadow-lg bg-surface-1 border-surface-3 mb-1"
+            className="pointer-events-auto button-base button-secondary px-3 py-1.5 text-2xs uppercase tracking-wider shadow-lg bg-surface-1 border-surface-3 mb-1 flex-shrink-0"
           >
             Clear all
           </button>
         )}
-        {activeToasts.map((toast) => {
-          const toneClass =
-            toast.tone === "error"
-              ? "border-error bg-error-surface text-error-ink"
-              : toast.tone === "success"
-                ? "border-success bg-success-surface text-success-ink"
-                : toast.tone === "neutral"
-                  ? "border-warning bg-warning-surface text-warning-ink"
-                  : toast.tone === "warning"
+        <div className="flex flex-col gap-2 items-end overflow-y-auto max-h-full pointer-events-none">
+          {activeToasts.map((toast) => {
+            const toneClass =
+              toast.tone === "error"
+                ? "border-error bg-error-surface text-error-ink"
+                : toast.tone === "success"
+                  ? "border-success bg-success-surface text-success-ink"
+                  : toast.tone === "neutral"
                     ? "border-warning bg-warning-surface text-warning-ink"
-                    : "border-surface-3 bg-surface-1 text-ink";
+                    : toast.tone === "warning"
+                      ? "border-warning bg-warning-surface text-warning-ink"
+                      : "border-surface-3 bg-surface-1 text-ink";
 
-          return (
-            <div
-              key={toast.id}
-              data-testid={
-                toast.tone === "error" ? "error-message" : "status-message"
-              }
-              className={`pointer-events-auto w-80 flex items-start justify-between gap-3 rounded-lg border-l-4 p-3 shadow-lg transition-all animate-toast-pop ${toneClass}`}
-              aria-live={toast.tone === "error" ? "assertive" : "polite"}
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-2xs font-bold uppercase tracking-wider opacity-50">
-                  {toast.source}
-                </span>
-                <span className="text-sm font-medium leading-snug">
-                  {toast.message}
-                </span>
-              </div>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="p-1 -mr-1 text-current opacity-50 hover:opacity-100 hover:bg-black/5 rounded-full transition-all cursor-pointer"
-                type="button"
-                aria-label="Close notification"
+            return (
+              <div
+                key={toast.id}
+                data-testid={
+                  toast.tone === "error" ? "error-message" : "status-message"
+                }
+                className={`pointer-events-auto w-80 flex items-start justify-between gap-3 rounded-lg border-l-4 p-3 shadow-lg transition-all animate-toast-pop ${toneClass}`}
+                aria-live={toast.tone === "error" ? "assertive" : "polite"}
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-2xs font-bold uppercase tracking-wider opacity-50">
+                    {toast.source}
+                  </span>
+                  <span className="text-sm font-medium leading-snug">
+                    {toast.message}
+                  </span>
+                </div>
+                <button
+                  onClick={() => removeToast(toast.id)}
+                  className="p-1 -mr-1 text-current opacity-50 hover:opacity-100 hover:bg-black/5 rounded-full transition-all cursor-pointer"
+                  type="button"
+                  aria-label="Close notification"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          );
-        })}
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* 3. Offline State */}
