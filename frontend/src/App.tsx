@@ -540,10 +540,20 @@ export default function App() {
     }
   }, [gameTitle, gameId]);
 
-  // Close open widgets on orientation change
+  // Close open widgets on orientation / viewport change.
+  // We track the last known dimensions so that spurious resize events
+  // (e.g. layout reflows from card animations) don't close the menu.
   useEffect(() => {
+    let lastW = window.innerWidth;
+    let lastH = window.innerHeight;
     const handleResize = () => {
-      closeAll();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w !== lastW || h !== lastH) {
+        lastW = w;
+        lastH = h;
+        closeAll();
+      }
     };
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);

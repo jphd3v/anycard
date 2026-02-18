@@ -417,7 +417,7 @@ function drawCards(
   let drawn = 0;
   while (drawn < count) {
     if (!reshuffleIfNeeded()) {
-      if (options.allowPartial && drawn > 0) break;
+      if (options.allowPartial) break;
       return {
         events: [],
         nextRulesState: rulesState,
@@ -883,6 +883,37 @@ export const crazyEightsRules: GameRuleModule = {
         drawPenalty: 0,
         drawPenaltySuit: null,
       };
+
+      // When a penalty draw yielded zero cards (stock fully exhausted after
+      // reshuffling), the penalty is cleared.  Check whether the game is now
+      // completely blocked (no playable cards for either player) and, if so,
+      // end the game by lowest penalty points.
+      if (draw.drawn === 0 && rulesState.drawPenalty > 0) {
+        const projAfterClear = projectPilesAfterEvents(state, engineEvents);
+        const currentCanPlay = hasPlayableDiscardMove(
+          state,
+          nextRulesState,
+          intent.playerId,
+          projAfterClear
+        );
+        const opponent = getOtherPlayer(players, intent.playerId);
+        const opponentCanPlay = hasPlayableDiscardMove(
+          state,
+          nextRulesState,
+          opponent,
+          projAfterClear
+        );
+        const deckAfterClear = getPileCardIds(
+          state,
+          "deck",
+          projAfterClear
+        ).length;
+
+        if (!currentCanPlay && !opponentCanPlay && deckAfterClear === 0) {
+          return resolveBlockedHand(state, nextRulesState, projAfterClear);
+        }
+        // If someone can still play, just pass the turn normally below.
+      }
 
       const nextPlayer = getOtherPlayer(players, intent.playerId);
 
