@@ -534,14 +534,23 @@ export async function fetchAiPrompt(
     }, timeoutMs);
 
     const handleReady = (payload: AiPromptPayload) => {
+      // ALWAYS remove handler to prevent memory leak, even if filter doesn't match
+      clearTimeout(timeout);
+      s.off("game:ai-prompt-ready", handleReady);
+
       if (
         payload.gameId === gameId &&
         payload.playerId === playerId &&
         payload.requestedStateVersion === expectedStateVersion
       ) {
-        clearTimeout(timeout);
-        s.off("game:ai-prompt-ready", handleReady);
         resolve(payload);
+      } else {
+        reject(
+          new Error(
+            `AI prompt response mismatch: expected (${gameId}, ${playerId}, ${expectedStateVersion}), ` +
+              `got (${payload.gameId}, ${payload.playerId}, ${payload.requestedStateVersion})`
+          )
+        );
       }
     };
 

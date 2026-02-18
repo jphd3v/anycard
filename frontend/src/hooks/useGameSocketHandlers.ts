@@ -814,7 +814,7 @@ export function useGameSocketHandlers({
       isProcessingRef.current = false;
     };
 
-    return setupSocketHandlers({
+    const cleanup = setupSocketHandlers({
       onState: (payload) => {
         setStartingGameType(null);
         setGameType(payload.rulesId);
@@ -946,6 +946,16 @@ export function useGameSocketHandlers({
         setAiLog((prev) => [...prev, ...payload.entries]);
       },
     });
+
+    // Cleanup on unmount
+    return () => {
+      cleanup();
+      // Clear any pending highlight timers to prevent memory leaks
+      if (clearHighlightsTimerRef.current) {
+        window.clearTimeout(clearHighlightsTimerRef.current);
+        clearHighlightsTimerRef.current = null;
+      }
+    };
   }, [
     attemptRejoin,
     clearSkipStartGameAnimations,

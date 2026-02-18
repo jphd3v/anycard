@@ -1,4 +1,5 @@
 import { Server, Socket } from "socket.io";
+import { z } from "zod";
 import type {
   ClientIntent,
   GameEvent,
@@ -88,6 +89,56 @@ const pendingCloseTimers = new Map<string, NodeJS.Timeout>();
 const NO_HUMAN_CLOSE_DELAY_MS = 5 * 60 * 1000;
 const DEMO_ABANDONED_RESET_DELAY_MS = 30 * 1000;
 const DEFAULT_DEMO_SEED = "ESC0Q0";
+
+// Schemas for validation
+const StartGameOptionsSchema = z.object({
+  dedicatedLobby: z.boolean().optional(),
+  publicRoom: z.boolean().optional(),
+  resetDedicated: z.boolean().optional(),
+});
+
+const ErrorDetailsSchema = z.record(z.string(), z.unknown());
+
+// Utility functions for code quality
+type AiRuntimeLocation = "none" | "backend" | "frontend";
+
+/**
+ * Get the AI runtime location for a player.
+ * Extracted from repeated pattern throughout the codebase.
+ */
+function getAiRuntime(player: {
+  aiRuntime?: AiRuntimeLocation;
+  isAi?: boolean;
+}): AiRuntimeLocation {
+  return player.aiRuntime ?? (player.isAi ? "backend" : "none");
+}
+
+/**
+ * Resolve the AI runtime for a seat.
+ * Extracted from repeated inline function definitions.
+ */
+function resolveSeatRuntime(seat: {
+  aiRuntime?: AiRuntimeLocation;
+  isAi?: boolean;
+}): AiRuntimeLocation {
+  return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
+}
+
+/**
+ * Check if a spectator can perform an action.
+ * Spectators can only start fully-automated (AI-only) games.
+ */
+function canSpectatorPerformAction(
+  state: GameState,
+  role: PlayerRole
+): boolean {
+  if (role !== "spectator") return true;
+
+  return (
+    state.players.length > 0 &&
+    state.players.every((p) => getAiRuntime(p) !== "none")
+  );
+}
 
 function countConnectedHumans(gameId: string): {
   playerCount: number;
@@ -360,7 +411,8 @@ export function broadcastStateToGame(
 
   const state = projectState(gameId);
   if (!state) {
-    console.error(`Game ${gameId} not found for broadcast`);
+    // Use separate arguments to prevent format string injection
+    console.error("Game not found for broadcast:", { gameId });
     return;
   }
 
@@ -377,15 +429,38 @@ function enqueueGameWork(gameId: string, work: () => Promise<void>): void {
   const previous = gameProcessingChains.get(gameId) ?? Promise.resolve();
 
   const next = previous
-    .catch(() => {
-      // Swallow previous errors so they do not break the chain.
+    .catch((err) => {
+      // Log previous work failure but don't break the chain
+      console.error(`[game:intent] Previous work failed:`, {
+        gameId,
+        error: err,
+      });
+      // Notify users of the error
+      if (globalIoServer) {
+        globalIoServer.to(gameId).emit("game:error", {
+          message:
+            "A previous game action failed. Please refresh if issues persist.",
+          source: "app",
+        });
+      }
     })
     .then(work)
     .catch((err) => {
       console.error(`[game:intent] Error in game:`, { gameId, error: err });
+      // Notify users that the current work failed
+      if (globalIoServer) {
+        globalIoServer.to(gameId).emit("game:error", {
+          message:
+            err instanceof Error ? err.message : "An unexpected error occurred",
+          source: "app",
+        });
+      }
     })
     .finally(() => {
-      if (gameProcessingChains.get(gameId) === next) {
+      // Race-safe deletion: only delete if no new work was enqueued after us
+      // This is atomic because JavaScript is single-threaded and there are no await points
+      const currentChain = gameProcessingChains.get(gameId);
+      if (currentChain === next) {
         gameProcessingChains.delete(gameId);
       }
     });
@@ -721,6 +796,9 @@ function broadcastState(
     .fetchSockets()
     .then((sockets) => {
       sockets.forEach((socket) => {
+        // Race-safe: Verify registry entry still exists and is valid
+        // Socket may have disconnected and been removed from registry
+        // between fetchSockets() call and this iteration
         const info = registry.get(socket.id);
         if (!info || info.gameId !== roomId) {
           return;
@@ -872,7 +950,17 @@ function broadcastState(
             : {}),
         };
 
-        socket.emit("game:state", payload);
+        // Emit with error handling in case socket became invalid during iteration
+        try {
+          socket.emit("game:state", payload);
+        } catch (error) {
+          // Use separate arguments to prevent format string injection
+          console.error(
+            "Failed to emit state to socket in room:",
+            { socketId: socket.id, roomId },
+            error
+          );
+        }
       });
     })
     .catch((error) => {
@@ -1033,8 +1121,7 @@ export function initSocket(io: Server) {
 
         let changed = false;
         for (const player of snapshot.players) {
-          const aiRuntime =
-            player.aiRuntime ?? (player.isAi ? "backend" : "none");
+          const aiRuntime = getAiRuntime(player);
           if (
             aiRuntime === "frontend" &&
             player.aiSponsorConnectionId === socket.id
@@ -1079,14 +1166,8 @@ export function initSocket(io: Server) {
       "game:start",
       (requestedGameType: string, seed?: string, options?: unknown) => {
         try {
-          const opts =
-            options && typeof options === "object"
-              ? (options as {
-                  dedicatedLobby?: boolean;
-                  publicRoom?: boolean;
-                  resetDedicated?: boolean;
-                })
-              : {};
+          // Use Zod validation instead of manual type checking
+          const opts = StartGameOptionsSchema.parse(options ?? {});
           const isDemoRoomRequest = opts?.dedicatedLobby === true;
           const isPublicRoomRequest = opts?.publicRoom === true;
 
@@ -1452,13 +1533,6 @@ export function initSocket(io: Server) {
 
           const isSpectator = registryEntry.role !== "player";
 
-          const resolveSeatRuntime = (seat: {
-            aiRuntime?: "none" | "backend" | "frontend";
-            isAi?: boolean;
-          }): "none" | "backend" | "frontend" => {
-            return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-          };
-
           const effectiveIntent: ClientIntent = (() => {
             if (!isStartGameAction || !isSpectator) {
               return intent;
@@ -1472,21 +1546,14 @@ export function initSocket(io: Server) {
           })();
 
           if (isStartGameAction) {
-            if (isSpectator) {
-              const allSeatsAutomated =
-                state.players.length > 0 &&
-                state.players.every(
-                  (seat) => resolveSeatRuntime(seat) !== "none"
-                );
-
-              if (!allSeatsAutomated) {
-                socket.emit("game:error", {
-                  message:
-                    "Spectators can only start fully-automated (AI-only) games.",
-                  source: "app",
-                });
-                return;
-              }
+            // Use extracted utility function for spectator validation
+            if (!canSpectatorPerformAction(state, registryEntry.role)) {
+              socket.emit("game:error", {
+                message:
+                  "Spectators can only start fully-automated (AI-only) games.",
+                source: "app",
+              });
+              return;
             }
           } else {
             const seat = state.players.find(
@@ -1560,6 +1627,23 @@ export function initSocket(io: Server) {
 
           let intentForEngine: ClientIntent = effectiveIntent;
           if (effectiveIntent.type === "move") {
+            // Verify player can see the pile they're moving from
+            const fromPile = state.piles[effectiveIntent.fromPileId];
+            if (
+              fromPile &&
+              !isPileVisibleToPlayer(fromPile, effectiveIntent.playerId)
+            ) {
+              const reason = "Cannot move from hidden pile";
+              socket.emit("game:validation", {
+                valid: false,
+                reason,
+                nextPlayer: null,
+                source: "app",
+              });
+              socket.emit("game:invalid", { reason });
+              return;
+            }
+
             const viewSalt = getViewSalt(gameId);
             const viewerKey = effectiveIntent.playerId;
             const viewToEngineCardId = (viewCardId: number): number | null =>
@@ -1783,9 +1867,21 @@ export function initSocket(io: Server) {
 
           // Check if we need to schedule an AI turn after successful move
           setTimeout(() => {
-            import("./ai/ai-scheduler.js").then(({ maybeScheduleAiTurn }) => {
-              maybeScheduleAiTurn(gameId, broadcastStateToGame);
-            });
+            import("./ai/ai-scheduler.js")
+              .then(({ maybeScheduleAiTurn }) => {
+                maybeScheduleAiTurn(gameId, broadcastStateToGame);
+              })
+              .catch((err) => {
+                console.error("Failed to import ai-scheduler:", err);
+                // Notify users that AI scheduling failed
+                if (globalIoServer) {
+                  globalIoServer.to(gameId).emit("game:error", {
+                    message:
+                      "AI system temporarily unavailable. Please try again.",
+                    source: "app",
+                  });
+                }
+              });
           }, 0);
         } catch (err) {
           console.error("[game:intent] structural error", err);
@@ -1943,6 +2039,8 @@ export function initSocket(io: Server) {
         errorDetails: unknown;
       }) => {
         const turnNumber = getHumanTurnNumber(gameId);
+        // Validate errorDetails with Zod instead of unsafe type assertion
+        const validatedDetails = ErrorDetailsSchema.safeParse(errorDetails);
         appendAiLogEntry({
           gameId,
           turnNumber,
@@ -1953,7 +2051,7 @@ export function initSocket(io: Server) {
           source: "frontend",
           details: {
             kind: "llm-error",
-            ...(errorDetails as Record<string, unknown>),
+            ...(validatedDetails.success ? validatedDetails.data : {}),
           },
         });
       }
@@ -2216,18 +2314,8 @@ export function initSocket(io: Server) {
             return;
           }
 
-          const resolveSeatRuntime = (seat: {
-            aiRuntime?: "none" | "backend" | "frontend";
-            isAi?: boolean;
-          }): "none" | "backend" | "frontend" => {
-            return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-          };
-
-          const allSeatsAutomated =
-            state.players.length > 0 &&
-            state.players.every((seat) => resolveSeatRuntime(seat) !== "none");
-
-          if (!allSeatsAutomated) {
+          // Use extracted utility function for spectator validation
+          if (!canSpectatorPerformAction(state, registryEntry.role)) {
             socket.emit("game:error", {
               message:
                 "Spectators can only reset fully-automated (AI-only) games.",
@@ -2296,20 +2384,8 @@ export function initSocket(io: Server) {
               return;
             }
 
-            const resolveSeatRuntime = (seat: {
-              aiRuntime?: "none" | "backend" | "frontend";
-              isAi?: boolean;
-            }): "none" | "backend" | "frontend" => {
-              return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-            };
-
-            const allSeatsAutomated =
-              state.players.length > 0 &&
-              state.players.every(
-                (seat) => resolveSeatRuntime(seat) !== "none"
-              );
-
-            if (!allSeatsAutomated) {
+            // Use extracted utility function for spectator validation
+            if (!canSpectatorPerformAction(state, registryEntry.role)) {
               socket.emit("game:error", {
                 message:
                   "Spectators can only reset fully-automated (AI-only) games.",
@@ -2378,13 +2454,20 @@ export function initSocket(io: Server) {
           return;
         }
 
+        // Extract timestamp safely without unsafe type assertions
+        const timestamp =
+          payload.entry &&
+          typeof payload.entry === "object" &&
+          "timestamp" in payload.entry &&
+          typeof payload.entry.timestamp === "string"
+            ? payload.entry.timestamp
+            : undefined;
+
         appendAiLogEntry({
           ...entry,
           gameId,
           turnNumber: getHumanTurnNumber(gameId),
-          timestamp: (payload.entry as Record<string, unknown>)?.timestamp as
-            | string
-            | undefined,
+          timestamp,
         });
       }
     );
@@ -2427,18 +2510,8 @@ export function initSocket(io: Server) {
         }
 
         if (registryEntry.role !== "player") {
-          const resolveSeatRuntime = (seat: {
-            aiRuntime?: "none" | "backend" | "frontend";
-            isAi?: boolean;
-          }): "none" | "backend" | "frontend" => {
-            return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-          };
-
-          const allSeatsAutomated =
-            state.players.length > 0 &&
-            state.players.every((seat) => resolveSeatRuntime(seat) !== "none");
-
-          if (!allSeatsAutomated) {
+          // Use extracted utility function for spectator validation
+          if (!canSpectatorPerformAction(state, registryEntry.role)) {
             socket.emit("game:error", {
               message:
                 "Spectators can only trigger AI retries in fully-automated (AI-only) games.",
