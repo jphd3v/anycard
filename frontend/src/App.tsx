@@ -101,6 +101,24 @@ import {
 
 type IncomingStatePayload = GameView;
 type AnnounceViewEvent = Extract<ViewEventPayload, { type: "announce" }>;
+type PendingAnnouncement = {
+  id: string;
+  label: string;
+  anchor?: AnnounceAnchor;
+  anchorKey: string;
+  durationMs: number;
+};
+
+const MAX_ANNOUNCEMENT_QUEUE_SIZE = 12;
+const ANNOUNCEMENT_BURST_WINDOW_MS = 350;
+const ANNOUNCEMENT_CHAIN_GAP_MS = 140;
+
+function getAnnouncementAnchorKey(anchor?: AnnounceAnchor): string {
+  if (anchor?.type === "pile") {
+    return `pile:${anchor.pileId}`;
+  }
+  return "screen";
+}
 
 export default function App() {
   const store = useStore();
@@ -180,6 +198,13 @@ export default function App() {
   } | null>(null);
   const restoredFrontendAiRef = useRef<Set<string>>(new Set());
   const isAnyOverlayOpenRef = useRef(false);
+  const announcementQueueRef = useRef<PendingAnnouncement[]>([]);
+  const activeAnnouncementIdRef = useRef<string | null>(null);
+  const activeAnnouncementAnchorKeyRef = useRef<string | null>(null);
+  const announcementNextTimerRef = useRef<number | null>(null);
+  const lastAnnouncementQueuedAtRef = useRef(0);
+  const announcementBurstCountRef = useRef(0);
+  const announcementGameIdRef = useRef("");
 
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
@@ -855,6 +880,19 @@ export default function App() {
     [setActiveToasts, removeToast, toastAutoCloseEnabled]
   );
 
+  const clearAnnouncementPipeline = useCallback(() => {
+    if (announcementNextTimerRef.current) {
+      window.clearTimeout(announcementNextTimerRef.current);
+      announcementNextTimerRef.current = null;
+    }
+    announcementQueueRef.current = [];
+    activeAnnouncementIdRef.current = null;
+    activeAnnouncementAnchorKeyRef.current = null;
+    lastAnnouncementQueuedAtRef.current = 0;
+    announcementBurstCountRef.current = 0;
+    setAnnouncementItems([]);
+  }, []);
+
   const resolveAnnouncementPosition = useCallback((anchor?: AnnounceAnchor) => {
     if (anchor?.type === "pile") {
       const selector = `[data-testid="pile:${anchor.pileId}"]`;
@@ -874,22 +912,136 @@ export default function App() {
     };
   }, []);
 
-  const queueAnnouncement = useCallback(
-    (event: AnnounceViewEvent) => {
-      window.requestAnimationFrame(() => {
-        const { x, y } = resolveAnnouncementPosition(event.anchor);
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        setAnnouncementItems((prev) => [
-          ...prev,
-          { id, label: event.text, x, y },
-        ]);
-      });
+  const resolveAnnouncementDurationMs = useCallback(
+    (text: string, isBurst: boolean) => {
+      const normalizedLength = text.length;
+      if (isBurst) {
+        return Math.max(
+          2800,
+          Math.min(5600, Math.round(2800 + normalizedLength * 16))
+        );
+      }
+      return Math.max(
+        1300,
+        Math.min(3200, Math.round(1200 + normalizedLength * 9))
+      );
     },
-    [resolveAnnouncementPosition]
+    []
   );
 
-  const handleAnnouncementComplete = useCallback((id: string) => {
-    setAnnouncementItems((prev) => prev.filter((item) => item.id !== id));
+  const showNextAnnouncement = useCallback(() => {
+    if (activeAnnouncementIdRef.current) return;
+    const next = announcementQueueRef.current.shift();
+    if (!next) return;
+    const { x, y } = resolveAnnouncementPosition(next.anchor);
+    activeAnnouncementIdRef.current = next.id;
+    activeAnnouncementAnchorKeyRef.current = next.anchorKey;
+    setAnnouncementItems([
+      {
+        id: next.id,
+        label: next.label,
+        x,
+        y,
+        durationMs: next.durationMs,
+      },
+    ]);
+  }, [resolveAnnouncementPosition]);
+
+  const queueAnnouncement = useCallback(
+    (event: AnnounceViewEvent) => {
+      const now = performance.now();
+      const elapsed = now - lastAnnouncementQueuedAtRef.current;
+      if (elapsed <= ANNOUNCEMENT_BURST_WINDOW_MS) {
+        announcementBurstCountRef.current += 1;
+      } else {
+        announcementBurstCountRef.current = 1;
+      }
+      lastAnnouncementQueuedAtRef.current = now;
+
+      const normalizedText = event.text.replace(/\s+/g, " ").trim();
+      if (!normalizedText) return;
+
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const pending: PendingAnnouncement = {
+        id,
+        label: normalizedText,
+        anchor: event.anchor,
+        anchorKey: getAnnouncementAnchorKey(event.anchor),
+        durationMs: resolveAnnouncementDurationMs(
+          normalizedText,
+          announcementBurstCountRef.current >= 2
+        ),
+      };
+
+      const queue = announcementQueueRef.current;
+      // Generic stale-message handling: same-anchor announcements are transient,
+      // so keep only the latest one for that anchor.
+      announcementQueueRef.current = queue.filter(
+        (item) => item.anchorKey !== pending.anchorKey
+      );
+      if (activeAnnouncementAnchorKeyRef.current === pending.anchorKey) {
+        const { x, y } = resolveAnnouncementPosition(pending.anchor);
+        activeAnnouncementIdRef.current = pending.id;
+        activeAnnouncementAnchorKeyRef.current = pending.anchorKey;
+        setAnnouncementItems([
+          {
+            id: pending.id,
+            label: pending.label,
+            x,
+            y,
+            durationMs: pending.durationMs,
+          },
+        ]);
+        return;
+      }
+
+      const nextQueue = announcementQueueRef.current;
+      if (nextQueue.length >= MAX_ANNOUNCEMENT_QUEUE_SIZE) {
+        nextQueue.shift();
+      }
+      nextQueue.push(pending);
+      window.requestAnimationFrame(() => {
+        showNextAnnouncement();
+      });
+    },
+    [
+      resolveAnnouncementDurationMs,
+      resolveAnnouncementPosition,
+      showNextAnnouncement,
+    ]
+  );
+
+  const handleAnnouncementComplete = useCallback(
+    (id: string) => {
+      setAnnouncementItems((prev) => prev.filter((item) => item.id !== id));
+      if (activeAnnouncementIdRef.current !== id) return;
+      activeAnnouncementIdRef.current = null;
+      activeAnnouncementAnchorKeyRef.current = null;
+      if (announcementNextTimerRef.current) {
+        window.clearTimeout(announcementNextTimerRef.current);
+      }
+      announcementNextTimerRef.current = window.setTimeout(() => {
+        announcementNextTimerRef.current = null;
+        showNextAnnouncement();
+      }, ANNOUNCEMENT_CHAIN_GAP_MS);
+    },
+    [showNextAnnouncement]
+  );
+
+  useEffect(() => {
+    const currentGameId = gameId || "";
+    if (announcementGameIdRef.current !== currentGameId) {
+      announcementGameIdRef.current = currentGameId;
+      clearAnnouncementPipeline();
+    }
+  }, [clearAnnouncementPipeline, gameId]);
+
+  useEffect(() => {
+    return () => {
+      if (announcementNextTimerRef.current) {
+        window.clearTimeout(announcementNextTimerRef.current);
+      }
+    };
   }, []);
 
   const clearHighlightsTimerRef = useRef<number | null>(null);
@@ -1213,7 +1365,7 @@ export default function App() {
     closeAll();
 
     // 4) Clear any pending announcements from previous game
-    setAnnouncementItems([]);
+    clearAnnouncementPipeline();
 
     // Clear any route errors for clean navigation
     setRouteError(null);
@@ -1228,10 +1380,10 @@ export default function App() {
   }, [
     clearSponsoredFrontendSeats,
     clearFrontendAiSponsors,
+    clearAnnouncementPipeline,
     closeAll,
     gameId,
     setActiveGames,
-    setAnnouncementItems,
     setGameId,
     setGameType,
     setIsCreator,

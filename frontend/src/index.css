@@ -781,9 +781,6 @@ body,
   z-index: 9999; /* Keep animated cards above the base UI layers */
 }
 
-::view-transition-group(announcement-overlay),
-::view-transition-old(announcement-overlay),
-::view-transition-new(announcement-overlay),
 ::view-transition-group(action-overlay),
 ::view-transition-old(action-overlay),
 ::view-transition-new(action-overlay) {
@@ -1109,29 +1106,27 @@ body,
 
 @keyframes float-up-fade {
   0% {
-    transform: translate(-50%, 10px) scale(0.9);
+    transform: translate3d(-50%, 10px, 0);
     opacity: 0;
   }
-  15% {
-    transform: translate(-50%, 0) scale(1.05);
+  18% {
+    transform: translate3d(-50%, 0, 0);
     opacity: 1;
   }
-  30% {
-    transform: translate(-50%, -5px) scale(1);
-    opacity: 1;
-  }
-  80% {
-    transform: translate(-50%, -30px) scale(1);
+  72% {
+    transform: translate3d(-50%, -22px, 0);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -50px) scale(0.9);
+    transform: translate3d(-50%, -30px, 0);
     opacity: 0;
   }
 }
 
 .animate-float-up-fade {
-  animation: float-up-fade 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: float-up-fade 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @keyframes subtle-bounce {

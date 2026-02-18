@@ -126,7 +126,6 @@ export function GameShell({
           actions={announcementItems}
           onComplete={onAnnouncementComplete}
           durationMs={2800}
-          viewTransitionName="announcement-overlay"
         />
         <FatalErrorOverlay
           gameId={gameId}

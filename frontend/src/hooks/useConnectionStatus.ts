@@ -49,7 +49,18 @@ export function useConnectionStatus({
             }
           })
           .catch((err) => {
-            console.error("Failed to verify game existence:", err);
+            const message = err instanceof Error ? err.message : String(err);
+            const isTransientNetworkError =
+              /Failed to fetch|ERR_INTERNET_DISCONNECTED|NetworkError|Load failed/i.test(
+                message
+              );
+            if (isTransientNetworkError) {
+              console.warn(
+                "Transient network error while verifying game existence after reconnection."
+              );
+            } else {
+              console.error("Failed to verify game existence:", err);
+            }
             // On fetch error, still attempt rejoin and let the join handler deal with it
             attemptRejoin();
           });
