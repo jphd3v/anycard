@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="200" fill="#2f3e55"/>
+  <path d="M512 180
+           C460 350 200 500 200 650
+           C200 800 380 850 480 780
+           L450 900 H574 L544 780
+           C644 850 824 800 824 650
+           C824 500 564 350 512 180Z" 
+        fill="#fefefe"/>
+  <path d="M512 420 
+           L440 640 H480 L495 580 H529 L544 640 H584 L512 420 Z 
+           M512 485 L522 540 H502 L512 485 Z" 
+        fill="#2f3e55"/>
+</svg>
