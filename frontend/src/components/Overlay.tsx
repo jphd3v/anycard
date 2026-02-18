@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { DialogHTMLAttributes, ReactNode } from "react";
+import type { DialogHTMLAttributes, MouseEvent, ReactNode } from "react";
 
 type OverlayProps = {
   children: ReactNode;
@@ -17,10 +17,12 @@ export function Overlay({
   lockScroll = true,
   ...rest
 }: OverlayProps) {
+  const { onClick, ...dialogProps } = rest;
   const overlayFill = translucent ? "bg-black/40" : "bg-black/60";
   const overlayBlur = blurred ? "backdrop-blur-sm" : "";
   const layout = className ?? "items-center justify-center p-4";
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const contentRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!lockScroll) return;
@@ -50,15 +52,41 @@ export function Overlay({
     };
   }, []);
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    contentRef.current = dialog.firstElementChild as HTMLElement | null;
+  }, [children]);
+
+  const handleDialogClick = (event: MouseEvent<HTMLDialogElement>) => {
+    if (!onClick) return;
+    const content =
+      contentRef.current ??
+      (dialogRef.current?.firstElementChild as HTMLElement | null);
+    if (content) {
+      const rect = content.getBoundingClientRect();
+      if (
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      ) {
+        return;
+      }
+    }
+    onClick(event);
+  };
+
   return (
     <dialog
       ref={dialogRef}
       className={`fixed inset-0 flex transition-all duration-500 overscroll-contain ${layout} ${overlayFill} ${overlayBlur}`}
+      onClick={handleDialogClick}
       onCancel={(event) => {
         event.preventDefault();
       }}
       aria-modal="true"
-      {...rest}
+      {...dialogProps}
     >
       {children}
     </dialog>
