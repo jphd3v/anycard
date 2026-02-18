@@ -38,6 +38,22 @@ variables and valid Supabase credentials.
 
 Setup guide: `supabase/SUPABASE_AUTOSAVE_SETUP.md`
 
+## Optional Supabase Identity (Magic Link + Guest)
+
+When enabled, the app supports two identity modes:
+
+- Guest mode with a stable local `guest-id` stored in browser local storage.
+- Email magic-link sign-in via Supabase (no password handling in app code).
+
+The game engine still uses seat IDs (`north`, `south`, etc.) for rules. Identity
+is used only for seat ownership and player-facing labels.
+
+Privacy baseline in identity mode:
+
+- persisted server-side: pseudonymous user ID, seat ownership, host ownership
+  mapping
+- local storage/session: rejoin hints and Supabase browser session data
+
 ## Note on View Transitions
 
 The engine leverages the **browser's native CSS View Transition API** to animate card movements and state changes. These transitions are not merely "eye candy"—they are **essential for gameplay**.
@@ -50,7 +66,11 @@ Thus, a **modern browser** that supports the View Transitions API is required.
 
 This project was developed almost entirely through "vibe coding" techniques, utilizing various coding agents and LLMs. While very little manual code was written (though some manual fixes were applied), the project is driven by a clear intuition and vision of what I wanted to create.
 
-**Important:** This project is **not production-ready**. Due to its experimental development nature, the codebase may contain security vulnerabilities. Specifically, authentication has **not** been implemented.
+**Important:** This project is **not production-ready**. Due to its
+experimental development nature, the codebase may contain security
+vulnerabilities. Supabase-backed guest/magic-link identity and seat ownership are
+implemented, but deployment hardening, legal review, and operational controls
+are still your responsibility.
 
 This is for **demo purposes only**. Please consult the `LICENSE.txt` file, which explicitly states that the software is provided without warranty of any kind.
 

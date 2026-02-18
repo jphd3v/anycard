@@ -32,6 +32,16 @@ type LobbyScreenProps = {
   onGameSelect: (game: AvailableGame) => void;
   onAboutClick: () => void;
   isLobbyLoading: boolean;
+  identityWarning?: string | null;
+  identityMode: "guest" | "user";
+  identityLabel: string;
+  isIdentityAvailable: boolean;
+  authEmail: string;
+  authBusy: boolean;
+  authMessage?: string | null;
+  onAuthEmailChange: (value: string) => void;
+  onSendMagicLink: () => void;
+  onSignOut: () => void;
   availableGames: AvailableGame[];
   sortedAvailableGames: AvailableGame[];
   activeGames: ActiveGameSummary[];
@@ -54,6 +64,16 @@ export function LobbyScreen({
   onGameSelect,
   onAboutClick,
   isLobbyLoading,
+  identityWarning,
+  identityMode,
+  identityLabel,
+  isIdentityAvailable,
+  authEmail,
+  authBusy,
+  authMessage,
+  onAuthEmailChange,
+  onSendMagicLink,
+  onSignOut,
   availableGames,
   sortedAvailableGames,
   activeGames,
@@ -170,6 +190,66 @@ export function LobbyScreen({
 
         <div className="relative z-10">
           <SuitDivider />
+        </div>
+
+        {identityWarning && (
+          <div className="relative z-10 mt-4 mx-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-700">
+            {identityWarning}
+          </div>
+        )}
+
+        <div className="relative z-10 mt-4 mx-4 rounded-xl border border-surface-3 bg-surface-1 px-3 py-3 text-left text-xs text-ink-muted">
+          <div className="mb-2 text-[11px] uppercase tracking-wider text-ink-muted">
+            Identity
+          </div>
+          <div className="mb-2 text-sm text-ink">
+            {identityMode === "user" ? "Signed in as " : "Playing as "}
+            <span className="font-mono">{identityLabel}</span>
+          </div>
+          {identityMode === "user" ? (
+            <button
+              type="button"
+              onClick={onSignOut}
+              disabled={authBusy}
+              className="button-base button-secondary px-3 py-1.5 text-xs"
+            >
+              Sign out
+            </button>
+          ) : !isIdentityAvailable ? (
+            <div className="text-[11px] text-ink-muted">
+              Supabase sign-in is currently unavailable on this server. Continue
+              as guest.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(event) => onAuthEmailChange(event.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-xs text-ink outline-none focus:border-brand-500"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  onClick={onSendMagicLink}
+                  disabled={authBusy}
+                  className="button-base button-primary px-3 py-2 text-xs whitespace-nowrap"
+                >
+                  Send magic link
+                </button>
+              </div>
+              <div className="text-[11px] text-ink-muted">
+                Optional: sign in to keep the same identity across devices.
+              </div>
+            </div>
+          )}
+          {authMessage && (
+            <div className="mt-2 text-[11px] text-primary">{authMessage}</div>
+          )}
         </div>
       </header>
 

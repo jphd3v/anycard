@@ -9,6 +9,7 @@ import {
   getGameSummary,
   closeGameSession,
   getRoomType,
+  isUserHostForGame,
   notePersistedSnapshot,
   noteDeletedSnapshot,
   restorePersistedGames,
@@ -31,6 +32,10 @@ import {
   fetchPersistedGamesFromSupabase,
   initSupabaseAutosave,
 } from "./persistence/supabase-autosave.js";
+import {
+  isSupabaseIdentityEnabled,
+  verifySupabaseAccessToken,
+} from "./identity/supabase-identity.js";
 
 dotenv.config();
 
@@ -82,19 +87,54 @@ app.get("/active-games/:gameId", (req, res) => {
 });
 
 app.delete("/active-games/:gameId", (req, res) => {
+  const sendAuthError = (status: number, message: string) => {
+    res.status(status).json({ ok: false, message });
+  };
   const { gameId } = req.params;
   if (typeof gameId !== "string" || gameId.trim() === "") {
     res.status(400).json({ ok: false, message: "Invalid game id" });
     return;
   }
 
-  const closed = closeGameSession(io, gameId);
-  if (!closed) {
-    res.status(404).json({ ok: false, message: "Game not found" });
-    return;
-  }
+  const close = async () => {
+    if (isSupabaseIdentityEnabled()) {
+      const authHeader = req.header("authorization") ?? "";
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      const bearerToken = match?.[1]?.trim() ?? "";
+      if (!bearerToken) {
+        sendAuthError(401, "Missing authentication token");
+        return;
+      }
 
-  res.json({ ok: true });
+      const identity = await verifySupabaseAccessToken(bearerToken);
+      if (!identity) {
+        sendAuthError(401, "Invalid authentication token");
+        return;
+      }
+
+      const isHost = await isUserHostForGame(gameId, identity.userId);
+      if (!isHost) {
+        sendAuthError(403, "Only the host can close this room");
+        return;
+      }
+    }
+
+    const closed = closeGameSession(io, gameId);
+    if (!closed) {
+      res.status(404).json({ ok: false, message: "Game not found" });
+      return;
+    }
+
+    res.json({ ok: true });
+  };
+
+  close().catch((error) => {
+    console.error("[active-games:delete] Failed to close game", {
+      gameId,
+      error,
+    });
+    res.status(500).json({ ok: false, message: "Failed to close game" });
+  });
 });
 
 app.get("/healthz", (_req, res) => {
@@ -106,6 +146,7 @@ app.get("/config", (_req, res) => {
   res.json({
     ruleEngineMode: RULE_ENGINE_MODE,
     serverAiEnabled: isServerAiEnabled(),
+    identityEnabled: isSupabaseIdentityEnabled(),
     llmShowPromptsInFrontend: config.llmShowPromptsInFrontend,
     llmShowExceptionsInFrontend: config.llmShowExceptionsInFrontend,
     backendCommitHash: buildInfo.commitHash,

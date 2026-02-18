@@ -934,6 +934,8 @@ export type AiCandidate = z.infer<typeof AiCandidateSchema>;
 export const SeatViewSchema = z.object({
   seatId: z.string(),
   name: z.string().optional(),
+  ownerLabel: z.string().optional(),
+  avatarEmoji: z.string().optional(),
   aiRuntime: AiRuntimeLocationSchema,
   isAiControlledByYou: z.boolean(),
 });
@@ -971,6 +973,8 @@ export type GameView = z.infer<typeof GameViewSchema>;
 export const SeatStatusSchema = z.object({
   playerId: z.string(),
   name: z.string().optional(),
+  ownerLabel: z.string().optional(),
+  avatarEmoji: z.string().optional(),
   occupied: z.boolean(),
   isAi: z.boolean().optional(),
   aiRuntime: AiRuntimeLocationSchema.optional(),

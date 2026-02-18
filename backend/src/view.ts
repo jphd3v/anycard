@@ -13,7 +13,13 @@ import { getViewSalt } from "./state.js";
 import { toViewCardId } from "./view-ids.js";
 import { isPileVisibleToPlayer } from "./visibility.js";
 import { GAME_PLUGINS } from "./rules/registry.js";
-import { getGamePersistenceMetadata, getRoomType } from "./socket.js";
+import {
+  getGamePersistenceMetadata,
+  isHostConnectionForGame,
+  getRoomType,
+  getSeatAvatarEmoji,
+  getSeatOwnerLabel,
+} from "./socket.js";
 import { loadGameMeta } from "./rules/meta.js";
 
 export function buildViewForPlayer(
@@ -40,6 +46,8 @@ export function buildViewForPlayer(
     return {
       seatId: player.id,
       name: player.name,
+      ownerLabel: getSeatOwnerLabel(state.gameId, player.id),
+      avatarEmoji: getSeatAvatarEmoji(state.gameId, player.id),
       aiRuntime,
       isAiControlledByYou,
     };
@@ -274,6 +282,9 @@ export function buildViewForPlayer(
       metadata.viewerId = viewerId;
       metadata.role = isSpectator ? "spectator" : "player";
       metadata.isGodMode = isGodMode ? "true" : "false";
+      metadata.isHost = isHostConnectionForGame(state.gameId, connectionId)
+        ? "true"
+        : "false";
       metadata.roomType = getRoomType(state.gameId);
       const persistenceMetadata = getGamePersistenceMetadata(state.gameId);
       if (persistenceMetadata) {

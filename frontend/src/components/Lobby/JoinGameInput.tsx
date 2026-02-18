@@ -70,6 +70,11 @@ export function JoinGameInput({ onJoin }: JoinGameInputProps) {
         const info = await fetchGameInfo(trimmed);
         setGameInfo(info);
         setLastCheckedValue(trimmed);
+      } catch {
+        // The user may be offline or the backend may be restarting.
+        // Keep the input usable without surfacing noisy console errors.
+        setGameInfo(null);
+        setLastCheckedValue("");
       } finally {
         setIsSearching(false);
       }

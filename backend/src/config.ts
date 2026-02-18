@@ -22,8 +22,9 @@ export interface EnvironmentConfig {
   llmShowExceptionsInFrontend: boolean;
   isTestEnvironment: boolean;
   supabaseAutosaveEnabled: boolean;
+  supabaseIdentityEnabled: boolean;
   supabaseUrl?: string;
-  supabaseServiceRoleKey?: string;
+  supabaseSecretKey?: string;
   supabaseAutosaveTable: string;
 }
 
@@ -65,6 +66,8 @@ export function getEnvironmentConfig(): EnvironmentConfig {
           ])
         );
 
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
   return {
     port: Number(process.env.PORT ?? 3000),
     llmBaseUrl: process.env.LLM_BASE_URL,
@@ -102,8 +105,11 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     supabaseAutosaveEnabled: parseBooleanEnv(
       process.env.SUPABASE_AUTOSAVE_ENABLED
     ),
+    supabaseIdentityEnabled: parseBooleanEnv(
+      process.env.SUPABASE_IDENTITY_ENABLED
+    ),
     supabaseUrl: process.env.SUPABASE_URL,
-    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseSecretKey,
     supabaseAutosaveTable:
       process.env.SUPABASE_AUTOSAVE_TABLE?.trim() || "game_snapshots",
   };
@@ -226,16 +232,34 @@ export function getEnvironmentVariablesInfo(): Array<{
       isSet: Boolean(process.env.SUPABASE_AUTOSAVE_ENABLED),
     },
     {
+      key: "SUPABASE_IDENTITY_ENABLED",
+      value: process.env.SUPABASE_IDENTITY_ENABLED || "false",
+      defaultValue: "false",
+      isSet: Boolean(process.env.SUPABASE_IDENTITY_ENABLED),
+    },
+    {
+      key: "SEAT_CLAIM_RELEASE_TIMEOUT_SECONDS",
+      value: process.env.SEAT_CLAIM_RELEASE_TIMEOUT_SECONDS || "600",
+      defaultValue: "600",
+      isSet: Boolean(process.env.SEAT_CLAIM_RELEASE_TIMEOUT_SECONDS),
+    },
+    {
+      key: "SEAT_CLAIM_CLEANUP_INTERVAL_MS",
+      value: process.env.SEAT_CLAIM_CLEANUP_INTERVAL_MS || "60000",
+      defaultValue: "60000",
+      isSet: Boolean(process.env.SEAT_CLAIM_CLEANUP_INTERVAL_MS),
+    },
+    {
       key: "SUPABASE_URL",
       value: process.env.SUPABASE_URL ? "[SET]" : "[NOT SET]",
       defaultValue: "[OPTIONAL]",
       isSet: Boolean(process.env.SUPABASE_URL),
     },
     {
-      key: "SUPABASE_SERVICE_ROLE_KEY",
-      value: process.env.SUPABASE_SERVICE_ROLE_KEY ? "[SET]" : "[NOT SET]",
+      key: "SUPABASE_SECRET_KEY",
+      value: config.supabaseSecretKey ? "[SET]" : "[NOT SET]",
       defaultValue: "[OPTIONAL]",
-      isSet: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      isSet: Boolean(config.supabaseSecretKey),
     },
     {
       key: "SUPABASE_AUTOSAVE_TABLE",

@@ -10,6 +10,7 @@ import {
   fetchActiveGames,
   fetchAvailableGames,
   fetchServerConfig,
+  isIdentityEnabledOnClient,
 } from "../socket";
 
 type SetState<T> = (update: T | ((prev: T) => T)) => void;
@@ -29,6 +30,8 @@ type UseLobbyDataOptions = {
 type UseLobbyDataResult = {
   isLobbyLoading: boolean;
   lobbyLoadError: string | null;
+  identityWarning: string | null;
+  serverIdentityEnabled: boolean;
   refreshLobby: () => void;
 };
 
@@ -45,12 +48,15 @@ export function useLobbyData({
 }: UseLobbyDataOptions): UseLobbyDataResult {
   const [isLobbyLoading, setIsLobbyLoading] = useState(true);
   const [lobbyLoadError, setLobbyLoadError] = useState<string | null>(null);
+  const [identityWarning, setIdentityWarning] = useState<string | null>(null);
+  const [serverIdentityEnabled, setServerIdentityEnabled] = useState(false);
   const lobbyRetryTimerRef = useRef<number | null>(null);
   const lobbyCancelledRef = useRef(false);
 
   const loadLobbyData = useCallback(async () => {
     setIsLobbyLoading(true);
     setLobbyLoadError(null);
+    setIdentityWarning(null);
     try {
       const [available, active, config] = await Promise.all([
         fetchAvailableGames(),
@@ -68,6 +74,14 @@ export function useLobbyData({
       // config.llmShowPromptsInFrontend determines if we get detailed AI internals for backend AI.
       setAiShowExceptions(config.llmShowExceptionsInFrontend ?? false);
       setBackendRuntime(config.backendRuntime ?? null);
+      setServerIdentityEnabled(config.identityEnabled === true);
+
+      const clientIdentityEnabled = isIdentityEnabledOnClient();
+      if (config.identityEnabled === false && clientIdentityEnabled) {
+        setIdentityWarning(
+          "Supabase sign-in is configured in this browser, but disabled on this server. Continuing in guest mode."
+        );
+      }
 
       // Handle AI Runtime Preference Defaults
       const storedPref = window.localStorage.getItem("ai-runtime-preference");
@@ -90,7 +104,7 @@ export function useLobbyData({
       setIsLobbyLoading(false);
     } catch (err) {
       if (lobbyCancelledRef.current) return;
-      console.error("Failed to load lobby data; retrying shortly", err);
+      console.warn("Failed to load lobby data; retrying shortly", err);
       const message =
         err instanceof Error ? err.message : "Unknown network error";
       setLobbyLoadError(message);
@@ -133,7 +147,7 @@ export function useLobbyData({
         const active = await fetchActiveGames();
         setActiveGames(active);
       } catch (err) {
-        console.error("Failed to poll active games", err);
+        console.warn("Failed to poll active games", err);
       }
     }, 5000);
 
@@ -143,6 +157,8 @@ export function useLobbyData({
   return {
     isLobbyLoading,
     lobbyLoadError,
+    identityWarning,
+    serverIdentityEnabled,
     refreshLobby: () => {
       void loadLobbyData();
     },

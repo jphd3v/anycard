@@ -34,6 +34,10 @@ export function TurnStatusBadge({
     currentSeat && "aiRuntime" in currentSeat
       ? currentSeat.aiRuntime
       : undefined;
+  const ownerLabel =
+    currentSeat && "ownerLabel" in currentSeat
+      ? currentSeat.ownerLabel
+      : undefined;
   const isAiControlledByYou =
     currentSeat && "isAiControlledByYou" in currentSeat
       ? currentSeat.isAiControlledByYou
@@ -47,7 +51,12 @@ export function TurnStatusBadge({
   let statusText = turnName || "Waiting";
   let statusLabel: string | null = null; // For AI runtime info
   let statusIcon: JSX.Element | null = null;
-  const statusSubtext: JSX.Element | null = null;
+  const statusSubtext: JSX.Element | null =
+    ownerLabel && ownerLabel !== turnName ? (
+      <span className="text-[9px] opacity-70 font-mono normal-case tracking-normal">
+        {ownerLabel}
+      </span>
+    ) : null;
   let animationClass = "";
 
   const showTimer = isConnected && !!turnPlayer && !isMyTurn;

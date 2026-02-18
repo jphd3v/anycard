@@ -59,9 +59,11 @@ import {
   SERVER_URL,
   setServerUrlOverride,
   clearServerUrlOverride,
+  isIdentityEnabledOnClient,
   joinGame,
   watchGame,
   leaveGame,
+  releaseSeat,
   restartGame,
   startGame,
   sendActionIntent,
@@ -105,6 +107,13 @@ import {
   DEFAULT_LOBBY_SEED,
   MAX_RECENT_GAMES,
 } from "./app/constants";
+import {
+  getGuestId,
+  signInWithEmailMagicLink,
+  signOutSupabaseIdentity,
+  subscribeClientIdentity,
+  type ClientIdentityState,
+} from "./auth/supabase-identity";
 
 type IncomingStatePayload = GameView;
 type AnnounceViewEvent = Extract<ViewEventPayload, { type: "announce" }>;
@@ -726,10 +735,29 @@ export default function App() {
       };
 
   const [routeError, setRouteError] = useState<RouteError>(null);
+  const [identityState, setIdentityState] = useState<ClientIdentityState>({
+    mode: "guest",
+    guestId: getGuestId(),
+    userId: null,
+    email: null,
+  });
+  const [authEmailInput, setAuthEmailInput] = useState("");
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
 
   const isCurrentPlayerSeated =
     !!playerId &&
     seats.some((seat) => seat.playerId === playerId && seat.occupied);
+
+  useEffect(() => {
+    const unsubscribe = subscribeClientIdentity((identity) => {
+      setIdentityState(identity);
+      if (identity.mode === "user") {
+        setAuthMessage(null);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   // Determine if the game has started based on whether cards have been dealt
   const hasGameStarted = hasGameDealt(view);
@@ -954,7 +982,13 @@ export default function App() {
   });
 
   const isLobbyView = !gameId && !routeError;
-  const { isLobbyLoading, lobbyLoadError, refreshLobby } = useLobbyData({
+  const {
+    isLobbyLoading,
+    lobbyLoadError,
+    identityWarning,
+    serverIdentityEnabled,
+    refreshLobby,
+  } = useLobbyData({
     aiRuntimePreference,
     setAiRuntimePreference,
     setAvailableGames,
@@ -1080,17 +1114,23 @@ export default function App() {
           label: "Connection error",
           message: lobbyLoadError,
         }
-      : isLobbyLoading
+      : identityWarning
         ? {
-            tone: "loading" as const,
-            label: "Loading",
-            message: "Connecting to server and loading games.",
+            tone: "warning" as const,
+            label: "Identity warning",
+            message: identityWarning,
           }
-        : {
-            tone: "idle" as const,
-            label: "Idle",
-            message: "Waiting for lobby updates.",
-          };
+        : isLobbyLoading
+          ? {
+              tone: "loading" as const,
+              label: "Loading",
+              message: "Connecting to server and loading games.",
+            }
+          : {
+              tone: "idle" as const,
+              label: "Idle",
+              message: "Waiting for lobby updates.",
+            };
 
   const showStatus = useCallback(
     (message: Omit<StatusMessage, "id">) => {
@@ -1109,6 +1149,69 @@ export default function App() {
     },
     [setActiveToasts, removeToast, toastAutoCloseEnabled]
   );
+
+  const handleSendMagicLink = useCallback(async () => {
+    if (!serverIdentityEnabled || !isIdentityEnabledOnClient()) {
+      setAuthMessage(
+        "Supabase sign-in is not available on this server. Continue as guest."
+      );
+      return;
+    }
+
+    const normalized = authEmailInput.trim().toLowerCase();
+    if (!normalized) {
+      setAuthMessage("Enter an email address first.");
+      return;
+    }
+
+    setAuthBusy(true);
+    setAuthMessage(null);
+    try {
+      await signInWithEmailMagicLink(normalized);
+      setAuthMessage(`Magic link sent to ${normalized}.`);
+      showStatus({
+        tone: "success",
+        message: `Magic link sent to ${normalized}`,
+        source: "app",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to send magic link";
+      setAuthMessage(message);
+      showStatus({
+        tone: "error",
+        message,
+        source: "app",
+      });
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [authEmailInput, serverIdentityEnabled, showStatus]);
+
+  const handleSignOutIdentity = useCallback(async () => {
+    setAuthBusy(true);
+    setAuthMessage(null);
+    try {
+      await signOutSupabaseIdentity();
+      setAuthMessage("Signed out. You are now playing as guest.");
+      showStatus({
+        tone: "neutral",
+        message: "Signed out",
+        source: "app",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Sign out failed";
+      setAuthMessage(message);
+      showStatus({
+        tone: "error",
+        message,
+        source: "app",
+      });
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [showStatus]);
 
   const clearAnnouncementPipeline = useCallback(() => {
     if (announcementNextTimerRef.current) {
@@ -1341,6 +1444,14 @@ export default function App() {
     rememberAndJoin(gameId, activeRulesId ?? "", selectedPlayerId, "player");
   };
 
+  const handleForceReleaseSeat = useCallback(
+    (seatId: string) => {
+      if (!gameId) return;
+      releaseSeat(gameId, seatId, { force: true });
+    },
+    [gameId]
+  );
+
   const rememberFrontendAiSponsorSeat = useCallback(
     (targetGameId: string, seatId: string) => {
       setFrontendAiSponsors((prev) => {
@@ -1406,7 +1517,6 @@ export default function App() {
 
       if (effectiveAiPreference === "frontend") {
         setLocalAiConfig((prev) => ({ ...prev, enabled: true }));
-        setSeatAsAi(gameId, seatId, false);
         setSeatFrontendAi(gameId, seatId, true);
         rememberFrontendAiSponsorSeat(gameId, seatId);
         return;
@@ -1578,6 +1688,9 @@ export default function App() {
     if (activeGameId) {
       clearSponsoredFrontendSeats();
       clearFrontendAiSponsors(activeGameId);
+      if (playerId && view?.metadata?.role !== "spectator") {
+        releaseSeat(activeGameId, playerId);
+      }
       // 2) Tell server we left this game
       leaveGame();
     }
@@ -1615,6 +1728,7 @@ export default function App() {
     clearAnnouncementPipeline,
     closeAll,
     gameId,
+    playerId,
     setActiveGames,
     setGameId,
     setGameType,
@@ -1625,6 +1739,7 @@ export default function App() {
     setRouteError,
     setSeats,
     setView,
+    view?.metadata?.role,
   ]);
 
   const handleExitToGameSelection = useCallback(() => {
@@ -1649,6 +1764,10 @@ export default function App() {
     if (view?.metadata?.role === "spectator") {
       handleExitToGameSelection();
       return;
+    }
+
+    if (playerId) {
+      releaseSeat(gameId, playerId);
     }
 
     // 1. Tell server we are leaving (vacates seat and leaves socket room)
@@ -1676,6 +1795,7 @@ export default function App() {
   }, [
     gameId,
     handleExitToGameSelection,
+    playerId,
     view?.metadata?.role,
     setPlayerId,
     setRecentGames,
@@ -1778,6 +1898,14 @@ export default function App() {
 
   const isGameActive = Boolean(gameId && playerId && view);
   const isSpectator = view?.metadata?.role === "spectator";
+  const isIdentityEnabled =
+    isIdentityEnabledOnClient() && serverIdentityEnabled;
+  const identityMode = isIdentityEnabled ? identityState.mode : "guest";
+  const identityLabel =
+    identityMode === "user"
+      ? (identityState.email ?? "signed-in-user")
+      : `guest-${identityState.guestId.slice(-6)}`;
+  const effectiveIsCreator = view?.metadata?.isHost === "true" || isCreator;
   const currentSeat = playerId
     ? (seats.find((seat) => seat.playerId === playerId) ?? null)
     : null;
@@ -1850,7 +1978,9 @@ export default function App() {
                     className={
                       lobbyStatus.tone === "error"
                         ? "font-semibold text-red-500"
-                        : "font-semibold text-ink-muted"
+                        : lobbyStatus.tone === "warning"
+                          ? "font-semibold text-amber-600"
+                          : "font-semibold text-ink-muted"
                     }
                   >
                     {lobbyStatus.label}
@@ -1859,7 +1989,9 @@ export default function App() {
                     className={
                       lobbyStatus.tone === "error"
                         ? "mt-0.5 break-words text-red-500"
-                        : "mt-0.5 break-words text-ink-muted"
+                        : lobbyStatus.tone === "warning"
+                          ? "mt-0.5 break-words text-amber-600"
+                          : "mt-0.5 break-words text-ink-muted"
                     }
                   >
                     {lobbyStatus.message}
@@ -1981,6 +2113,16 @@ export default function App() {
               setAboutVisible(true);
             }}
             isLobbyLoading={isLobbyLoading}
+            identityWarning={identityWarning}
+            identityMode={identityMode}
+            identityLabel={identityLabel}
+            isIdentityAvailable={isIdentityEnabled}
+            authEmail={authEmailInput}
+            authBusy={authBusy}
+            authMessage={authMessage}
+            onAuthEmailChange={(value) => setAuthEmailInput(value)}
+            onSendMagicLink={handleSendMagicLink}
+            onSignOut={handleSignOutIdentity}
             availableGames={availableGames}
             sortedAvailableGames={sortedAvailableGames}
             activeGames={activeGames}
@@ -2030,21 +2172,25 @@ export default function App() {
             saveStorage={saveStorage}
             savePersistedAt={savePersistedAt}
             saveHydratedFrom={saveHydratedFrom}
-            isCreator={isCreator}
+            isCreator={effectiveIsCreator}
             isGameActive={isGameActive}
             allSeatsJoined={allSeatsJoined}
             isSpectator={isSpectator}
+            isIdentityEnabled={isIdentityEnabled}
             isGodMode={view?.metadata?.isGodMode === "true"}
             playerId={playerId}
             seats={seats}
             joinAsGodMode={joinAsGodMode}
             effectiveAiPreference={effectiveAiPreference}
             currentSeatLabel={currentSeatLabel}
+            identityLabel={identityLabel}
+            identityMode={identityMode}
             onToggleGodMode={() => setJoinAsGodMode(!joinAsGodMode)}
             onJoinSeat={handleJoin}
             onJoinSpectator={handleJoinAsSpectator}
             onLeaveSeat={handleLeaveSeat}
             onApplyAiSetting={applyAiSettingForSeat}
+            onForceReleaseSeat={handleForceReleaseSeat}
             onExitToSelection={handleExitToGameSelection}
             onShare={async () => {
               try {

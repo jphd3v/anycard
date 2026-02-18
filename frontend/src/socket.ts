@@ -12,6 +12,12 @@ import {
   GameSaveExportAckSchema,
   GameSaveImportAckSchema,
 } from "../../shared/schemas";
+import {
+  getGuestId,
+  initSupabaseTokenRefresh,
+  isSupabaseIdentityEnabledOnClient,
+  resolveSupabaseAccessToken,
+} from "./auth/supabase-identity";
 import type {
   ActiveGameSummary,
   AvailableGame,
@@ -192,11 +198,42 @@ type Handlers = {
 };
 
 let socket: Socket | null = null;
+let lastAuthRefreshToken: string | null = null;
+let serverIdentityEnabled: boolean | null = null;
 
 export function ensureSocket(): Socket {
   if (!socket) {
     socket = io(SERVER_URL, {
       transports: ["websocket"],
+      auth: (cb) => {
+        const guestId = getGuestId();
+        if (!isSupabaseIdentityEnabledOnClient()) {
+          cb({ guestId });
+          return;
+        }
+        if (serverIdentityEnabled === false) {
+          cb({ guestId });
+          return;
+        }
+
+        void resolveSupabaseAccessToken()
+          .then((token) => {
+            cb(token ? { token, guestId } : { guestId });
+          })
+          .catch((error) => {
+            console.warn("[Identity] Failed to resolve auth token", error);
+            cb({ guestId });
+          });
+      },
+    });
+
+    initSupabaseTokenRefresh((token) => {
+      if (lastAuthRefreshToken === token) return;
+      lastAuthRefreshToken = token;
+      if (!socket) return;
+      if (!socket.connected) return;
+      if (serverIdentityEnabled === false) return;
+      socket.emit("auth:refresh", { token, guestId: getGuestId() });
     });
   }
   return socket;
@@ -263,8 +300,11 @@ export function setupSocketHandlers({
     onInvalidMove?.();
     markEvaluationComplete();
   };
-  const handleSeatStatus = (payload: { gameId: string; seats: SeatStatus[] }) =>
-    onSeats(payload);
+  const handleSeatStatus = (payload: {
+    gameId: string;
+    seed?: string;
+    seats: SeatStatus[];
+  }) => onSeats(payload);
 
   const handleGameStatus = (payload: StatusPayload) => {
     onStatus(payload);
@@ -333,6 +373,10 @@ export function connect() {
   }
 }
 
+export function isIdentityEnabledOnClient(): boolean {
+  return isSupabaseIdentityEnabledOnClient();
+}
+
 export function joinGame(
   gameId: string,
   playerId: string,
@@ -356,6 +400,32 @@ export function watchGame(gameId: string) {
 export function leaveGame() {
   const s = ensureSocket();
   s.emit("game:leave");
+}
+
+export function releaseSeat(
+  gameId: string,
+  seatId: string,
+  options?: { force?: boolean }
+) {
+  const s = ensureSocket();
+  s.emit("game:release-seat", {
+    gameId,
+    seatId,
+    ...(options?.force ? { force: true } : {}),
+  });
+}
+
+export function setSeatAvatarEmoji(
+  gameId: string,
+  seatId: string,
+  avatarEmoji: string | null
+) {
+  const s = ensureSocket();
+  s.emit("game:set-avatar-emoji", {
+    gameId,
+    seatId,
+    avatarEmoji,
+  });
 }
 
 export function restartGame(gameId: string) {
@@ -647,9 +717,19 @@ export async function fetchGameInfo(
 }
 
 export async function closeGame(gameId: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (isSupabaseIdentityEnabledOnClient()) {
+    const token = await resolveSupabaseAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
   const response = await fetchWithTimeout(
     `${SERVER_URL}/active-games/${encodeURIComponent(gameId)}`,
-    { method: "DELETE" }
+    {
+      method: "DELETE",
+      ...(Object.keys(headers).length > 0 ? { headers } : {}),
+    }
   );
   if (!response.ok) {
     throw new Error(`Failed to close game: ${response.status}`);
@@ -659,6 +739,7 @@ export async function closeGame(gameId: string): Promise<void> {
 export type ServerConfig = {
   ruleEngineMode: RuleEngineMode;
   serverAiEnabled?: boolean;
+  identityEnabled?: boolean;
   llmShowPromptsInFrontend?: boolean;
   llmShowExceptionsInFrontend?: boolean;
   backendRuntime?: BackendRuntimeInfo;
@@ -669,11 +750,19 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
   const data = (await readJsonOrThrow(response, "Failed to fetch config")) as {
     ruleEngineMode?: unknown;
     serverAiEnabled?: unknown;
+    identityEnabled?: unknown;
     llmShowPromptsInFrontend?: unknown;
     llmShowExceptionsInFrontend?: unknown;
     backendCommitHash?: unknown;
     backendCommitUnixTs?: unknown;
   };
+  const identityEnabled =
+    typeof data.identityEnabled === "boolean"
+      ? data.identityEnabled
+      : undefined;
+  if (identityEnabled !== undefined) {
+    serverIdentityEnabled = identityEnabled;
+  }
   const backendCommitHash = normalizeCommitHash(data.backendCommitHash);
   const backendCommitUnixTs =
     typeof data.backendCommitUnixTs === "number" &&
@@ -691,6 +780,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
   return {
     ruleEngineMode: "code",
     serverAiEnabled: data.serverAiEnabled === true,
+    ...(identityEnabled !== undefined ? { identityEnabled } : {}),
     llmShowPromptsInFrontend: data.llmShowPromptsInFrontend === true,
     llmShowExceptionsInFrontend: data.llmShowExceptionsInFrontend === true,
     backendRuntime: {

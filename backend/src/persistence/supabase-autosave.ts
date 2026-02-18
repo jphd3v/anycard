@@ -89,9 +89,9 @@ async function retryWithBackoff<T>(
 
 function createSupabaseAutosaveClient(
   url: string,
-  serviceRoleKey: string
+  secretKey: string
 ): SupabaseClient {
-  return createClient(url, serviceRoleKey, {
+  return createClient(url, secretKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -103,7 +103,7 @@ function getSupabaseConfig(): {
   enabled: boolean;
   tableName: string;
   url?: string;
-  serviceRoleKey?: string;
+  secretKey?: string;
   disabledForTestEnv: boolean;
 } {
   const config = getEnvironmentConfig();
@@ -113,7 +113,7 @@ function getSupabaseConfig(): {
     enabled: config.supabaseAutosaveEnabled && !config.isTestEnvironment,
     tableName: config.supabaseAutosaveTable,
     url: config.supabaseUrl,
-    serviceRoleKey: config.supabaseServiceRoleKey,
+    secretKey: config.supabaseSecretKey,
     disabledForTestEnv,
   };
 }
@@ -250,14 +250,11 @@ export async function assertSupabaseAutosaveSchemaOrThrow(): Promise<void> {
   if (!config.enabled) {
     return;
   }
-  if (!config.url || !config.serviceRoleKey) {
+  if (!config.url || !config.secretKey) {
     return;
   }
 
-  const supabase = createSupabaseAutosaveClient(
-    config.url,
-    config.serviceRoleKey
-  );
+  const supabase = createSupabaseAutosaveClient(config.url, config.secretKey);
   const preflight = await runAutosaveSchemaPreflight(
     supabase,
     config.tableName
@@ -281,14 +278,11 @@ export async function fetchPersistedGamesFromSupabase(): Promise<
   if (!config.enabled) {
     return [];
   }
-  if (!config.url || !config.serviceRoleKey) {
+  if (!config.url || !config.secretKey) {
     return [];
   }
 
-  const supabase = createSupabaseAutosaveClient(
-    config.url,
-    config.serviceRoleKey
-  );
+  const supabase = createSupabaseAutosaveClient(config.url, config.secretKey);
 
   let rows: SupabaseSnapshotReadRow[] | null = null;
   let queryError: unknown = null;
@@ -390,7 +384,7 @@ export async function initSupabaseAutosave(
     return;
   }
 
-  if (!config.url || !config.serviceRoleKey) {
+  if (!config.url || !config.secretKey) {
     console.warn(
       "[Autosave] Supabase autosave is enabled but credentials are missing; feature disabled."
     );
@@ -398,10 +392,7 @@ export async function initSupabaseAutosave(
   }
 
   const tableName = config.tableName;
-  const supabase = createSupabaseAutosaveClient(
-    config.url,
-    config.serviceRoleKey
-  );
+  const supabase = createSupabaseAutosaveClient(config.url, config.secretKey);
 
   const preflight = await runAutosaveSchemaPreflight(supabase, tableName);
   if (!preflight.ok) {

@@ -364,8 +364,8 @@ test.describe("UI Smoke Tests - Frontend AI Behavior", () => {
 
     await page.getByRole("button", { name: /Watch as Spectator/i }).click();
     await expect(
-      page.getByText(/You are watching as a spectator/i)
-    ).toBeVisible();
+      page.getByRole("button", { name: /Watch as Spectator/i })
+    ).toHaveCount(0);
 
     const roomId = await readRoomIdFromLobby(page);
     const otherContext = await browser.newContext();

@@ -73,6 +73,25 @@ import type {
   PersistedRoomType,
   SupabasePersistedGameRecord,
 } from "./persistence/supabase-autosave.js";
+import {
+  claimSeatOwnership,
+  ensureGameHostUserId,
+  getGameHostUserId,
+  getSeatClaimCleanupIntervalMs,
+  getSeatClaimReleaseTimeoutSeconds,
+  isSupabaseIdentityEnabled,
+  listSeatClaimsForGame,
+  markSeatClaimDisconnected,
+  normalizeAvatarEmoji,
+  releaseAllClaimsForGame,
+  releaseExpiredSeatClaims,
+  releaseSeatOwnership,
+  releaseSeatOwnershipForAiSeat,
+  setSeatClaimAvatarEmoji,
+  upsertUserProfileAvatar,
+  verifySupabaseAccessToken,
+  type SeatClaimRecord,
+} from "./identity/supabase-identity.js";
 
 // Module-scoped state
 type PlayerRole = "player" | "spectator";
@@ -82,6 +101,15 @@ type PlayerRegistryEntry = {
   playerId: string;
   role: PlayerRole;
   isGodMode?: boolean;
+  userId?: string | null;
+  userEmail?: string | null;
+  guestId?: string | null;
+};
+
+type GuestSeatClaimRecord = {
+  gameId: string;
+  seatId: string;
+  ownerGuestId: string;
 };
 
 type PersistedStorage = "supabase";
@@ -130,9 +158,20 @@ const demoRoomsByRulesId = new Map<string, string>(); // rulesId -> gameId
 const roomTypeByGameId = new Map<string, RoomType>();
 const persistenceByGameId = new Map<string, GamePersistenceSummary>();
 const pendingCloseTimers = new Map<string, NodeJS.Timeout>();
+const seatClaimsByGameId = new Map<string, Map<string, SeatClaimRecord>>();
+const guestSeatClaimsByGameId = new Map<
+  string,
+  Map<string, GuestSeatClaimRecord>
+>();
+const seatClaimsLoadedForGameId = new Set<string>();
+const hostUserIdByGameId = new Map<string, string>();
+let seatClaimCleanupTimer: NodeJS.Timeout | null = null;
+const authRefreshTimestamps = new Map<string, number>();
 const NO_HUMAN_CLOSE_DELAY_MS = 5 * 60 * 1000;
 const DEMO_ABANDONED_RESET_DELAY_MS = 30 * 1000;
 const DEFAULT_DEMO_SEED = "ESC0Q0";
+const AUTH_REFRESH_COOLDOWN_MS = 30_000;
+const GUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 // Schemas for validation
 const StartGameOptionsSchema = z.object({
@@ -184,6 +223,321 @@ function canSpectatorPerformAction(
   );
 }
 
+function getSocketUserId(socket: Socket): string | null {
+  const candidate = (socket.data as { userId?: unknown } | undefined)?.userId;
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate
+    : null;
+}
+
+function getSocketUserEmail(socket: Socket): string | null {
+  const candidate = (socket.data as { userEmail?: unknown } | undefined)
+    ?.userEmail;
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate
+    : null;
+}
+
+function normalizeGuestId(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!GUEST_ID_PATTERN.test(trimmed)) return null;
+  return trimmed;
+}
+
+function getSocketGuestId(socket: Socket): string | null {
+  const candidate = (socket.data as { guestId?: unknown } | undefined)?.guestId;
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate
+    : null;
+}
+
+function getSeatClaimTimeoutMs(): number {
+  return getSeatClaimReleaseTimeoutSeconds() * 1000;
+}
+
+function isSupabaseSeatClaimActive(claim: SeatClaimRecord | null): boolean {
+  if (!claim) return false;
+  if (!claim.disconnectedAt) return true;
+  const disconnectedAt = Date.parse(claim.disconnectedAt);
+  if (!Number.isFinite(disconnectedAt)) return true;
+  return Date.now() - disconnectedAt <= getSeatClaimTimeoutMs();
+}
+
+function isGuestSeatClaimActive(claim: GuestSeatClaimRecord | null): boolean {
+  return claim != null;
+}
+
+function getGuestSeatClaimMap(
+  gameId: string
+): Map<string, GuestSeatClaimRecord> {
+  let gameClaims = guestSeatClaimsByGameId.get(gameId);
+  if (!gameClaims) {
+    gameClaims = new Map<string, GuestSeatClaimRecord>();
+    guestSeatClaimsByGameId.set(gameId, gameClaims);
+  }
+  return gameClaims;
+}
+
+function getGuestSeatClaimFromCache(
+  gameId: string,
+  seatId: string
+): GuestSeatClaimRecord | null {
+  return guestSeatClaimsByGameId.get(gameId)?.get(seatId) ?? null;
+}
+
+function setGuestSeatClaimInCache(claim: GuestSeatClaimRecord): void {
+  const gameClaims = getGuestSeatClaimMap(claim.gameId);
+  gameClaims.set(claim.seatId, claim);
+}
+
+function removeGuestSeatClaimFromCache(gameId: string, seatId: string): void {
+  const gameClaims = guestSeatClaimsByGameId.get(gameId);
+  if (!gameClaims) return;
+  gameClaims.delete(seatId);
+  if (gameClaims.size === 0) {
+    guestSeatClaimsByGameId.delete(gameId);
+  }
+}
+
+function clearGuestSeatClaimsCacheForGame(gameId: string): void {
+  guestSeatClaimsByGameId.delete(gameId);
+}
+
+function claimGuestSeatOwnership(params: {
+  gameId: string;
+  seatId: string;
+  guestId: string;
+}):
+  | { ok: true; claim: GuestSeatClaimRecord }
+  | { ok: false; reason: "owned-by-other" } {
+  const existing = getGuestSeatClaimFromCache(params.gameId, params.seatId);
+  if (
+    existing &&
+    existing.ownerGuestId !== params.guestId &&
+    isGuestSeatClaimActive(existing)
+  ) {
+    return { ok: false, reason: "owned-by-other" };
+  }
+
+  const next: GuestSeatClaimRecord = {
+    gameId: params.gameId,
+    seatId: params.seatId,
+    ownerGuestId: params.guestId,
+  };
+  setGuestSeatClaimInCache(next);
+  return { ok: true, claim: next };
+}
+
+function markGuestSeatClaimDisconnected(params: {
+  gameId: string;
+  seatId: string;
+  guestId: string;
+}): GuestSeatClaimRecord | null {
+  const existing = getGuestSeatClaimFromCache(params.gameId, params.seatId);
+  if (!existing || existing.ownerGuestId !== params.guestId) {
+    return null;
+  }
+  removeGuestSeatClaimFromCache(params.gameId, params.seatId);
+  return null;
+}
+
+function releaseGuestSeatOwnership(params: {
+  gameId: string;
+  seatId: string;
+  requesterGuestId?: string | null;
+  force?: boolean;
+}): boolean {
+  const existing = getGuestSeatClaimFromCache(params.gameId, params.seatId);
+  if (!existing) return true;
+  if (!params.force && params.requesterGuestId !== existing.ownerGuestId) {
+    return false;
+  }
+  removeGuestSeatClaimFromCache(params.gameId, params.seatId);
+  return true;
+}
+
+function getSeatClaimMap(gameId: string): Map<string, SeatClaimRecord> {
+  let gameClaims = seatClaimsByGameId.get(gameId);
+  if (!gameClaims) {
+    gameClaims = new Map<string, SeatClaimRecord>();
+    seatClaimsByGameId.set(gameId, gameClaims);
+  }
+  return gameClaims;
+}
+
+function setSeatClaimInCache(claim: SeatClaimRecord): void {
+  const gameClaims = getSeatClaimMap(claim.gameId);
+  gameClaims.set(claim.seatId, claim);
+}
+
+function removeSeatClaimFromCache(gameId: string, seatId: string): void {
+  const gameClaims = seatClaimsByGameId.get(gameId);
+  if (!gameClaims) return;
+  gameClaims.delete(seatId);
+  if (gameClaims.size === 0) {
+    seatClaimsByGameId.delete(gameId);
+  }
+}
+
+function clearSeatClaimsCacheForGame(gameId: string): void {
+  seatClaimsByGameId.delete(gameId);
+  seatClaimsLoadedForGameId.delete(gameId);
+  hostUserIdByGameId.delete(gameId);
+  clearGuestSeatClaimsCacheForGame(gameId);
+}
+
+async function ensureSeatClaimsLoadedForGame(gameId: string): Promise<void> {
+  if (!isSupabaseIdentityEnabled()) return;
+  if (seatClaimsLoadedForGameId.has(gameId)) return;
+  const claims = await listSeatClaimsForGame(gameId);
+  const gameClaims = getSeatClaimMap(gameId);
+  gameClaims.clear();
+  for (const claim of claims) {
+    gameClaims.set(claim.seatId, claim);
+  }
+  seatClaimsLoadedForGameId.add(gameId);
+}
+
+function getSeatClaimFromCache(
+  gameId: string,
+  seatId: string
+): SeatClaimRecord | null {
+  return seatClaimsByGameId.get(gameId)?.get(seatId) ?? null;
+}
+
+export function getSeatAvatarEmoji(
+  gameId: string,
+  seatId: string
+): string | undefined {
+  const claim = getSeatClaimFromCache(gameId, seatId);
+  return claim?.avatarEmoji ?? undefined;
+}
+
+export function getSeatOwnerLabel(
+  gameId: string,
+  seatId: string
+): string | undefined {
+  const assignmentKey = seatKey(gameId, seatId);
+  const occupantSocketId = seatAssignments.get(assignmentKey);
+  const occupantEntry = occupantSocketId
+    ? playerRegistry.get(occupantSocketId)
+    : null;
+  if (occupantEntry?.userEmail) return occupantEntry.userEmail;
+  if (occupantEntry?.guestId) {
+    return `Guest ${occupantEntry.guestId.slice(-4)}`;
+  }
+
+  const supabaseClaim = getSeatClaimFromCache(gameId, seatId);
+  if (isSupabaseSeatClaimActive(supabaseClaim)) {
+    return "Signed-in player";
+  }
+
+  const guestClaim = getGuestSeatClaimFromCache(gameId, seatId);
+  if (guestClaim && isGuestSeatClaimActive(guestClaim)) {
+    return `Guest ${guestClaim.ownerGuestId.slice(-4)}`;
+  }
+
+  return undefined;
+}
+
+async function setHostUserIfMissing(
+  gameId: string,
+  userId: string | null
+): Promise<void> {
+  if (!isSupabaseIdentityEnabled()) return;
+  if (!userId) return;
+
+  const cached = hostUserIdByGameId.get(gameId);
+  if (cached) return;
+
+  const hostUserId = await ensureGameHostUserId(gameId, userId);
+  if (hostUserId) {
+    hostUserIdByGameId.set(gameId, hostUserId);
+  }
+}
+
+async function isHostUserForGame(
+  gameId: string,
+  userId: string | null
+): Promise<boolean> {
+  if (!userId) return false;
+  const cached = hostUserIdByGameId.get(gameId);
+  if (cached) return cached === userId;
+
+  if (!isSupabaseIdentityEnabled()) return false;
+  const loadedHost = await getGameHostUserId(gameId);
+  if (loadedHost) {
+    hostUserIdByGameId.set(gameId, loadedHost);
+  }
+  return loadedHost === userId;
+}
+
+async function hasHostUserForGame(gameId: string): Promise<boolean> {
+  if (!isSupabaseIdentityEnabled()) return false;
+  if (hostUserIdByGameId.has(gameId)) {
+    return true;
+  }
+  const loadedHost = await getGameHostUserId(gameId);
+  if (!loadedHost) return false;
+  hostUserIdByGameId.set(gameId, loadedHost);
+  return true;
+}
+
+async function markSeatClaimDisconnectedForEntry(
+  entry: PlayerRegistryEntry
+): Promise<void> {
+  if (entry.role !== "player") return;
+  if (entry.userId && isSupabaseIdentityEnabled()) {
+    const claim = await markSeatClaimDisconnected({
+      gameId: entry.gameId,
+      seatId: entry.playerId,
+      userId: entry.userId,
+    });
+    if (claim) {
+      setSeatClaimInCache(claim);
+    }
+    return;
+  }
+
+  if (entry.guestId) {
+    markGuestSeatClaimDisconnected({
+      gameId: entry.gameId,
+      seatId: entry.playerId,
+      guestId: entry.guestId,
+    });
+  }
+}
+
+async function runSeatClaimCleanup(): Promise<void> {
+  const touchedGameIds = new Set<string>();
+
+  if (isSupabaseIdentityEnabled()) {
+    const released = await releaseExpiredSeatClaims();
+    for (const claim of released) {
+      removeSeatClaimFromCache(claim.gameId, claim.seatId);
+      touchedGameIds.add(claim.gameId);
+    }
+  }
+
+  for (const [gameId, claims] of guestSeatClaimsByGameId.entries()) {
+    // Guest claims are removed eagerly on disconnect/release. Keep this loop as
+    // structural scaffolding in case guest reconnect grace-period cleanup is added.
+    if (claims.size === 0) {
+      guestSeatClaimsByGameId.delete(gameId);
+    }
+  }
+
+  if (touchedGameIds.size === 0) return;
+
+  for (const gameId of touchedGameIds) {
+    if (projectState(gameId)) {
+      broadcastSeatStatus(gameId);
+      broadcastStateToGame(gameId);
+    }
+  }
+}
+
 function countConnectedHumans(gameId: string): {
   playerCount: number;
   spectatorCount: number;
@@ -211,6 +565,24 @@ function countConnectedHumans(gameId: string): {
 
 export function getRoomType(gameId: string): RoomType {
   return roomTypeByGameId.get(gameId) ?? "private";
+}
+
+export function isHostConnectionForGame(
+  gameId: string,
+  connectionId?: string
+): boolean {
+  if (!connectionId) return false;
+  const entry = playerRegistry.get(connectionId);
+  const userId = entry?.userId ?? null;
+  if (!userId) return false;
+  return hostUserIdByGameId.get(gameId) === userId;
+}
+
+export async function isUserHostForGame(
+  gameId: string,
+  userId: string
+): Promise<boolean> {
+  return isHostUserForGame(gameId, userId);
 }
 
 function normalizePersistedRoomType(roomType: PersistedRoomType): RoomType {
@@ -404,6 +776,10 @@ export function closeGameSession(io: Server, gameId: string): boolean {
 
   roomTypeByGameId.delete(gameId);
   persistenceByGameId.delete(gameId);
+  if (isSupabaseIdentityEnabled()) {
+    void releaseAllClaimsForGame(gameId);
+  }
+  clearSeatClaimsCacheForGame(gameId);
   gameProcessingChains.delete(gameId);
   deadlockAssertStateVersionByGame.delete(gameId);
   closeGame(gameId);
@@ -758,7 +1134,14 @@ function hasGameAccess(socketId: string, gameId: string): boolean {
   if (registryEntry) {
     return registryEntry.gameId === gameId;
   }
-  return watchRegistry.get(socketId) === gameId;
+  if (watchRegistry.get(socketId) === gameId) {
+    return true;
+  }
+
+  // Allow sockets that are already in the room but have not yet been
+  // registered in watch/player maps during startup/auto-watch races.
+  const socket = globalIoServer?.sockets.sockets.get(socketId);
+  return socket?.rooms.has(gameId) === true;
 }
 
 function stopWatching(socket: Socket, keepRoomId?: string): void {
@@ -804,13 +1187,36 @@ function buildSeatStatusPayload(
       const aiRuntime =
         player.aiRuntime ??
         (player.isAi ? ("backend" as const) : ("none" as const));
+      const assignmentKey = seatKey(gameId, player.id);
+      const occupantSocketId = seatAssignments.get(assignmentKey);
+      const occupantEntry = occupantSocketId
+        ? playerRegistry.get(occupantSocketId)
+        : null;
+      const supabaseClaim = getSeatClaimFromCache(gameId, player.id);
+      const guestClaim = getGuestSeatClaimFromCache(gameId, player.id);
       const occupied =
-        seatAssignments.has(seatKey(gameId, player.id)) || aiRuntime !== "none";
+        occupantSocketId != null ||
+        aiRuntime !== "none" ||
+        isSupabaseSeatClaimActive(supabaseClaim) ||
+        isGuestSeatClaimActive(guestClaim);
+
+      const ownerLabel =
+        occupantEntry?.userEmail ??
+        (occupantEntry?.guestId
+          ? `Guest ${occupantEntry.guestId.slice(-4)}`
+          : isSupabaseSeatClaimActive(supabaseClaim)
+            ? "Signed-in player"
+            : guestClaim && isGuestSeatClaimActive(guestClaim)
+              ? `Guest ${guestClaim.ownerGuestId.slice(-4)}`
+              : undefined);
 
       return {
         playerId: player.id,
         name: player.name,
         occupied,
+        ownerLabel,
+        avatarEmoji:
+          getSeatClaimFromCache(gameId, player.id)?.avatarEmoji ?? undefined,
         isAi: player.isAi,
         aiRuntime,
       };
@@ -837,10 +1243,20 @@ export function getGameSummary(gameId: string): GameSummary | null {
       (player.isAi ? ("backend" as const) : ("none" as const));
     const key = seatKey(gameId, player.id);
     const isHumanSeated = seatAssignments.has(key);
+    const hasSupabaseClaim = isSupabaseSeatClaimActive(
+      getSeatClaimFromCache(gameId, player.id)
+    );
+    const hasGuestClaim = isGuestSeatClaimActive(
+      getGuestSeatClaimFromCache(gameId, player.id)
+    );
     return {
       id: player.id,
       name: player.name,
-      occupied: isHumanSeated || aiRuntime !== "none",
+      occupied:
+        isHumanSeated ||
+        aiRuntime !== "none" ||
+        hasSupabaseClaim ||
+        hasGuestClaim,
     };
   });
 
@@ -1495,6 +1911,60 @@ export function initSocket(io: Server) {
 
   initAiLogIo(io);
 
+  io.use(async (socket, next) => {
+    const authPayload = socket.handshake.auth as {
+      token?: unknown;
+      guestId?: unknown;
+    } | null;
+
+    const guestId = normalizeGuestId(authPayload?.guestId);
+    if (guestId) {
+      (
+        socket.data as { guestId?: string | null; userId?: string | null }
+      ).guestId = guestId;
+    }
+
+    const token =
+      authPayload && typeof authPayload.token === "string"
+        ? authPayload.token
+        : "";
+    if (!token.trim()) {
+      next();
+      return;
+    }
+
+    if (!isSupabaseIdentityEnabled()) {
+      next();
+      return;
+    }
+
+    const verified = await verifySupabaseAccessToken(token);
+    if (!verified) {
+      next(new Error("Invalid authentication token"));
+      return;
+    }
+
+    (
+      socket.data as {
+        userId?: string;
+        userEmail?: string | null;
+      }
+    ).userId = verified.userId;
+    (
+      socket.data as {
+        userId?: string;
+        userEmail?: string | null;
+      }
+    ).userEmail = verified.email;
+    next();
+  });
+
+  if (!seatClaimCleanupTimer) {
+    seatClaimCleanupTimer = setInterval(() => {
+      void runSeatClaimCleanup();
+    }, getSeatClaimCleanupIntervalMs());
+  }
+
   const reportEngineWarning = (
     gameId: string,
     message: string,
@@ -1527,7 +1997,115 @@ export function initSocket(io: Server) {
       });
     }
 
-    socket.on("game:leave", () => {
+    socket.on("auth:refresh", async (raw: unknown) => {
+      if (!isSupabaseIdentityEnabled()) return;
+
+      const existingUserId = getSocketUserId(socket);
+      if (!existingUserId) {
+        // Allow guest -> authenticated upgrade on an existing socket.
+      }
+
+      const payload = raw as { token?: unknown; guestId?: unknown } | null;
+      const token =
+        payload && typeof payload.token === "string" ? payload.token : "";
+      const refreshedGuestId = normalizeGuestId(payload?.guestId);
+      if (refreshedGuestId) {
+        (socket.data as { guestId?: string | null }).guestId = refreshedGuestId;
+      }
+
+      if (!token.trim()) {
+        // Allow authenticated -> guest downgrade (e.g., sign-out on the client).
+        const previousUserId = getSocketUserId(socket);
+        const entry = playerRegistry.get(socket.id);
+        if (
+          previousUserId &&
+          entry?.role === "player" &&
+          isSupabaseIdentityEnabled()
+        ) {
+          await ensureSeatClaimsLoadedForGame(entry.gameId);
+          const claim = getSeatClaimFromCache(entry.gameId, entry.playerId);
+          if (claim && claim.ownerUserId === previousUserId) {
+            const released = await releaseSeatOwnership({
+              gameId: entry.gameId,
+              seatId: entry.playerId,
+              requesterUserId: previousUserId,
+              ownerUserId: claim.ownerUserId,
+            });
+            if (released) {
+              removeSeatClaimFromCache(entry.gameId, entry.playerId);
+            }
+          }
+        }
+
+        (socket.data as { userId?: string | null }).userId = null;
+        (socket.data as { userEmail?: string | null }).userEmail = null;
+        if (entry) {
+          playerRegistry.set(socket.id, {
+            ...entry,
+            userId: null,
+            userEmail: null,
+            guestId: getSocketGuestId(socket),
+          });
+          broadcastSeatStatus(entry.gameId);
+        }
+        return;
+      }
+
+      const now = Date.now();
+      const lastRefresh = authRefreshTimestamps.get(socket.id) ?? 0;
+      if (now - lastRefresh < AUTH_REFRESH_COOLDOWN_MS) {
+        socket.emit("game:error", {
+          message: "Token refresh too frequent",
+          source: "app",
+        });
+        return;
+      }
+      authRefreshTimestamps.set(socket.id, now);
+
+      const verified = await verifySupabaseAccessToken(token);
+      if (!verified) {
+        socket.emit("game:error", {
+          message: "Authentication refresh failed",
+          source: "app",
+        });
+        socket.disconnect(true);
+        return;
+      }
+
+      if (existingUserId && existingUserId !== verified.userId) {
+        socket.emit("game:error", {
+          message: "Authentication refresh mismatch",
+          source: "app",
+        });
+        socket.disconnect(true);
+        return;
+      }
+
+      (
+        socket.data as {
+          userId?: string;
+          userEmail?: string | null;
+        }
+      ).userId = verified.userId;
+      (
+        socket.data as {
+          userId?: string;
+          userEmail?: string | null;
+        }
+      ).userEmail = verified.email;
+      const entry = playerRegistry.get(socket.id);
+      if (entry) {
+        playerRegistry.set(socket.id, {
+          ...entry,
+          userId: verified.userId,
+          userEmail: verified.email,
+          guestId: getSocketGuestId(socket),
+        });
+        broadcastSeatStatus(entry.gameId);
+      }
+    });
+
+    socket.on("game:leave", async () => {
       const watchedGameId = watchRegistry.get(socket.id);
       if (watchedGameId) {
         stopWatching(socket);
@@ -1557,6 +2135,7 @@ export function initSocket(io: Server) {
         if (seatAssignments.get(key) === socket.id) {
           seatAssignments.delete(key);
         }
+        await markSeatClaimDisconnectedForEntry(info);
       }
 
       // Remove this socket's registry entry and leave the room
@@ -1574,6 +2153,7 @@ export function initSocket(io: Server) {
     });
 
     socket.on("disconnect", () => {
+      authRefreshTimestamps.delete(socket.id);
       const watchedGameId = watchRegistry.get(socket.id);
       if (watchedGameId) {
         watchRegistry.delete(socket.id);
@@ -1608,6 +2188,7 @@ export function initSocket(io: Server) {
         if (seatAssignments.get(seatKeyValue) === socket.id) {
           seatAssignments.delete(seatKeyValue);
         }
+        void markSeatClaimDisconnectedForEntry(info);
       }
       playerRegistry.delete(socket.id);
 
@@ -1628,7 +2209,7 @@ export function initSocket(io: Server) {
 
     socket.on(
       "game:start",
-      (requestedGameType: string, seed?: string, options?: unknown) => {
+      async (requestedGameType: string, seed?: string, options?: unknown) => {
         try {
           // Use Zod validation instead of manual type checking
           const opts = StartGameOptionsSchema.parse(options ?? {});
@@ -1645,6 +2226,8 @@ export function initSocket(io: Server) {
                   broadcastStateToGame(demoGameId);
                 }
 
+                await setHostUserIfMissing(demoGameId, getSocketUserId(socket));
+                await ensureSeatClaimsLoadedForGame(demoGameId);
                 socket.join(demoGameId);
                 sendSeatStatus(socket, demoGameId);
                 socket.emit("game:start:success", {
@@ -1701,6 +2284,7 @@ export function initSocket(io: Server) {
           if (roomType === "demo") {
             demoRoomsByRulesId.set(requestedGameType, gameId);
           }
+          await setHostUserIfMissing(gameId, getSocketUserId(socket));
 
           socket.emit("game:start:success", {
             gameId,
@@ -1769,7 +2353,7 @@ export function initSocket(io: Server) {
 
     socket.on(
       "game:save-import",
-      (rawSnapshot: unknown, cb?: GameSaveImportCallback) => {
+      async (rawSnapshot: unknown, cb?: GameSaveImportCallback) => {
         const respondError = (message: string) => {
           cb?.({ ok: false, message });
           if (!cb) {
@@ -1815,6 +2399,8 @@ export function initSocket(io: Server) {
           gameId,
         };
 
+        await setHostUserIfMissing(gameId, getSocketUserId(socket));
+        await ensureSeatClaimsLoadedForGame(gameId);
         socket.join(gameId);
         sendSeatStatus(socket, gameId);
         socket.emit("game:start:success", {
@@ -1850,7 +2436,7 @@ export function initSocket(io: Server) {
       gameId: string;
     };
 
-    socket.on("game:watch", (raw: unknown) => {
+    socket.on("game:watch", async (raw: unknown) => {
       let payload: WatchGamePayload;
       try {
         const r = raw as { gameId?: unknown };
@@ -1877,6 +2463,8 @@ export function initSocket(io: Server) {
       }
 
       stopWatching(socket);
+      await setHostUserIfMissing(gameId, getSocketUserId(socket));
+      await ensureSeatClaimsLoadedForGame(gameId);
       watchRegistry.set(socket.id, gameId);
       socket.join(gameId);
       sendSeatStatus(socket, gameId);
@@ -1890,7 +2478,7 @@ export function initSocket(io: Server) {
       isGodMode?: boolean;
     };
 
-    socket.on("game:join", (raw: unknown) => {
+    socket.on("game:join", async (raw: unknown) => {
       let payload: JoinGamePayload;
       try {
         // simple runtime validation
@@ -1923,6 +2511,9 @@ export function initSocket(io: Server) {
       const { gameId, playerId } = payload;
       const role: PlayerRole = payload.role ?? "player";
       const isGodMode = role === "spectator" && payload.isGodMode === true;
+      const socketUserId = getSocketUserId(socket);
+      const socketUserEmail = getSocketUserEmail(socket);
+      const socketGuestId = getSocketGuestId(socket);
 
       const state = projectState(gameId);
       if (!state) {
@@ -1934,21 +2525,20 @@ export function initSocket(io: Server) {
       }
 
       clearPendingClose(gameId);
+      await setHostUserIfMissing(gameId, socketUserId);
+      await ensureSeatClaimsLoadedForGame(gameId);
 
-      // Ensure socket joins the correct room
-      socket.join(gameId);
-      stopWatching(socket, gameId);
-
-      // Clear any previous seat assignment for this socket
       const existing = playerRegistry.get(socket.id);
       const oldGameId = existing?.gameId;
-      if (existing) {
-        const previousKey = seatKey(existing.gameId, existing.playerId);
-        seatAssignments.delete(previousKey);
-      }
+      const changedSeatOrRole =
+        !!existing &&
+        (existing.gameId !== gameId ||
+          existing.playerId !== playerId ||
+          existing.role !== role);
 
-      // Register this socket
-      playerRegistry.set(socket.id, { gameId, playerId, role, isGodMode });
+      let claimedSeat: SeatClaimRecord | null = null;
+      let claimedGuestSeat: GuestSeatClaimRecord | null = null;
+      const newSeatKey = seatKey(gameId, playerId);
 
       if (role === "player") {
         const seat = state.players.find((player) => player.id === playerId);
@@ -1972,22 +2562,113 @@ export function initSocket(io: Server) {
           return;
         }
 
+        if (isSupabaseIdentityEnabled() && !socketUserId && !socketGuestId) {
+          socket.emit("game:error", {
+            message: "Identity missing. Reload the page and try again.",
+            source: "app",
+          });
+          return;
+        }
+
+        if (isSupabaseIdentityEnabled() && socketUserId) {
+          const claimResult = await claimSeatOwnership({
+            gameId,
+            seatId: playerId,
+            userId: socketUserId,
+          });
+          if (!claimResult.ok) {
+            socket.emit("game:error", {
+              message:
+                claimResult.reason === "owned-by-other"
+                  ? "Seat is owned by another player"
+                  : "Failed to claim seat",
+              source: "app",
+            });
+            sendSeatStatus(socket, gameId);
+            return;
+          }
+          claimedSeat = claimResult.claim;
+          setSeatClaimInCache(claimResult.claim);
+          removeGuestSeatClaimFromCache(gameId, playerId);
+        } else if (socketGuestId) {
+          const claimResult = claimGuestSeatOwnership({
+            gameId,
+            seatId: playerId,
+            guestId: socketGuestId,
+          });
+          if (!claimResult.ok) {
+            socket.emit("game:error", {
+              message: "Seat is owned by another guest",
+              source: "app",
+            });
+            sendSeatStatus(socket, gameId);
+            return;
+          }
+          claimedGuestSeat = claimResult.claim;
+        }
+
         // Player occupies their logical seat (one per playerId per game)
-        const newSeatKey = seatKey(gameId, playerId);
         const currentOccupantId = seatAssignments.get(newSeatKey);
 
         if (currentOccupantId && currentOccupantId !== socket.id) {
           // If the seat is already taken, we allow the new socket to "reclaim" it.
           // This handles cases where a user refreshes their browser and their old
           // socket hasn't timed out yet.
+          const displaced = playerRegistry.get(currentOccupantId);
           const oldSocket = io.sockets.sockets.get(currentOccupantId);
           if (oldSocket) {
             oldSocket.leave(gameId);
           }
+          if (displaced?.role === "player") {
+            const displacedKey = seatKey(displaced.gameId, displaced.playerId);
+            if (seatAssignments.get(displacedKey) === currentOccupantId) {
+              seatAssignments.delete(displacedKey);
+            }
+            void markSeatClaimDisconnectedForEntry(displaced);
+          }
           playerRegistry.delete(currentOccupantId);
+          io.to(currentOccupantId).emit("game:status", {
+            message: "Seat session replaced by a newer connection.",
+            tone: "warning",
+            source: "app",
+          });
         }
+      }
 
+      // Ensure socket joins the correct room
+      socket.join(gameId);
+      stopWatching(socket, gameId);
+
+      // Clear any previous seat assignment for this socket
+      if (existing?.role === "player") {
+        const previousKey = seatKey(existing.gameId, existing.playerId);
+        if (seatAssignments.get(previousKey) === socket.id) {
+          seatAssignments.delete(previousKey);
+        }
+      }
+      if (existing && changedSeatOrRole && existing.role === "player") {
+        await markSeatClaimDisconnectedForEntry(existing);
+      }
+
+      // Register this socket
+      playerRegistry.set(socket.id, {
+        gameId,
+        playerId,
+        role,
+        isGodMode,
+        userId: socketUserId,
+        userEmail: socketUserEmail,
+        guestId: socketGuestId,
+      });
+
+      if (role === "player") {
         seatAssignments.set(newSeatKey, socket.id);
+        if (claimedSeat) {
+          setSeatClaimInCache(claimedSeat);
+        }
+        if (claimedGuestSeat) {
+          setGuestSeatClaimInCache(claimedGuestSeat);
+        }
       }
 
       // If we moved from a different game, notify that room of the vacancy
@@ -1996,10 +2677,18 @@ export function initSocket(io: Server) {
       }
 
       // Spectators do NOT occupy any seat; they just join the room.
+      const latestState = projectState(gameId);
+      if (!latestState) {
+        socket.emit("game:error", {
+          message: "Game not found",
+          source: "app",
+        });
+        return;
+      }
 
       const viewId =
         role === "player" ? playerId : isGodMode ? "__god__" : "__spectator__";
-      const baseView = buildViewForPlayer(state, viewId, socket.id);
+      const baseView = buildViewForPlayer(latestState, viewId, socket.id);
 
       const viewSalt = getViewSalt(gameId);
       const legalIntents =
@@ -2035,6 +2724,250 @@ export function initSocket(io: Server) {
       broadcastSeatStatus(gameId);
       maybeScheduleAiTurn(gameId, broadcastStateToGame);
     });
+
+    interface ReleaseSeatPayload {
+      gameId: string;
+      seatId: string;
+      force?: boolean;
+    }
+
+    socket.on("game:release-seat", async (payload: ReleaseSeatPayload) => {
+      const { gameId, seatId, force } = payload ?? ({} as ReleaseSeatPayload);
+      if (typeof gameId !== "string" || typeof seatId !== "string") {
+        socket.emit("game:error", {
+          message: "Invalid seat release payload",
+          source: "app",
+        });
+        return;
+      }
+      if (!hasGameAccess(socket.id, gameId)) {
+        socket.emit("game:error", {
+          message: "You are not joined to this game",
+          source: "app",
+        });
+        return;
+      }
+      const requesterUserId = getSocketUserId(socket);
+      const requesterGuestId = getSocketGuestId(socket);
+
+      await ensureSeatClaimsLoadedForGame(gameId);
+      const isForce = force === true;
+      const hostUser =
+        requesterUserId == null
+          ? false
+          : await isHostUserForGame(gameId, requesterUserId);
+      if (isForce && !hostUser) {
+        socket.emit("game:error", {
+          message: "Only the host can force-release seats",
+          source: "app",
+        });
+        return;
+      }
+
+      const claim = getSeatClaimFromCache(gameId, seatId);
+      const guestClaim = getGuestSeatClaimFromCache(gameId, seatId);
+      const registryEntry = playerRegistry.get(socket.id);
+      const ownsSeatByConnection =
+        registryEntry?.role === "player" &&
+        registryEntry.gameId === gameId &&
+        registryEntry.playerId === seatId;
+      if (!isForce && !claim && !guestClaim && !ownsSeatByConnection) {
+        socket.emit("game:error", {
+          message: "Only the seat owner can release this seat",
+          source: "app",
+        });
+        return;
+      }
+      if (
+        claim &&
+        !isForce &&
+        (!requesterUserId || claim.ownerUserId !== requesterUserId)
+      ) {
+        socket.emit("game:error", {
+          message: "Only the seat owner can release this seat",
+          source: "app",
+        });
+        return;
+      }
+      if (
+        guestClaim &&
+        !isForce &&
+        (!requesterGuestId || guestClaim.ownerGuestId !== requesterGuestId)
+      ) {
+        socket.emit("game:error", {
+          message: "Only the seat owner can release this seat",
+          source: "app",
+        });
+        return;
+      }
+
+      if (claim && !requesterUserId && !isForce) {
+        socket.emit("game:error", {
+          message: "Failed to release seat",
+          source: "app",
+        });
+        return;
+      }
+
+      if (claim) {
+        const released = await releaseSeatOwnership({
+          gameId,
+          seatId,
+          requesterUserId: requesterUserId ?? "",
+          ownerUserId: claim.ownerUserId,
+          force: isForce,
+        });
+        if (!released) {
+          socket.emit("game:error", {
+            message: "Failed to release seat",
+            source: "app",
+          });
+          return;
+        }
+      }
+
+      if (guestClaim) {
+        const releasedGuest = releaseGuestSeatOwnership({
+          gameId,
+          seatId,
+          requesterGuestId,
+          force: isForce,
+        });
+        if (!releasedGuest) {
+          socket.emit("game:error", {
+            message: "Failed to release seat",
+            source: "app",
+          });
+          return;
+        }
+      }
+
+      removeSeatClaimFromCache(gameId, seatId);
+      removeGuestSeatClaimFromCache(gameId, seatId);
+      const assignmentKey = seatKey(gameId, seatId);
+      const occupantSocketId = seatAssignments.get(assignmentKey);
+      if (occupantSocketId) {
+        seatAssignments.delete(assignmentKey);
+        const occupantEntry = playerRegistry.get(occupantSocketId);
+        if (
+          occupantEntry &&
+          occupantEntry.role === "player" &&
+          occupantEntry.gameId === gameId &&
+          occupantEntry.playerId === seatId
+        ) {
+          playerRegistry.set(occupantSocketId, {
+            ...occupantEntry,
+            role: "spectator",
+            isGodMode: false,
+          });
+
+          const occupantSocket = io.sockets.sockets.get(occupantSocketId);
+          const snapshot = projectState(gameId);
+          if (occupantSocket && snapshot) {
+            const spectatorView = buildViewForPlayer(
+              snapshot,
+              "__spectator__",
+              occupantSocketId
+            );
+            occupantSocket.emit("game:state", spectatorView);
+            occupantSocket.emit("game:status", {
+              message: isForce
+                ? "Host released your seat."
+                : "Seat released. You are now spectating.",
+              tone: "warning",
+              source: "app",
+            });
+          }
+        }
+      }
+
+      broadcastSeatStatus(gameId);
+      broadcastStateToGame(gameId);
+    });
+
+    interface SetSeatAvatarPayload {
+      gameId: string;
+      seatId: string;
+      avatarEmoji?: string | null;
+    }
+
+    socket.on(
+      "game:set-avatar-emoji",
+      async (payload: SetSeatAvatarPayload | undefined) => {
+        const { gameId, seatId, avatarEmoji } = payload ?? {};
+        if (typeof gameId !== "string" || typeof seatId !== "string") {
+          socket.emit("game:error", {
+            message: "Invalid avatar payload",
+            source: "app",
+          });
+          return;
+        }
+
+        const registryEntry = playerRegistry.get(socket.id);
+        if (
+          !registryEntry ||
+          registryEntry.gameId !== gameId ||
+          registryEntry.role !== "player" ||
+          registryEntry.playerId !== seatId
+        ) {
+          socket.emit("game:error", {
+            message: "You can only change your current seat avatar",
+            source: "app",
+          });
+          return;
+        }
+
+        if (!isSupabaseIdentityEnabled()) {
+          socket.emit("game:error", {
+            message: "Avatar updates require identity mode",
+            source: "app",
+          });
+          return;
+        }
+
+        const userId = getSocketUserId(socket);
+        if (!userId) {
+          socket.emit("game:error", {
+            message: "Authentication required",
+            source: "app",
+          });
+          return;
+        }
+
+        await ensureSeatClaimsLoadedForGame(gameId);
+        const claim = getSeatClaimFromCache(gameId, seatId);
+        if (!claim || claim.ownerUserId !== userId) {
+          socket.emit("game:error", {
+            message: "Seat ownership required to update avatar",
+            source: "app",
+          });
+          return;
+        }
+
+        const normalizedAvatar = normalizeAvatarEmoji(avatarEmoji);
+        const profileAvatar = await upsertUserProfileAvatar(
+          userId,
+          normalizedAvatar
+        );
+        const updatedClaim = await setSeatClaimAvatarEmoji({
+          gameId,
+          seatId,
+          userId,
+          avatarEmoji: profileAvatar,
+        });
+        if (!updatedClaim) {
+          socket.emit("game:error", {
+            message: "Failed to update avatar",
+            source: "app",
+          });
+          return;
+        }
+
+        setSeatClaimInCache(updatedClaim);
+        broadcastSeatStatus(gameId);
+        broadcastStateToGame(gameId);
+      }
+    );
 
     // Rate limiting configuration
     const rateLimitMap = new Map<string, number[]>();
@@ -2655,7 +3588,6 @@ export function initSocket(io: Server) {
 
     socket.on("game:set-seat-ai", async (payload: SetSeatAiPayload) => {
       const { gameId, seatId, isAi } = payload ?? ({} as SetSeatAiPayload);
-      console.log("Received game:set-seat-ai event", { gameId, seatId, isAi });
 
       if (
         typeof gameId !== "string" ||
@@ -2677,10 +3609,27 @@ export function initSocket(io: Server) {
         return;
       }
 
+      const requesterUserId = getSocketUserId(socket);
+      await setHostUserIfMissing(gameId, requesterUserId);
+      const enforceHostRestriction = await hasHostUserForGame(gameId);
+      if (
+        enforceHostRestriction &&
+        !(await isHostUserForGame(gameId, requesterUserId))
+      ) {
+        socket.emit("game:error", {
+          message: "Only the host can toggle seat AI",
+          source: "app",
+        });
+        return;
+      }
+
       // 1. Load game
       const state = projectState(gameId);
       if (!state) {
-        console.log("Game not found", { gameId });
+        socket.emit("game:error", {
+          message: "Game not found",
+          source: "app",
+        });
         return;
       }
 
@@ -2701,42 +3650,58 @@ export function initSocket(io: Server) {
 
       // Optional: block only if game is finished, not just started
       if (state.winner) {
-        console.log("Cannot set AI seat: game is already finished", { gameId });
+        socket.emit("game:error", {
+          message: "Cannot set AI seat after game end",
+          source: "app",
+        });
         return;
       }
 
       // 3. Find the seat
       const seat = state.players.find((player) => player.id === seatId);
       if (!seat) {
-        console.log("Seat not found in game", { seatId, gameId });
+        socket.emit("game:error", {
+          message: "Seat not found",
+          source: "app",
+        });
         return;
       }
 
       // 4. Do not allow AI on an occupied seat with a human playerId (for now).
       const seatKeyStr = seatKey(gameId, seatId);
       if (seatAssignments.has(seatKeyStr) && isAi) {
-        console.log(
-          "Cannot set seat as AI: seat is already occupied by a human",
-          { seatId }
-        );
-        // Optionally reject: seat already taken by human
+        socket.emit("game:error", {
+          message: "Cannot set AI while a human is occupying this seat",
+          source: "app",
+        });
         return;
       }
-
-      console.log("Setting seat AI status", { seatId, isAi, gameId });
 
       // Update the seat's isAi flag in the game state
       const updateSuccessful = updatePlayerAiStatus(gameId, seatId, isAi);
       if (!updateSuccessful) {
-        console.log("Failed to update AI status for seat", { seatId, gameId });
+        socket.emit("game:error", {
+          message: "Failed to update AI status",
+          source: "app",
+        });
         return;
       }
 
-      console.log("Successfully updated seat AI status", {
-        seatId,
-        isAi,
-        gameId,
-      });
+      if (isAi) {
+        if (isSupabaseIdentityEnabled()) {
+          await ensureSeatClaimsLoadedForGame(gameId);
+          const claim = getSeatClaimFromCache(gameId, seatId);
+          const released = await releaseSeatOwnershipForAiSeat({
+            gameId,
+            seatId,
+            ownerUserId: claim?.ownerUserId,
+          });
+          if (released) {
+            removeSeatClaimFromCache(gameId, seatId);
+          }
+        }
+        removeGuestSeatClaimFromCache(gameId, seatId);
+      }
 
       // 6. Broadcast updated view to all clients in this game
       broadcastSeatStatus(gameId);
@@ -2764,7 +3729,7 @@ export function initSocket(io: Server) {
 
     socket.on(
       "game:setSeatFrontendAi",
-      (payload: SetSeatFrontendAiPayload | undefined) => {
+      async (payload: SetSeatFrontendAiPayload | undefined) => {
         const { gameId, seatId, enabled } = payload ?? {};
         if (
           typeof gameId !== "string" ||
@@ -2828,6 +3793,23 @@ export function initSocket(io: Server) {
           nextRuntime,
           enabled ? sponsorConnectionId : null
         );
+
+        if (enabled) {
+          if (isSupabaseIdentityEnabled()) {
+            await ensureSeatClaimsLoadedForGame(gameId);
+            const claim = getSeatClaimFromCache(gameId, seatId);
+            const released = await releaseSeatOwnershipForAiSeat({
+              gameId,
+              seatId,
+              ownerUserId: claim?.ownerUserId,
+            });
+            if (released) {
+              removeSeatClaimFromCache(gameId, seatId);
+            }
+          }
+          removeGuestSeatClaimFromCache(gameId, seatId);
+        }
+
         broadcastStateToGame(gameId);
         broadcastSeatStatus(gameId);
       }
@@ -2882,12 +3864,26 @@ export function initSocket(io: Server) {
       socket.emit("game:state", view);
     });
 
-    socket.on("game:reset", (gameId: string) => {
+    socket.on("game:reset", async (gameId: string) => {
       try {
         const registryEntry = playerRegistry.get(socket.id);
         if (!registryEntry || registryEntry.gameId !== gameId) {
           socket.emit("game:error", {
             message: "You are not joined to this game",
+            source: "app",
+          });
+          return;
+        }
+
+        const requesterUserId = getSocketUserId(socket);
+        await setHostUserIfMissing(gameId, requesterUserId);
+        const enforceHostRestriction = await hasHostUserForGame(gameId);
+        if (
+          enforceHostRestriction &&
+          !(await isHostUserForGame(gameId, requesterUserId))
+        ) {
+          socket.emit("game:error", {
+            message: "Only the host can reset the game",
             source: "app",
           });
           return;
@@ -2936,7 +3932,7 @@ export function initSocket(io: Server) {
 
     socket.on(
       "game:reset-seed",
-      (payload: { gameId?: unknown; seed?: unknown }) => {
+      async (payload: { gameId?: unknown; seed?: unknown }) => {
         try {
           const gameId = payload?.gameId;
           const seed = payload?.seed;
@@ -2952,6 +3948,20 @@ export function initSocket(io: Server) {
           if (!registryEntry || registryEntry.gameId !== gameId) {
             socket.emit("game:error", {
               message: "You are not joined to this game",
+              source: "app",
+            });
+            return;
+          }
+
+          const requesterUserId = getSocketUserId(socket);
+          await setHostUserIfMissing(gameId, requesterUserId);
+          const enforceHostRestriction = await hasHostUserForGame(gameId);
+          if (
+            enforceHostRestriction &&
+            !(await isHostUserForGame(gameId, requesterUserId))
+          ) {
+            socket.emit("game:error", {
+              message: "Only the host can reset the game",
               source: "app",
             });
             return;

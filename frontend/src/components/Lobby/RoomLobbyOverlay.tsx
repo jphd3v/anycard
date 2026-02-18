@@ -14,17 +14,21 @@ type RoomLobbyOverlayProps = {
   isGameActive: boolean;
   allSeatsJoined: boolean;
   isSpectator: boolean;
+  isIdentityEnabled: boolean;
   isGodMode: boolean;
   playerId: string | null;
   seats: SeatStatus[];
   joinAsGodMode: boolean;
   effectiveAiPreference: AiRuntimePreference;
   currentSeatLabel: string;
+  identityLabel: string;
+  identityMode: "guest" | "user";
   onToggleGodMode: () => void;
   onJoinSeat: (seatId: string) => void;
   onJoinSpectator: (useGodMode: boolean) => void;
   onLeaveSeat: () => void;
   onApplyAiSetting: (seatId: string, enable: boolean) => void;
+  onForceReleaseSeat: (seatId: string) => void;
   onExitToSelection: () => void;
   onShare: () => void;
 };
@@ -41,17 +45,21 @@ export function RoomLobbyOverlay({
   isGameActive,
   allSeatsJoined,
   isSpectator,
+  isIdentityEnabled,
   isGodMode,
   playerId,
   seats,
   joinAsGodMode,
   effectiveAiPreference,
   currentSeatLabel,
+  identityLabel,
+  identityMode,
   onToggleGodMode,
   onJoinSeat,
   onJoinSpectator,
   onLeaveSeat,
   onApplyAiSetting,
+  onForceReleaseSeat,
   onExitToSelection,
   onShare,
 }: RoomLobbyOverlayProps) {
@@ -221,6 +229,10 @@ export function RoomLobbyOverlay({
                   Waiting for other players to join the room before the game can
                   begin.
                 </p>
+                <p className="text-2xs text-ink-muted text-center font-mono">
+                  {identityMode === "user" ? "Signed in as " : "Guest id "}
+                  {identityLabel}
+                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
@@ -298,6 +310,11 @@ export function RoomLobbyOverlay({
                         </span>
                       )}
                     </div>
+                    {seat.ownerLabel && !isAiSeat && (
+                      <div className="w-full text-center text-2xs text-ink-muted font-mono truncate">
+                        {seat.ownerLabel}
+                      </div>
+                    )}
 
                     {isJoinLocked ? (
                       <div
@@ -330,6 +347,18 @@ export function RoomLobbyOverlay({
                         </button>
                       </div>
                     )}
+
+                    {isCreator &&
+                      isIdentityEnabled &&
+                      isHumanOccupiedByOther && (
+                        <button
+                          type="button"
+                          className="button-base button-secondary w-full h-8 text-2xs"
+                          onClick={() => onForceReleaseSeat(seat.playerId)}
+                        >
+                          Force Release Seat
+                        </button>
+                      )}
 
                     <div
                       className={`w-full flex items-center justify-between pt-1 sm:pt-1.5 border-t border-surface-3/50 ${
