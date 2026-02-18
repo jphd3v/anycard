@@ -22,6 +22,9 @@ an engine change and read `ARCHITECTURE.md`.
 - Keep changes minimal and scoped; avoid repo-wide formatting or refactors.
 - Do not introduce new engine event types, schemas, or env vars without an
   explicit request.
+- Adding a new game requires deterministic integration scenarios under
+  `test/integration/scenarios/<rulesId>/` with full rules coverage.
+- Engine/architecture/UI changes require coverage in `test/ui-smoke/`.
 - After changes, run the relevant checks from `package.json` (lint/build/tests)
   when practical, and report what you ran.
 

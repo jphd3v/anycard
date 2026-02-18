@@ -1,0 +1,18 @@
+{
+  "id": "golf-stock-must-be-top",
+  "rulesId": "golf",
+  "seed": "GOLF-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "deck",
+      "toPileId": "P2-draw",
+      "cardId": 51,
+      "expectedError": "You must draw the top stock card."
+    }
+  ]
+}

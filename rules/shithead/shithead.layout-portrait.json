@@ -148,9 +148,8 @@
     "P3-down": { "layout": "complete", "showDetails": true },
     "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
     "discard": {
-      "layout": "complete",
+      "layout": "horizontal",
       "label": "Discard",
-      "showTopOnly": true,
       "showDetails": true
     }
   }

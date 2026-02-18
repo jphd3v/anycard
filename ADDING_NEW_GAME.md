@@ -594,6 +594,19 @@ overlay), the UI will render an empty "No actions" placeholder.
 - ✅ **Preferred**: `"P1-hand"`, `"P2-hand"`, `"P1-area"`, `"P2-melds"`
 - ❌ **Avoid**: `"my-hand"`, `"opp-hand"`, `"player-area"`, `"enemy-melds"`
 
+**Visual Turn Indicators for Zones**:
+If a zone represents a player's primary interaction area (their "hand") but contains multiple piles (like in Golf), use the `handForPlayerId` property. This enables standard player badges ("you" or "AI") next to the player's name for the entire zone.
+
+```jsonc
+{
+  "id": "P1-area",
+  "handForPlayerId": "P1", // Enables player badges for this zone
+  "showLabel": true,
+  "cell": { "row": 2, "col": 0 },
+  "piles": ["P1-near-left", "P1-near-right"],
+}
+```
+
 This ensures consistency and prevents confusion when viewing the game from different player perspectives. The zone IDs should clearly identify which player they belong to using the standard player IDs (`P1`, `P2`, `P3`, `P4`).
 
 Example:
@@ -634,6 +647,7 @@ In this engine, the total card count for the `"deck"` pile is always visible to 
 
 - **Hide the deck (Default)**: If the deck is just a source for automated dealing or simple "Draw" actions, do **not** include it in any layout zone.
 - **Show the deck**: Only include `"deck"` in a zone's `piles` if the game requires direct interaction (e.g., dragging cards from it) or if seeing its physical location is essential.
+  - **WYSIWYG rule**: If the deck is visible in layout, the player must be able to draw the top card via a direct move. Do **not** add a "Draw" action for a visible deck.
   - **CRITICAL**: If you show the deck and want it to be face-down, set `visibility: "hidden"` in `initial-state.json`. If you want it face-up, use `visibility: "public"`.
   - **Labeling**: Always use the label `"Deck"` for the pile with ID `deck` in layout, scoreboards, and rules to match the header UI. Avoid alternative terms like "Stock" or "Draw Pile".
 
@@ -1179,10 +1193,13 @@ This ensures players start with a clean slate and only see meaningful score chan
 **✅ PREFER direct card moves (drag-and-drop) over action buttons whenever possible.**
 
 This is a core design principle of the engine and leads to better user experiences.
+If a pile is visible in the layout, it must be interactable via card moves for the
+operations players can see (what-you-see-is-what-you-get).
 
 **When to use direct card moves (`move` intents):**
 
 - Drawing visible cards from stock to hand
+- Drawing the top card from a visible deck into a draw/hand pile
 - Playing cards from hand to tableau, meld piles, or discard
 - Moving cards between table piles (building sequences, capturing, etc.)
 - Taking cards from discard piles
@@ -1195,6 +1212,7 @@ This is a core design principle of the engine and leads to better user experienc
 - Special declarations ("declare", "go-out", "claim")
 - Operations involving hidden cards where players shouldn't choose `cardId`s
 - Complex operations that can't be expressed as simple card movements
+- Never for drawing the top card from a visible deck (use a move intent instead)
 
 **Why this matters:**
 
@@ -2558,6 +2576,7 @@ Before calling the new game "done", verify:
   - `test/integration/scenarios/<rulesId>/**`
 - [ ] No other backend or frontend files changed.
 - [ ] **Integration tests** exist under `test/integration/scenarios/<rulesId>/` covering minimum requirements (see Section 6): basic gameplay, illegal move rejection, scoring, and win condition. Tests must pass with `npm run test:integration -- <rulesId>`.
+- [ ] Deterministic integration scenarios exist under `test/integration/scenarios/<rulesId>/` with full rules coverage (core turn flow, scoring, illegal moves). See `test/integration/README.md` for the format and inspect helper.
 - [ ] `rules/<rulesId>/<rulesId>.initial-state.json` passes schema validation and:
   - [ ] **Deck size is correct** for your game (e.g., 36 for Durak, 52 for Bridge, 40 for Italian games),
   - [ ] every card id appears in exactly one pile,

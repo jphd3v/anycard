@@ -48,7 +48,7 @@
     {
       "id": "center",
       "label": "Stock / Discard",
-      "cell": { "row": 3, "col": 1 },
+      "cell": { "row": 3, "col": 0, "colspan": 3 },
       "piles": ["deck", "discard"]
     }
   ],
@@ -160,9 +160,8 @@
     },
     "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
     "discard": {
-      "layout": "complete",
+      "layout": "horizontal",
       "label": "Discard",
-      "showTopOnly": true,
       "showDetails": true
     }
   }

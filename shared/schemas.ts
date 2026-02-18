@@ -592,9 +592,11 @@ export const LayoutZoneSchema = z.object({
   label: z.string().optional(),
   cell: GridCellSchema,
   piles: z.array(z.string()),
+  handForPlayerId: z.string().optional(),
   widget: z.enum(["actions", "scoreboards", "none"]).optional(),
   actionOrientation: z.enum(["horizontal", "vertical"]).optional(),
   pileOrientation: z.enum(["horizontal", "vertical"]).optional(),
+  showLabel: z.boolean().optional(),
   rotation: z
     .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
     .optional(),
@@ -602,6 +604,7 @@ export const LayoutZoneSchema = z.object({
     .object({
       rows: z.number().int().positive(),
       cols: z.number().int().positive(),
+      gap: z.string().optional(),
     })
     .optional(),
   pileGrid: z.record(z.string(), GridCellSchema).optional(),

@@ -1,0 +1,90 @@
+{
+  "rulesId": "golf",
+  "rows": 5,
+  "cols": 2,
+  "zones": [
+    {
+      "id": "p2-hand",
+      "label": "Player 2",
+      "showLabel": true,
+      "handForPlayerId": "P2",
+      "cell": { "row": 0, "col": 0, "colspan": 2, "rowspan": 2 },
+      "piles": [
+        "P2-near-left",
+        "P2-near-right",
+        "P2-far-left",
+        "P2-far-right",
+        "P2-draw"
+      ],
+      "subgrid": {
+        "rows": 2,
+        "cols": 3,
+        "gap": "12px"
+      },
+      "pileGrid": {
+        "P2-draw": { "row": 0, "col": 0, "rowspan": 2 },
+        "P2-near-left": { "row": 0, "col": 1 },
+        "P2-near-right": { "row": 0, "col": 2 },
+        "P2-far-left": { "row": 1, "col": 1 },
+        "P2-far-right": { "row": 1, "col": 2 }
+      }
+    },
+    {
+      "id": "center",
+      "label": "Stock / Discard",
+      "cell": { "row": 2, "col": 0 },
+      "piles": ["deck", "discard"],
+      "pileOrientation": "horizontal"
+    },
+    {
+      "id": "actions",
+      "cell": { "row": 2, "col": 1 },
+      "piles": [],
+      "widget": "actions"
+    },
+    {
+      "id": "p1-hand",
+      "label": "Player 1",
+      "showLabel": true,
+      "handForPlayerId": "P1",
+      "cell": { "row": 3, "col": 0, "colspan": 2, "rowspan": 2 },
+      "piles": [
+        "P1-far-left",
+        "P1-far-right",
+        "P1-near-left",
+        "P1-near-right",
+        "P1-draw"
+      ],
+      "subgrid": {
+        "rows": 2,
+        "cols": 3,
+        "gap": "12px"
+      },
+      "pileGrid": {
+        "P1-draw": { "row": 0, "col": 0, "rowspan": 2 },
+        "P1-far-left": { "row": 0, "col": 1 },
+        "P1-far-right": { "row": 0, "col": 2 },
+        "P1-near-left": { "row": 1, "col": 1 },
+        "P1-near-right": { "row": 1, "col": 2 }
+      }
+    }
+  ],
+  "pileStyles": {
+    "P1-near-left": { "layout": "complete", "hideTitle": true },
+    "P1-near-right": { "layout": "complete", "hideTitle": true },
+    "P1-far-left": { "layout": "complete", "hideTitle": true },
+    "P1-far-right": { "layout": "complete", "hideTitle": true },
+    "P2-near-left": { "layout": "complete", "hideTitle": true },
+    "P2-near-right": { "layout": "complete", "hideTitle": true },
+    "P2-far-left": { "layout": "complete", "hideTitle": true },
+    "P2-far-right": { "layout": "complete", "hideTitle": true },
+    "P1-draw": { "layout": "complete", "label": "draw" },
+    "P2-draw": { "layout": "complete", "label": "draw" },
+    "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
+    "discard": {
+      "layout": "complete",
+      "label": "Discard",
+      "showDetails": true
+    }
+  }
+}

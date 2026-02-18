@@ -1,0 +1,77 @@
+{
+  "id": "golf-knock-end",
+  "rulesId": "golf",
+  "seed": "GOLF-INTEGRATION-1",
+  "intents": [
+    { "type": "action", "playerId": "P1", "action": "start-game" },
+    { "type": "action", "playerId": "P2", "action": "ready" },
+    { "type": "action", "playerId": "P1", "action": "ready" },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "discard",
+      "toPileId": "P2-draw",
+      "cardId": 39
+    },
+    {
+      "type": "move",
+      "playerId": "P2",
+      "fromPileId": "P2-draw",
+      "toPileId": "P2-near-left",
+      "cardId": 39
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "deck",
+      "toPileId": "P1-draw",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-draw",
+      "toPileId": "discard",
+      "cardId": 52
+    },
+    { "type": "action", "playerId": "P2", "action": "knock" },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "discard",
+      "toPileId": "P1-draw",
+      "cardId": 52
+    },
+    {
+      "type": "move",
+      "playerId": "P1",
+      "fromPileId": "P1-draw",
+      "toPileId": "P1-near-left",
+      "cardId": 52
+    },
+    { "type": "action", "playerId": "P1", "action": "start-game" }
+  ],
+  "expect": {
+    "winner": null,
+    "currentPlayer": "P1",
+    "piles": {
+      "deck": { "size": 43 },
+      "discard": { "size": 1 }
+    },
+    "rulesState": {
+      "players": ["P1", "P2"],
+      "hasDealt": true,
+      "dealNumber": 2,
+      "dealerIndex": 0,
+      "phase": "peek",
+      "firstPlayer": "P1",
+      "turnPhase": "turn",
+      "drawnFrom": null,
+      "knockedBy": null,
+      "finalTurnsRemaining": 0,
+      "peekReady": { "P1": false, "P2": false },
+      "scores": { "P1": 15, "P2": 20 },
+      "lastHandScores": { "P1": 15, "P2": 20 }
+    }
+  }
+}

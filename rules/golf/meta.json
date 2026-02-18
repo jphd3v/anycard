@@ -1,0 +1,8 @@
+{
+  "rulesId": "golf",
+  "gameName": "Golf (4-Card)",
+  "description": "Two-player 4-card Golf. Draw from stock or discard to replace layout cards and minimize your score over nine deals.",
+  "players": 2,
+  "category": "Draw and Discard",
+  "supportsActions": true
+}
