@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { GameRoot } from "./components/GameRoot";
 import { FullScreenMessage } from "./components/FullScreenMessage";
-import { FatalErrorOverlay } from "./components/FatalErrorOverlay";
 import { TestHUD } from "./components/TestHUD";
 import { selectedCardAtom } from "./state";
 import {
@@ -54,15 +51,10 @@ import {
 import { useGameMeta } from "./hooks/useGameMeta";
 import {
   fetchActiveGames,
-  fetchAvailableGames,
-  fetchServerConfig,
   joinGame,
   watchGame,
   leaveGame,
   restartGame,
-  setupSocketHandlers,
-  setupConnectionHandlers,
-  connect,
   startGame,
   sendActionIntent,
   setSeatAsAi,
@@ -73,563 +65,42 @@ import { shareGameInfo } from "./utils/share";
 import type {
   CardView,
   GameView,
-  GameLayout,
   ViewEventPayload,
   LayoutZone,
   AnnounceAnchor,
-  PileLayout,
 } from "../../shared/schemas";
-import { GameHUD } from "./components/GameHUD";
-import { GameHeader } from "./components/GameHeader";
-import { FloatingWidget } from "./components/FloatingWidget";
 import { RulesOverlay } from "./components/RulesOverlay";
 import { AboutOverlay } from "./components/AboutOverlay";
-import { WinnerOverlay } from "./components/WinnerOverlay";
 import { LoadingOverlay } from "./components/LoadingOverlay";
-import {
-  FloatingActionOverlay,
-  type FloatingActionItem,
-} from "./components/FloatingActionOverlay";
+import { type FloatingActionItem } from "./components/FloatingActionOverlay";
 import { useAiLog } from "./hooks/useAiLog";
 import { useGameLayout } from "./hooks/useGameLayout";
-import { choosePileSorter, sortCardsForDisplay } from "./utils/pileSort";
-import {
-  SuitDivider,
-  TopCornerOrnaments,
-  BottomCornerOrnaments,
-} from "./components/Lobby/SuitDecorations";
-import { GameListItem } from "./components/Lobby/GameListItem";
 import { safeStartViewTransition } from "./utils/viewTransition";
 import { GameDetailsModal } from "./components/Lobby/GameDetailsModal";
-import { AiSettings } from "./components/Lobby/AiSettings";
-import { JoinGameInput } from "./components/Lobby/JoinGameInput";
-import { LobbyFooter } from "./components/Lobby/LobbyFooter";
+import { LobbyScreen } from "./components/Lobby/LobbyScreen";
+import { RoomLobbyOverlay } from "./components/Lobby/RoomLobbyOverlay";
+import { GameShell } from "./components/GameShell";
 import { useMenuControls } from "./hooks/useMenuControls";
 import { useGameTitle } from "./hooks/useGameTitle";
-
-type ParsedRoute =
-  | { kind: "explicit"; rulesId: string; gameId: string }
-  | { kind: "default"; rulesId: string }
-  | null;
+import { useGameSocketHandlers } from "./hooks/useGameSocketHandlers";
+import { useLobbyData } from "./hooks/useLobbyData";
+import { useConnectionStatus } from "./hooks/useConnectionStatus";
+import { useRouteHandlers } from "./hooks/useRouteHandlers";
+import { useAutoJoin } from "./hooks/useAutoJoin";
+import {
+  buildPileTransitionConfig,
+  type PileTransitionConfig,
+} from "./utils/pileTransitions";
+import { parseRouteFromLocation } from "./utils/appRouting";
+import { hasGameDealt } from "./utils/gameViewState";
+import {
+  CARD_SET_STORAGE_KEY,
+  DEFAULT_LOBBY_SEED,
+  MAX_RECENT_GAMES,
+} from "./app/constants";
 
 type IncomingStatePayload = GameView;
 type AnnounceViewEvent = Extract<ViewEventPayload, { type: "announce" }>;
-
-function applyViewEventToView(
-  prev: GameView,
-  event: ViewEventPayload,
-  finalView: GameView,
-  options?: {
-    animateOnlyCards?: boolean;
-  }
-): GameView {
-  const animateOnlyCards = options?.animateOnlyCards ?? false;
-
-  // Start with previous state but pull in metadata from the final authoritative view
-  // because metadata often contains derived state (like phase) that doesn't have
-  // explicit events but should be consistent with the move.
-  const next = {
-    ...prev,
-    metadata: finalView.metadata,
-  };
-
-  switch (event.type) {
-    case "move-cards": {
-      const { fromPileId, toPileId, cardIds } = event;
-
-      const idSet = new Set(cardIds);
-      const eventCardById = new Map(
-        event.cardViews?.map((card) => [card.id, card]) ?? []
-      );
-
-      // 1. Build a lookup of the final card views from the authoritative view.
-      //    This is where orientation (faceDown) is correct for the target pile.
-      const finalCardById = new Map<number, CardView>();
-      for (const pile of finalView.piles) {
-        for (const card of pile.cards) {
-          if (idSet.has(card.id)) {
-            finalCardById.set(card.id, card);
-          }
-        }
-      }
-
-      // 2. Capture cards from the source pile in the previous view,
-      //    preserving source order. If the move was optimistic, fall back to
-      //    the destination pile or final view so we don't drop the card.
-      const fromPile = prev.piles.find((p) => p.id === fromPileId);
-      const toPile = prev.piles.find((p) => p.id === toPileId);
-      let movedCards =
-        fromPile?.cards.filter((card) => idSet.has(card.id)) ?? [];
-      if (movedCards.length === 0) {
-        movedCards = toPile?.cards.filter((card) => idSet.has(card.id)) ?? [];
-      }
-      if (movedCards.length === 0) {
-        movedCards = cardIds
-          .map(
-            (cardId) => eventCardById.get(cardId) ?? finalCardById.get(cardId)
-          )
-          .filter((card): card is CardView => !!card);
-      }
-      if (movedCards.length > 1) {
-        const seenIds = new Set<number>();
-        movedCards = movedCards.filter((card) => {
-          if (seenIds.has(card.id)) return false;
-          seenIds.add(card.id);
-          return true;
-        });
-      }
-
-      // 3. Replace movedCards with their final representation when available.
-      if (finalCardById.size > 0 || eventCardById.size > 0) {
-        movedCards = movedCards.map((card) => {
-          const eventCard = eventCardById.get(card.id);
-          const finalCard = finalCardById.get(card.id);
-          const targetCard = eventCard ?? finalCard;
-          if (!targetCard) {
-            return card;
-          }
-          if (card.faceDown && !targetCard.faceDown) {
-            // Keep the card back while it moves; flip after settling.
-            return { ...targetCard, faceDown: true };
-          }
-          if (!card.faceDown && targetCard.faceDown) {
-            // Keep the face-up front during travel; flip after movement settles.
-            return {
-              id: targetCard.id,
-              label: card.label ?? targetCard.label,
-              rank: card.rank ?? targetCard.rank,
-              suit: card.suit ?? targetCard.suit,
-              faceDown: false,
-              rotationDeg: targetCard.rotationDeg ?? card.rotationDeg,
-            };
-          }
-          return targetCard;
-        });
-      }
-
-      const piles = prev.piles.map((pile) => {
-        if (pile.id === toPileId) {
-          // Append moved cards to destination using their final orientation
-          const nextCards = [
-            ...pile.cards.filter((card) => !idSet.has(card.id)),
-            ...movedCards,
-          ];
-          const seenIds = new Set<number>();
-          return {
-            ...pile,
-            cards: nextCards.filter((card) => {
-              if (seenIds.has(card.id)) return false;
-              seenIds.add(card.id);
-              return true;
-            }),
-          };
-        }
-
-        const filteredCards = pile.cards.filter((card) => !idSet.has(card.id));
-        if (filteredCards.length !== pile.cards.length) {
-          return { ...pile, cards: filteredCards };
-        }
-        return pile;
-      });
-
-      return { ...next, piles };
-    }
-
-    case "set-current-player":
-      if (animateOnlyCards) {
-        return { ...next, currentPlayer: finalView.currentPlayer ?? null };
-      }
-      return { ...next, currentPlayer: event.player ?? null };
-
-    case "set-winner":
-      if (animateOnlyCards) {
-        return { ...next, winner: finalView.winner ?? null };
-      }
-      return { ...next, winner: event.winner ?? null };
-
-    case "set-scoreboards":
-      if (animateOnlyCards) {
-        return next;
-      }
-      return { ...next, scoreboards: event.scoreboards };
-
-    case "set-actions":
-      if (animateOnlyCards) {
-        return next;
-      }
-      return { ...next, actions: event.actions };
-
-    case "set-rules-state":
-      if (animateOnlyCards) {
-        return next;
-      }
-      return { ...next, rulesState: event.rulesState };
-
-    case "set-pile-visibility": {
-      const pileId = event.pileId;
-      const finalPile = finalView.piles.find((p) => p.id === pileId);
-      if (!finalPile) {
-        return next;
-      }
-      const piles = prev.piles.map((pile) =>
-        pile.id === pileId ? { ...pile, cards: finalPile.cards } : pile
-      );
-      return { ...next, piles };
-    }
-
-    case "announce":
-      return next;
-
-    case "fatal-error":
-      // Fatal errors are handled by setting the error state atom,
-      // but we return the state unchanged since the error is global
-      return next;
-
-    default:
-      // Unknown event types are ignored for now
-      return next;
-  }
-}
-
-function applyOptimisticDragMove(
-  prev: GameView,
-  move: PendingDragMove
-): GameView {
-  const fromPile = prev.piles.find((pile) => pile.id === move.fromPileId);
-  const toPile = prev.piles.find((pile) => pile.id === move.toPileId);
-  if (!fromPile || !toPile) {
-    return prev;
-  }
-  const cardIndex = fromPile.cards.findIndex((card) => card.id === move.cardId);
-  if (cardIndex === -1) {
-    return prev;
-  }
-  const movingCard = fromPile.cards[cardIndex];
-
-  const piles = prev.piles.map((pile) => {
-    if (pile.id === move.fromPileId) {
-      return {
-        ...pile,
-        cards: pile.cards.filter((card) => card.id !== move.cardId),
-      };
-    }
-    if (pile.id === move.toPileId) {
-      return {
-        ...pile,
-        cards: [...pile.cards, movingCard],
-      };
-    }
-    return pile;
-  });
-
-  return { ...prev, piles };
-}
-
-function applyMoveRevealToView(
-  prev: GameView,
-  event: ViewEventPayload,
-  finalView?: GameView
-): GameView {
-  if (event.type !== "move-cards") {
-    return prev;
-  }
-
-  const revealById = new Map<number, CardView>();
-  for (const card of event.cardViews ?? []) {
-    revealById.set(card.id, card);
-  }
-  if (finalView) {
-    const finalCards = getCardViewsForIds(finalView, event.cardIds);
-    for (const card of finalCards) {
-      if (!revealById.has(card.id)) {
-        revealById.set(card.id, card);
-      }
-    }
-  }
-
-  if (revealById.size === 0) {
-    return prev;
-  }
-  let changed = false;
-
-  const piles = prev.piles.map((pile) => {
-    let nextCards = pile.cards;
-    for (let idx = 0; idx < pile.cards.length; idx += 1) {
-      const card = pile.cards[idx];
-      const reveal = revealById.get(card.id);
-      if (!reveal) continue;
-      if (
-        card.faceDown === reveal.faceDown &&
-        card.label === reveal.label &&
-        card.rank === reveal.rank &&
-        card.suit === reveal.suit &&
-        card.rotationDeg === reveal.rotationDeg
-      ) {
-        continue;
-      }
-      if (nextCards === pile.cards) {
-        nextCards = [...pile.cards];
-      }
-      nextCards[idx] = reveal;
-      changed = true;
-    }
-    if (nextCards === pile.cards) {
-      return pile;
-    }
-    return { ...pile, cards: nextCards };
-  });
-
-  if (!changed) {
-    return prev;
-  }
-
-  return { ...prev, piles };
-}
-
-function getCardViewsForIds(view: GameView, cardIds: number[]): CardView[] {
-  if (cardIds.length === 0) {
-    return [];
-  }
-
-  const idSet = new Set(cardIds);
-  const cardById = new Map<number, CardView>();
-
-  for (const pile of view.piles) {
-    for (const card of pile.cards) {
-      if (idSet.has(card.id)) {
-        cardById.set(card.id, card);
-      }
-    }
-  }
-
-  const ordered: CardView[] = [];
-  for (const cardId of cardIds) {
-    const card = cardById.get(cardId);
-    if (card) {
-      ordered.push(card);
-    }
-  }
-
-  return ordered;
-}
-
-function collectDuplicateCardIds(
-  view: GameView,
-  extraCards: CardView[] = [],
-  visiblePileIds?: Set<string>
-): Set<number> {
-  const seen = new Set<number>();
-  const duplicates = new Set<number>();
-
-  for (const pile of view.piles) {
-    if (visiblePileIds && !visiblePileIds.has(pile.id)) {
-      continue;
-    }
-    for (const card of pile.cards) {
-      if (seen.has(card.id)) {
-        duplicates.add(card.id);
-      } else {
-        seen.add(card.id);
-      }
-    }
-  }
-
-  for (const card of extraCards) {
-    if (seen.has(card.id)) {
-      duplicates.add(card.id);
-    } else {
-      seen.add(card.id);
-    }
-  }
-
-  return duplicates;
-}
-
-function normalizePileLayout(val?: string): PileLayout | undefined {
-  return val === "horizontal" ||
-    val === "vertical" ||
-    val === "complete" ||
-    val === "spread"
-    ? (val as PileLayout)
-    : undefined;
-}
-
-function hasGameDealt(view: GameView | null): boolean {
-  if (
-    !view ||
-    typeof view.rulesState !== "object" ||
-    view.rulesState === null
-  ) {
-    return false;
-  }
-  const maybeHasDealt = (view.rulesState as { hasDealt?: unknown }).hasDealt;
-  return typeof maybeHasDealt === "boolean" ? maybeHasDealt : false;
-}
-
-function parseRouteFromLocation(
-  location: Location = window.location
-): ParsedRoute {
-  const path = location.pathname.replace(/^\/+/, "");
-  if (!path) return null;
-
-  const [rulesId, gameId] = path.split("/");
-  if (!rulesId) return null;
-
-  if (!gameId) {
-    return { kind: "default", rulesId };
-  }
-
-  return { kind: "explicit", rulesId, gameId };
-}
-
-function getDynamicDuration(queueLength: number, isMyTurn: boolean): number {
-  // If we are live (no backlog), always animate fully so the user sees what happened,
-  // even if it becomes their turn.
-  if (queueLength === 0) return 1000;
-
-  // If we are catching up from a backlog:
-  if (isMyTurn) return 0; // Snap immediately if we are behind and it becomes my turn
-  if (queueLength > 2) return 200; // Very fast catch-up
-  return 500; // Brisk pace
-}
-
-const DEFAULT_CARD_FLIP_MS = 320;
-const MAX_TRANSITION_CARDS_PER_PILE = 24;
-const MAX_TRANSITION_CARDS = 80;
-const MAX_HEADER_TRANSITION_CARDS = 8;
-
-type PileTransitionConfig = {
-  layoutsByPileId: Record<string, string | undefined>;
-  isHandByPileId: Record<string, boolean>;
-  hasSortByPileId: Record<string, boolean>;
-};
-
-function buildPileTransitionConfig(
-  layout: GameLayout | null
-): PileTransitionConfig {
-  const layoutsByPileId: Record<string, string | undefined> = {};
-  const isHandByPileId: Record<string, boolean> = {};
-  const hasSortByPileId: Record<string, boolean> = {};
-
-  const pileStyles = layout?.pileStyles ?? {};
-  for (const [pileId, style] of Object.entries(pileStyles)) {
-    layoutsByPileId[pileId] = style.layout;
-    isHandByPileId[pileId] = !!style.isHand;
-    hasSortByPileId[pileId] = !!style.sort;
-  }
-
-  return { layoutsByPileId, isHandByPileId, hasSortByPileId };
-}
-
-function shouldAnimatePileReflow(
-  pileId: string,
-  view: GameView,
-  config: PileTransitionConfig
-): boolean {
-  const basePile = view.piles.find((pile) => pile.id === pileId);
-  const baseLayout = normalizePileLayout(basePile?.layout);
-  const overrideLayout = normalizePileLayout(config.layoutsByPileId[pileId]);
-  const layout = baseLayout ?? overrideLayout ?? "complete";
-
-  if (layout === "spread") {
-    return true;
-  }
-  if (layout === "horizontal" || layout === "vertical") {
-    return config.isHandByPileId[pileId] || config.hasSortByPileId[pileId];
-  }
-  return false;
-}
-
-function didPileOrderChange(
-  pileId: string,
-  prevView: GameView,
-  nextView: GameView
-): boolean {
-  const prevPile = prevView.piles.find((pile) => pile.id === pileId);
-  const nextPile = nextView.piles.find((pile) => pile.id === pileId);
-  if (!prevPile || !nextPile) {
-    return false;
-  }
-  if (prevPile.cards.length !== nextPile.cards.length) {
-    return true;
-  }
-  for (let i = 0; i < prevPile.cards.length; i += 1) {
-    if (prevPile.cards[i]?.id !== nextPile.cards[i]?.id) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function sortViewPiles(
-  view: GameView,
-  layout: GameLayout | null,
-  selections: Record<string, string>
-): GameView {
-  if (!layout || !layout.pileStyles) return view;
-
-  const nextPiles = view.piles.map((pile) => {
-    const style = layout.pileStyles?.[pile.id];
-    if (!style || !style.sort) return pile;
-
-    const sortConfig = style.sort;
-    const optionIds = sortConfig.options?.map((o) => o.id) ?? [];
-    const fallbackSortId =
-      sortConfig.default && optionIds.includes(sortConfig.default)
-        ? sortConfig.default
-        : optionIds[0];
-
-    const selectedSortId =
-      selections[pile.id] && optionIds.includes(selections[pile.id])
-        ? selections[pile.id]
-        : fallbackSortId;
-
-    const { sorter } = choosePileSorter(sortConfig, selectedSortId);
-    const sortedCards = sortCardsForDisplay(
-      pile.cards,
-      sorter,
-      normalizePileLayout(pile.layout) ??
-        normalizePileLayout(style.layout) ??
-        "complete"
-    );
-
-    return { ...pile, cards: sortedCards };
-  });
-
-  return { ...view, piles: nextPiles };
-}
-
-function parseDurationMs(value: string, fallback: number): number {
-  const trimmed = value.trim();
-  if (!trimmed) return fallback;
-  if (trimmed.endsWith("ms")) {
-    const ms = Number.parseFloat(trimmed.slice(0, -2));
-    return Number.isFinite(ms) ? ms : fallback;
-  }
-  if (trimmed.endsWith("s")) {
-    const sec = Number.parseFloat(trimmed.slice(0, -1));
-    return Number.isFinite(sec) ? sec * 1000 : fallback;
-  }
-  const raw = Number.parseFloat(trimmed);
-  return Number.isFinite(raw) ? raw : fallback;
-}
-
-function getCardFlipDurationMs(): number {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return DEFAULT_CARD_FLIP_MS;
-  }
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-    return 0;
-  }
-  const cssValue = getComputedStyle(document.documentElement).getPropertyValue(
-    "--card-flip-duration"
-  );
-  return parseDurationMs(cssValue, DEFAULT_CARD_FLIP_MS);
-}
-
-const DEFAULT_LOBBY_SEED = "ESC0Q0";
-const CARD_SET_STORAGE_KEY = "card-set-preference";
-const MAX_RECENT_GAMES = 10;
 
 export default function App() {
   const store = useStore();
@@ -680,7 +151,6 @@ export default function App() {
   const [joinedGameId, setJoinedGameId] = useState<string | null>(null);
   const [joinAsGodMode, setJoinAsGodMode] = useState(false);
   const [isInitialGameLoad, setIsInitialGameLoad] = useState(true);
-  const [isLobbyLoading, setIsLobbyLoading] = useState(true);
 
   const [themeSetting, setThemeSetting] = useAtom(themeSettingAtom);
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
@@ -1007,12 +477,9 @@ export default function App() {
 
   const initialRoute = parseRouteFromLocation();
 
-  const [hasInitializedFromRoute, setHasInitializedFromRoute] = useState(false);
   const defaultRouteRef = useRef<string | null>(
     initialRoute?.kind === "default" ? initialRoute.rulesId : null
   );
-  const lobbyRetryTimerRef = useRef<number | null>(null);
-  const lobbyCancelledRef = useRef(false);
   const lastJoinRef = useRef<{
     gameId: string;
     rulesId: string;
@@ -1021,7 +488,6 @@ export default function App() {
     isGodMode?: boolean;
     roomType?: "demo" | "public" | "private";
   } | null>(null);
-  const wasDisconnectedRef = useRef(false);
 
   useEffect(() => {
     setRecentGames((prev) =>
@@ -1212,361 +678,54 @@ export default function App() {
     }
   }, [view, autoStartPending]);
 
-  // Auto-join effect
-  useEffect(() => {
-    // No game selected or we already know the route is invalid → do nothing
-    if (!gameId || routeError) return;
-
-    // We already joined this gameId (once) → do not auto-join again
-    if (joinedGameId === gameId) {
-      return;
-    }
-
-    // Decide who to join as
-    let pid = "";
-    const role: "player" | "spectator" = "player";
-    const recentEntry = recentGames.find((entry) => entry.gameId === gameId);
-    const rulesIdForJoin = rulesId ?? "";
-    const isDefaultRoute =
-      !!rulesIdForJoin && window.location.pathname === `/${rulesIdForJoin}`;
-
-    if (recentEntry?.lastRole === "player") {
-      pid = recentEntry.lastPlayerId;
-      if (playerId !== pid) {
-        setPlayerId(pid);
-      }
-
-      rememberAndJoin(gameId, rulesIdForJoin, pid, role, undefined, {
-        roomType: isDefaultRoute ? "demo" : undefined,
-      });
-      return;
-    }
-
-    if (view) {
-      return;
-    }
-
-    if (playerId !== null) {
-      setPlayerId(null);
-    }
-    setJoinedGameId(gameId);
-    watchGame(gameId);
-  }, [
+  useAutoJoin({
     gameId,
-    view,
-    playerId,
-    joinedGameId,
     routeError,
-    rememberAndJoin,
+    joinedGameId,
     recentGames,
     rulesId,
-    setJoinedGameId,
+    view,
+    playerId,
     setPlayerId,
-  ]);
+    setJoinedGameId,
+    rememberAndJoin,
+  });
 
-  // Connection handling
-  useEffect(() => {
-    return setupConnectionHandlers(
-      () => setIsConnected(true),
-      () => setIsConnected(false)
-    );
-  }, [setIsConnected]);
+  useConnectionStatus({
+    isConnected,
+    setIsConnected,
+    attemptRejoin,
+  });
 
-  useEffect(() => {
-    if (!isConnected) {
-      wasDisconnectedRef.current = true;
-      return;
-    }
-    if (wasDisconnectedRef.current) {
-      attemptRejoin();
-      wasDisconnectedRef.current = false;
-    }
-  }, [attemptRejoin, isConnected]);
-
-  // Monitor browser network state for immediate disconnection detection
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsConnected(true);
-      connect();
-    };
-    const handleOffline = () => {
-      setIsConnected(false);
-    };
-
-    if (!navigator.onLine) {
-      setIsConnected(false);
-    }
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [setIsConnected]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        connect();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  useEffect(() => {
-    if (hasInitializedFromRoute) return;
-
-    if (!initialRoute) {
-      setHasInitializedFromRoute(true);
-      return;
-    }
-
-    const availableGames = availableGamesAtomValue ?? [];
-    const hasAvailableGames = availableGames.length > 0;
-
-    // Wait for available games before deciding what to do with the route.
-    // This avoids trying to start games for completely unknown types.
-    if (!hasAvailableGames) {
-      return;
-    }
-
-    const isKnownType = availableGames.some(
-      (g) => g.id === initialRoute.rulesId
-    );
-
-    if (!isKnownType) {
-      // Unknown game rules id → treat as invalid and show the same 404 overlay
-      setRouteError({
-        kind: "GAME_NOT_FOUND",
-        gameId: initialRoute.kind === "explicit" ? initialRoute.gameId : "",
-        rulesId: initialRoute.rulesId,
-      });
-
-      // Normalize the URL back to root so the user is clearly "in the lobby"
-      try {
-        window.history.replaceState({}, "", "/");
-      } catch (err) {
-        console.warn("Failed to replaceState after invalid initial route", err);
-      }
-
-      setHasInitializedFromRoute(true);
-      return;
-    }
-
-    // Valid game rules id routes
-    if (initialRoute.kind === "explicit") {
-      setGameType(initialRoute.rulesId);
-      setGameId(initialRoute.gameId);
-      setHasInitializedFromRoute(true);
-      return;
-    }
-
-    if (initialRoute.kind === "default") {
-      defaultRouteRef.current = initialRoute.rulesId;
-      void ensureDefaultGameForType(initialRoute.rulesId);
-      setHasInitializedFromRoute(true);
-    }
-  }, [
-    hasInitializedFromRoute,
+  useRouteHandlers({
     initialRoute,
+    availableGames: availableGamesAtomValue,
+    defaultRouteRef,
+    gameIdRef,
+    lastJoinRef,
     setGameId,
     setGameType,
-    availableGamesAtomValue,
-    ensureDefaultGameForType,
     setRouteError,
-  ]);
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      const route = parseRouteFromLocation();
-
-      // If there is no game in the URL → go to lobby
-      if (!route) {
-        // If we were in a game, leave it
-        if (gameIdRef.current) {
-          leaveGame();
-        }
-
-        setGameId("");
-        setGameType(null);
-        setPlayerId(null);
-        setSeats([]);
-        setRoomSeed(null);
-        setView(null);
-        setJoinedGameId(null);
-        lastJoinRef.current = null;
-        setRouteError(null);
-
-        // Refresh lobby games
-        fetchActiveGames()
-          .then(setActiveGames)
-          .catch((err) => {
-            console.error("Failed to fetch active games after popstate", err);
-          });
-
-        return;
-      }
-
-      // We have a game route in the URL
-      const availableGames = availableGamesAtomValue ?? [];
-      const hasAvailableGames = availableGames.length > 0;
-      const isKnownType = hasAvailableGames
-        ? availableGames.some((g) => g.id === route.rulesId)
-        : true; // Don't reject routes until games are loaded
-
-      if (!isKnownType) {
-        // Unknown game rules id: → treat as invalid and show error overlay
-        if (gameIdRef.current) {
-          leaveGame();
-        }
-
-        setGameId("");
-        setGameType(null);
-        setSeats([]);
-        setRoomSeed(null);
-        setView(null);
-        setPlayerId(null);
-        setJoinedGameId(null);
-        lastJoinRef.current = null;
-
-        setRouteError({
-          kind: "GAME_NOT_FOUND",
-          gameId: route.kind === "explicit" ? route.gameId : "",
-          rulesId: route.rulesId,
-        });
-
-        try {
-          window.history.replaceState({}, "", "/");
-        } catch (err) {
-          console.warn("Failed to replaceState after invalid game route", err);
-        }
-
-        return;
-      }
-
-      if (route.kind === "explicit") {
-        defaultRouteRef.current = null;
-        setRouteError(null);
-        setGameType(route.rulesId);
-        setGameId(route.gameId);
-        setJoinedGameId(null); // allow auto-join effect to re-run for this game
-        return;
-      }
-
-      defaultRouteRef.current = route.rulesId;
-      setRouteError(null);
-      setJoinedGameId(null);
-      void ensureDefaultGameForType(route.rulesId);
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [
-    availableGamesAtomValue,
-    setGameId,
-    setGameType,
+    setJoinedGameId,
     setSeats,
     setRoomSeed,
     setView,
     setPlayerId,
-    setRouteError,
-    setJoinedGameId,
     setActiveGames,
     ensureDefaultGameForType,
-  ]);
+  });
 
-  const loadLobbyData = useCallback(async () => {
-    setIsLobbyLoading(true);
-    try {
-      const [available, active, config] = await Promise.all([
-        fetchAvailableGames(),
-        fetchActiveGames(),
-        fetchServerConfig(),
-      ]);
-      if (lobbyCancelledRef.current) return;
-      setAvailableGames(available);
-      setActiveGames(active);
-      setRuleEngineMode(config.ruleEngineMode);
-
-      const serverSupportsAi = config.serverAiEnabled ?? false;
-      setServerAiEnabled(serverSupportsAi);
-      // Game Log is always enabled for all games.
-      // config.llmShowPromptsInFrontend determines if we get detailed AI internals for backend AI.
-      setAiShowExceptions(config.llmShowExceptionsInFrontend ?? false);
-
-      // Handle AI Runtime Preference Defaults
-      const storedPref = window.localStorage.getItem("ai-runtime-preference");
-
-      if (storedPref === null) {
-        // No preference stored (new user): Set default based on server capability
-        if (serverSupportsAi) {
-          setAiRuntimePreference("backend");
-        } else {
-          setAiRuntimePreference("off");
-        }
-      } else {
-        // Preference exists: Validate it against current server capabilities
-        // If user wants backend but server doesn't support it, fall back to off
-        if (!serverSupportsAi && aiRuntimePreference === "backend") {
-          setAiRuntimePreference("off");
-        }
-      }
-
-      setIsLobbyLoading(false);
-    } catch (err) {
-      if (lobbyCancelledRef.current) return;
-      console.error("Failed to load lobby data; retrying shortly", err);
-      if (lobbyRetryTimerRef.current) {
-        clearTimeout(lobbyRetryTimerRef.current);
-      }
-      lobbyRetryTimerRef.current = window.setTimeout(() => {
-        void loadLobbyData();
-      }, 1500);
-    }
-  }, [
+  const isLobbyView = !gameId && !routeError;
+  const { isLobbyLoading, refreshLobby } = useLobbyData({
     aiRuntimePreference,
-    setActiveGames,
-    setAiShowExceptions,
     setAiRuntimePreference,
     setAvailableGames,
+    setActiveGames,
     setRuleEngineMode,
     setServerAiEnabled,
-  ]);
-
-  // Fetch available games when the app starts
-  useEffect(() => {
-    lobbyCancelledRef.current = false;
-    void loadLobbyData();
-
-    return () => {
-      lobbyCancelledRef.current = true;
-      if (lobbyRetryTimerRef.current) {
-        clearTimeout(lobbyRetryTimerRef.current);
-      }
-    };
-  }, [loadLobbyData]);
-
-  // Poll active games every 5 seconds when in lobby
-  useEffect(() => {
-    if (gameId || routeError) return;
-
-    const intervalId = setInterval(async () => {
-      if (document.hidden) return;
-      try {
-        const active = await fetchActiveGames();
-        setActiveGames(active);
-      } catch (err) {
-        console.error("Failed to poll active games", err);
-      }
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [gameId, routeError, setActiveGames]);
+    setAiShowExceptions,
+    isLobbyView,
+  });
 
   useEffect(() => {
     if (activeGames.length === 0) return;
@@ -1676,784 +835,62 @@ export default function App() {
   }, []);
 
   const clearHighlightsTimerRef = useRef<number | null>(null);
+  const getPileSortSelections = useCallback(
+    () => store.get(pileSortSelectionsAtom),
+    [store]
+  );
 
-  // Stable socket setup that doesn't tear down on gameId changes
-  useEffect(() => {
-    const processStatePayload = async (
-      payload: IncomingStatePayload,
-      generation: number,
-      duration: number = 1000,
-      remainingInQueue: number = 0
-    ) => {
-      const pileSortSelections = store.get(pileSortSelectionsAtom);
-
-      // Set the CSS variable for transition duration
-      document.documentElement.style.setProperty(
-        "--transition-duration",
-        `${duration}ms`
-      );
-
-      const startViewTransition = (
-        document as Document & {
-          startViewTransition?: (
-            callback: () => void
-          ) => { finished?: Promise<unknown> } | void;
-        }
-      ).startViewTransition?.bind(document);
-
-      let prevView = lastAuthoritativeViewRef.current;
-      const events = payload.lastViewEvents ?? [];
-      const pendingMove = pendingDragMoveRef.current;
-      const pendingMoveForGame =
-        pendingMove && pendingMove.gameId === payload.gameId
-          ? pendingMove
-          : null;
-      const hasMatchingDragMoveEvent = !!(
-        pendingMoveForGame &&
-        events.some(
-          (event) =>
-            event.type === "move-cards" &&
-            event.fromPileId === pendingMoveForGame.fromPileId &&
-            event.toPileId === pendingMoveForGame.toPileId &&
-            event.cardIds.includes(pendingMoveForGame.cardId)
-        )
-      );
-      if (pendingMoveForGame) {
-        setPendingDragMove(null);
-        pendingDragMoveRef.current = null;
-      }
-      if (prevView && pendingMoveForGame && hasMatchingDragMoveEvent) {
-        // Keep optimistic drag moves in the base view so non-move events don't
-        // snap the card back before the server move arrives.
-        const prevViewRaw = applyOptimisticDragMove(
-          prevView,
-          pendingMoveForGame
-        );
-        prevView = sortViewPiles(
-          prevViewRaw,
-          gameLayoutRef.current,
-          pileSortSelections
-        );
-      }
-      const lastAction = payload.lastAction;
-      const isStartGameAction = lastAction?.action === "start-game";
-      const finishStartGameAnimation = () => {
-        if (
-          isStartGameAction &&
-          startGameActionIdRef.current === lastAction?.id
-        ) {
-          setIsStartGameAnimating(false);
-          setStartGamePendingKind(null);
-          clearSkipStartGameAnimations();
-        }
-      };
-
-      if (isStartGameAction) {
-        clearStartGamePending({ keepKind: true });
-        setIsStartGameAnimating(true);
-        startGameActionIdRef.current = lastAction?.id ?? null;
-      }
-
-      const fatalErrors = payload.lastFatalErrors ?? [];
-      if (fatalErrors.length > 0) {
-        const fatalError = fatalErrors[0];
-        setFatalError({
-          message: fatalError.message,
-          source: fatalError.source,
-        });
-      } else {
-        setFatalError(null);
-      }
-
-      const animationEvents = events.filter(
-        (event) => event.type !== "fatal-error"
-      );
-      const queueAnnouncements = (eventsToQueue: ViewEventPayload[]) => {
-        for (const event of eventsToQueue) {
-          if (event.type === "announce") {
-            queueAnnouncement(event);
-          }
-        }
-      };
-
-      const nextViewRaw: GameView = {
-        ...payload,
-        lastEngineEvents: undefined,
-        lastViewEvents: undefined,
-        lastFatalErrors: undefined,
-      };
-      const nextView = sortViewPiles(
-        nextViewRaw,
-        gameLayoutRef.current,
-        pileSortSelections
-      );
-
-      const scheduleClearHighlights = () => {
-        if (clearHighlightsTimerRef.current) {
-          window.clearTimeout(clearHighlightsTimerRef.current);
-        }
-        clearHighlightsTimerRef.current = window.setTimeout(() => {
-          setHighlightedActionId(null);
-          setHighlightedActionLabel(null);
-          setHighlightedScoreboardCells({});
-          clearHighlightsTimerRef.current = null;
-        }, 900);
-      };
-
-      let pendingScoreboardHighlights: Record<string, string[]> | null = null;
-
-      if (
-        lastAction &&
-        lastAction.action !== "start-game" &&
-        playerId &&
-        lastAction.playerId !== playerId
-      ) {
-        setHighlightedActionId(lastAction.action);
-        setHighlightedActionLabel(lastAction.label ?? lastAction.action);
-      }
-
-      if (duration > 0 && remainingInQueue <= 6 && prevView) {
-        const prevById = new Map(prevView.scoreboards.map((sb) => [sb.id, sb]));
-        const nextHighlights: Record<string, string[]> = {};
-
-        for (const nextSb of nextView.scoreboards) {
-          const prevSb = prevById.get(nextSb.id);
-          if (!prevSb) continue;
-
-          const prevTextByPos = new Map<string, string>();
-          for (const cell of prevSb.cells) {
-            prevTextByPos.set(`${cell.row}:${cell.col}`, cell.text);
-          }
-
-          const changed: string[] = [];
-          for (const cell of nextSb.cells) {
-            const key = `${nextSb.id}:${cell.row}:${cell.col}`;
-            const prevText = prevTextByPos.get(`${cell.row}:${cell.col}`);
-            if (prevText !== undefined && prevText !== cell.text) {
-              changed.push(key);
-            }
-          }
-
-          if (changed.length > 0) {
-            nextHighlights[nextSb.id] = changed;
-          }
-        }
-
-        if (Object.keys(nextHighlights).length > 0) {
-          pendingScoreboardHighlights = nextHighlights;
-        }
-      }
-
-      const applyImmediateView = (
-        eventsToQueue: ViewEventPayload[] = animationEvents
-      ) => {
-        if (pendingScoreboardHighlights) {
-          setHighlightedScoreboardCells((prev) => ({
-            ...prev,
-            ...pendingScoreboardHighlights,
-          }));
-        }
-        scheduleClearHighlights();
-        lastAuthoritativeViewRef.current = nextView;
-        setView(nextView);
-        setActiveTransitionCardIds(null);
-        setHeaderTransitionCards([]);
-        activeViewTransitionRef.current = null;
-        if (eventsToQueue.length > 0) {
-          queueAnnouncements(eventsToQueue);
-        }
-        finishStartGameAnimation();
-        if (skipAnimationsRef.current) {
-          clearSkipStartGameAnimations();
-        }
-      };
-
-      const skipToFinal = (fromIndex: number) => {
-        applyImmediateView(animationEvents.slice(fromIndex));
-      };
-
-      if (skipAnimationsRef.current) {
-        applyImmediateView();
-        return;
-      }
-
-      const canAnimate =
-        !!startViewTransition &&
-        document.visibilityState === "visible" &&
-        !skipAnimationsRef.current;
-
-      const hasCardMoveEvent = animationEvents.some(
-        (event) => event.type === "move-cards"
-      );
-
-      if (hasCardMoveEvent && duration > 0) {
-        sfx.playCardMove();
-      }
-
-      // Fallback: no View Transition API, document hidden, or no previous view/events or instant duration (0ms)
-      if (
-        !canAnimate ||
-        !prevView ||
-        animationEvents.length === 0 ||
-        duration === 0 ||
-        !hasCardMoveEvent
-      ) {
-        applyImmediateView();
-        return;
-      }
-
-      // Avoid animating during setup/deal phases unless we just started dealing
-      if (!hasGameDealt(prevView) && !isStartGameAction) {
-        applyImmediateView();
-        return;
-      }
-
-      // Animate by applying engine events on top of the previous view.
-      // Each state change runs inside a view transition so CSS View Transitions
-      // can animate DOM diffs between steps.
-      let workingView = prevView;
-      const flipPauseMs = duration > 0 ? getCardFlipDurationMs() : 0;
-      const lastMoveIndex = animationEvents.reduce((last, event, index) => {
-        if (event.type === "move-cards" && event.cardIds.length > 0) {
-          return index;
-        }
-        return last;
-      }, -1);
-      let pendingFlipPause = false;
-
-      // Trigger the action animation (FloatingActionOverlay) immediately before card moves
-      if (
-        duration > 0 &&
-        workingView &&
-        nextView.lastAction &&
-        nextView.lastAction.id !== workingView.lastAction?.id
-      ) {
-        workingView = {
-          ...workingView,
-          lastAction: nextView.lastAction,
-        };
-        flushSync(() => {
-          setView(workingView);
-        });
-      }
-
-      for (let index = 0; index < animationEvents.length; index += 1) {
-        if (skipAnimationsRef.current) {
-          skipToFinal(index);
-          return;
-        }
-        const event = animationEvents[index];
-        if (event.type !== "move-cards" || event.cardIds.length === 0) {
-          const beforeView = workingView;
-          flushSync(() => {
-            const nextWorkingViewRaw = applyViewEventToView(
-              workingView,
-              event,
-              nextView,
-              {
-                animateOnlyCards: true,
-              }
-            );
-            workingView = sortViewPiles(
-              nextWorkingViewRaw,
-              gameLayoutRef.current,
-              pileSortSelections
-            );
-            lastAuthoritativeViewRef.current = workingView;
-            setView(workingView);
-            setActiveTransitionCardIds(null);
-            setHeaderTransitionCards([]);
-          });
-
-          if (event.type === "set-pile-visibility") {
-            const beforePile = beforeView.piles.find(
-              (p) => p.id === event.pileId
-            );
-            const afterPile = workingView.piles.find(
-              (p) => p.id === event.pileId
-            );
-            if (beforePile && afterPile) {
-              const hasFlip = beforePile.cards.some((card, idx) => {
-                const afterCard = afterPile.cards[idx];
-                return afterCard ? card.faceDown !== afterCard.faceDown : false;
-              });
-              if (hasFlip) {
-                sfx.playCardFlip();
-              }
-            }
-          }
-
-          if (event.type === "announce") {
-            queueAnnouncement(event);
-          }
-          continue;
-        }
-
-        const uniqueCardIds = Array.from(new Set(event.cardIds));
-        const movingIds = new Set<number>(uniqueCardIds);
-        const nextWorkingViewRaw = applyViewEventToView(
-          workingView,
-          event,
-          nextView,
-          {
-            animateOnlyCards: true,
-          }
-        );
-        const nextWorkingView = sortViewPiles(
-          nextWorkingViewRaw,
-          gameLayoutRef.current,
-          pileSortSelections
-        );
-
-        const visiblePileIds = visiblePileIdsRef.current;
-        const pileTransitionConfig = pileTransitionConfigRef.current;
-        const fromVisible = visiblePileIds.has(event.fromPileId);
-        const toVisible = visiblePileIds.has(event.toPileId);
-        const entryCardsRaw =
-          !fromVisible && toVisible
-            ? getCardViewsForIds(nextWorkingView, uniqueCardIds)
-            : [];
-        const exitCardsRaw =
-          fromVisible && !toVisible
-            ? getCardViewsForIds(nextWorkingView, uniqueCardIds)
-            : [];
-        const entryCards =
-          entryCardsRaw.length > MAX_HEADER_TRANSITION_CARDS
-            ? []
-            : entryCardsRaw;
-        const exitCards =
-          exitCardsRaw.length > MAX_HEADER_TRANSITION_CARDS ? [] : exitCardsRaw;
-        const hasHeaderAnchors = entryCards.length > 0 || exitCards.length > 0;
-        const duplicateTransitionIds = new Set<number>();
-        for (const id of collectDuplicateCardIds(
-          workingView,
-          entryCards,
-          visiblePileIds
-        )) {
-          duplicateTransitionIds.add(id);
-        }
-        for (const id of collectDuplicateCardIds(
-          nextWorkingView,
-          exitCards,
-          visiblePileIds
-        )) {
-          duplicateTransitionIds.add(id);
-        }
-
-        flushSync(() => {
-          let transitionIds = new Set<number>(movingIds);
-          const addPileCards = (pileId: string) => {
-            if (!visiblePileIds.has(pileId)) {
-              return;
-            }
-            const pile = workingView.piles.find((p) => p.id === pileId);
-            if (!pile || pile.cards.length > MAX_TRANSITION_CARDS_PER_PILE) {
-              return;
-            }
-            if (
-              !shouldAnimatePileReflow(
-                pileId,
-                workingView,
-                pileTransitionConfig
-              )
-            ) {
-              return;
-            }
-            if (!didPileOrderChange(pileId, workingView, nextWorkingView)) {
-              return;
-            }
-            for (const card of pile.cards) {
-              transitionIds.add(card.id);
-            }
-          };
-
-          addPileCards(event.fromPileId);
-          addPileCards(event.toPileId);
-
-          if (transitionIds.size > MAX_TRANSITION_CARDS) {
-            transitionIds.clear();
-            for (const id of movingIds) {
-              transitionIds.add(id);
-              if (transitionIds.size >= MAX_TRANSITION_CARDS) {
-                break;
-              }
-            }
-          }
-          if (duplicateTransitionIds.size > 0) {
-            const filtered = new Set<number>();
-            for (const id of transitionIds) {
-              if (!duplicateTransitionIds.has(id)) {
-                filtered.add(id);
-              }
-            }
-            transitionIds = filtered;
-          }
-
-          setActiveTransitionCardIds(transitionIds);
-          setHeaderTransitionCards(entryCards);
-        });
-
-        let transition: { finished?: Promise<unknown> } | void;
-        try {
-          transition = startViewTransition(() => {
-            flushSync(() => {
-              setHeaderTransitionCards(exitCards);
-              workingView = nextWorkingView;
-              lastAuthoritativeViewRef.current = workingView;
-              setView(workingView);
-            });
-          });
-        } catch {
-          // If a transition cannot start (hidden tab or overlapping transition), apply immediately
-          flushSync(() => {
-            setActiveTransitionCardIds(null);
-            setHeaderTransitionCards([]);
-            workingView = nextWorkingView;
-            lastAuthoritativeViewRef.current = workingView;
-            setView(workingView);
-          });
-          continue;
-        }
-
-        activeViewTransitionRef.current =
-          transition &&
-          typeof (transition as { skipTransition?: () => void })
-            .skipTransition === "function"
-            ? (transition as { skipTransition?: () => void })
-            : null;
-
-        // Chain transitions if the browser provides a finished promise
-        try {
-          await (transition as { finished?: Promise<void> })?.finished;
-        } catch {
-          // Ignore transition errors; continue to next step
-        }
-        activeViewTransitionRef.current = null;
-        if (skipAnimationsRef.current) {
-          skipToFinal(index + 1);
-          return;
-        }
-
-        flushSync(() => {
-          setActiveTransitionCardIds(null);
-        });
-        await waitMsOrSkip(0);
-        if (skipAnimationsRef.current) {
-          skipToFinal(index + 1);
-          return;
-        }
-
-        const revealViewRaw = applyMoveRevealToView(
-          workingView,
-          event,
-          nextView
-        );
-        const revealView = sortViewPiles(
-          revealViewRaw,
-          gameLayoutRef.current,
-          pileSortSelections
-        );
-        const didReveal = revealView !== workingView;
-        let hasFlip = false;
-        if (didReveal) {
-          const beforeCards = getCardViewsForIds(workingView, event.cardIds);
-          const afterCards = getCardViewsForIds(revealView, event.cardIds);
-          hasFlip = beforeCards.some((card, idx) => {
-            const nextCard = afterCards[idx];
-            return nextCard ? card.faceDown !== nextCard.faceDown : false;
-          });
-        }
-        if (hasFlip) {
-          sfx.playCardFlip();
-        }
-        if (didReveal || hasHeaderAnchors) {
-          flushSync(() => {
-            if (didReveal) {
-              workingView = revealView;
-              lastAuthoritativeViewRef.current = workingView;
-              setView(workingView);
-            }
-            if (hasHeaderAnchors) {
-              setHeaderTransitionCards([]);
-            }
-          });
-        }
-        if (hasFlip && flipPauseMs > 0) {
-          if (index < lastMoveIndex) {
-            await waitMsOrSkip(flipPauseMs);
-            if (skipAnimationsRef.current) {
-              skipToFinal(index + 1);
-              return;
-            }
-          } else {
-            pendingFlipPause = true;
-          }
-        }
-      }
-
-      // Final sanity step: ensure we end up at the authoritative server view
-      if (pendingFlipPause && flipPauseMs > 0) {
-        await waitMsOrSkip(flipPauseMs);
-        if (skipAnimationsRef.current) {
-          applyImmediateView([]);
-          return;
-        }
-      }
-      if (skipAnimationsRef.current) {
-        applyImmediateView([]);
-        return;
-      }
-      try {
-        const finalTransition = startViewTransition(() => {
-          flushSync(() => {
-            setActiveTransitionCardIds(null);
-            setHeaderTransitionCards([]);
-            lastAuthoritativeViewRef.current = nextView;
-            setView(nextView);
-            if (pendingScoreboardHighlights) {
-              setHighlightedScoreboardCells((prev) => ({
-                ...prev,
-                ...pendingScoreboardHighlights,
-              }));
-            }
-          });
-        });
-
-        activeViewTransitionRef.current =
-          finalTransition &&
-          typeof (finalTransition as { skipTransition?: () => void })
-            .skipTransition === "function"
-            ? (finalTransition as { skipTransition?: () => void })
-            : null;
-
-        try {
-          await (finalTransition as { finished?: Promise<void> })?.finished;
-        } catch {
-          // Ignore
-        }
-        activeViewTransitionRef.current = null;
-      } catch {
-        // If a transition cannot start, just apply the final state immediately
-        flushSync(() => {
-          setActiveTransitionCardIds(null);
-          setHeaderTransitionCards([]);
-          lastAuthoritativeViewRef.current = nextView;
-          setView(nextView);
-          if (pendingScoreboardHighlights) {
-            setHighlightedScoreboardCells((prev) => ({
-              ...prev,
-              ...pendingScoreboardHighlights,
-            }));
-          }
-        });
-      }
-
-      scheduleClearHighlights();
-      finishStartGameAnimation();
-    };
-
-    const processQueue = async () => {
-      if (isProcessingRef.current) return;
-      isProcessingRef.current = true;
-
-      while (stateQueueRef.current.length > 0) {
-        // Peek at the next state to decide speed
-        const nextPayload = stateQueueRef.current[0]; // Don't shift yet
-        const remainingInQueue = stateQueueRef.current.length - 1;
-
-        // Check if this state makes it MY turn
-        const becomesMyTurn = nextPayload.currentPlayer === playerId;
-
-        // Calculate speed based on backlog and whether it's my turn
-        const baseDuration = getDynamicDuration(
-          remainingInQueue,
-          becomesMyTurn
-        );
-        const duration = skipAnimationsRef.current ? 0 : baseDuration;
-
-        // Apply speed
-        document.documentElement.style.setProperty(
-          "--transition-duration",
-          `${duration}ms`
-        );
-
-        // Shift and Process
-        const payload = stateQueueRef.current.shift()!;
-        const generation = ++stateGenerationRef.current;
-        await processStatePayload(
-          payload,
-          generation,
-          duration,
-          remainingInQueue
-        );
-      }
-
-      isProcessingRef.current = false;
-    };
-
-    return setupSocketHandlers({
-      onState: (payload) => {
-        setStartingGameType(null);
-        setGameType(payload.rulesId);
-
-        // Push new payload to state queue and trigger processing
-        stateQueueRef.current.push(payload);
-        void processQueue();
-      },
-      onStatus: (message) => {
-        if (message.tone === "error") {
-          clearStartGamePending();
-          clearSkipStartGameAnimations();
-          setStartingGameType(null);
-          if (message.message === "You are not joined to any game") {
-            attemptRejoin();
-          }
-          if (
-            message.message === "Game not found" ||
-            message.message === "Game not found. Returning to lobby." ||
-            message.message === "Game not found. Returning to Home."
-          ) {
-            // Handle this in onGameNotFound instead
-            return;
-          }
-          const isJoinError =
-            message.message === "Invalid join payload" ||
-            message.message === "Player seat not recognized" ||
-            message.message ===
-              "Seat is controlled by AI; disable AI to take this seat" ||
-            message.message.startsWith("Seat ") ||
-            message.message === "Seat not found";
-          if (isJoinError) {
-            const currentGameId = gameIdRef.current;
-            if (currentGameId) {
-              removeRecentGame(currentGameId);
-              setPlayerId(null);
-              setJoinedGameId(null);
-              lastJoinRef.current = null;
-            }
-          }
-        }
-        showStatus(message);
-      },
-      onSeats: (payload) => {
-        const currentGameId = gameIdRef.current;
-        const isLobbyRoute =
-          typeof window !== "undefined" && window.location.pathname === "/";
-        const shouldAdoptGameId =
-          currentGameId === "" &&
-          payload.gameId !== "" &&
-          !isLobbyRoute &&
-          !routeError;
-        if (payload.gameId === currentGameId || shouldAdoptGameId) {
-          setSeats(payload.seats);
-          setRoomSeed(payload.seed ?? null);
-          setIsInitialGameLoad(false);
-          if (shouldAdoptGameId) {
-            setGameId(payload.gameId);
-          }
-        }
-      },
-      onEvaluationComplete: () => {
-        setIsEvaluating(false);
-      },
-      onGameStartSuccess: (payload) => {
-        setStartingGameType(null);
-        setIsCreator(true);
-        setGameId(payload.gameId);
-        setGameType(payload.rulesId);
-
-        // For magic routes (/bridge, /durak), keep the URL stable at /<rulesId>
-        if (defaultRouteRef.current !== payload.rulesId) {
-          const newPath = `/${payload.rulesId}/${payload.gameId}`;
-          if (window.location.pathname !== newPath) {
-            window.history.pushState({}, "", newPath);
-          }
-        }
-      },
-      onGameEnded: () => {
-        setAiLog([]);
-      },
-      onGameNotFound: () => {
-        // Only handle this once; if routeError already set, ignore
-        if (routeError?.kind === "GAME_NOT_FOUND") return;
-
-        const badGameId =
-          gameIdRef.current ||
-          (initialRoute?.kind === "explicit" ? initialRoute.gameId : "");
-        const badGameType = initialRoute?.rulesId;
-
-        if (badGameId) {
-          removeRecentGame(badGameId);
-        }
-
-        // Clear local game state
-        setGameId("");
-        setGameType(null);
-        setSeats([]);
-        setRoomSeed(null);
-        setView(null);
-        setJoinedGameId(null);
-        lastJoinRef.current = null;
-
-        // Mark route as invalid so auto-join stops
-        setRouteError({
-          kind: "GAME_NOT_FOUND",
-          gameId: badGameId,
-          rulesId: badGameType,
-        });
-
-        // Navigate to root *once*; use replaceState to avoid growing history
-        try {
-          window.history.replaceState({}, "", "/");
-        } catch (err) {
-          // Some Safari builds can be picky here; ignore failures
-          console.warn("Failed to replaceState after Game not found", err);
-        }
-      },
-      onInvalidMove: () => {
-        if (lastAuthoritativeViewRef.current) {
-          setView(lastAuthoritativeViewRef.current);
-        }
-        setActiveTransitionCardIds(null);
-        setHeaderTransitionCards([]);
-        setPendingDragMove(null);
-        pendingDragMoveRef.current = null;
-      },
-      onAiLog: (payload) => {
-        setAiLog((prev) => [...prev, ...payload.entries]);
-      },
-    });
-  }, [
-    attemptRejoin,
-    initialRoute,
+  useGameSocketHandlers({
+    getPileSortSelections,
+    stateQueueRef,
+    isProcessingRef,
+    stateGenerationRef,
+    lastAuthoritativeViewRef,
+    pendingDragMoveRef,
+    skipAnimationsRef,
+    skipAnimationWaitersRef,
+    activeViewTransitionRef,
+    startGameActionIdRef,
+    gameLayoutRef,
+    pileTransitionConfigRef,
+    visiblePileIdsRef,
+    clearHighlightsTimerRef,
+    playerId,
     routeError,
-    setActiveTransitionCardIds,
-    setHeaderTransitionCards,
-    setGameId,
+    initialRoute,
+    gameIdRef,
+    defaultRouteRef,
+    lastJoinRef,
+    setStartingGameType,
     setGameType,
-    setIsEvaluating,
-    setIsInitialGameLoad,
+    setGameId,
     setSeats,
     setRoomSeed,
-    setFatalError,
-    setStartingGameType,
-    setView,
+    setIsInitialGameLoad,
+    setIsEvaluating,
+    setActiveTransitionCardIds,
+    setHeaderTransitionCards,
     setPendingDragMove,
-    playerId,
-    showStatus,
+    setFatalError,
+    setIsStartGameAnimating,
+    setStartGamePendingKind,
+    setView,
     setAiLog,
-    removeRecentGame,
     setJoinedGameId,
     setPlayerId,
+    setIsCreator,
+    setRouteError,
     setHighlightedActionId,
     setHighlightedActionLabel,
     setHighlightedScoreboardCells,
+    showStatus,
     queueAnnouncement,
     clearStartGamePending,
     clearSkipStartGameAnimations,
     waitMsOrSkip,
-    store,
-  ]); // Removed gameId from dependencies to prevent listener teardown race
+    attemptRejoin,
+    removeRecentGame,
+  });
 
   const handleJoin = (selectedPlayerId: string) => {
     if (!gameId) return;
@@ -2895,13 +1332,8 @@ export default function App() {
     );
   };
 
-  const isLobbyView = !gameId && !routeError;
   const isGameActive = Boolean(gameId && playerId && view);
   const isSpectator = view?.metadata?.role === "spectator";
-  const seatsFilledCount = seats.filter((seat) => {
-    const runtime = seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-    return seat.occupied || runtime !== "none";
-  }).length;
   const currentSeat = playerId
     ? (seats.find((seat) => seat.playerId === playerId) ?? null)
     : null;
@@ -2992,168 +1424,29 @@ export default function App() {
 
         {/* LOBBY VIEW */}
         {!gameId && !routeError && (
-          <div className="flex-1 w-full flex flex-col max-w-lg landscape:max-w-none landscape:px-12 mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
-            <header className="relative pt-12 pb-2 px-6 text-center z-10 shrink-0">
-              <TopCornerOrnaments />
-              <h1 className="text-5xl md:text-6xl font-serif-display font-black text-ink mb-2 tracking-tight drop-shadow-sm relative z-10">
-                AnyCard
-              </h1>
-              <p className="text-sm font-medium text-ink-muted uppercase tracking-[0.2em] opacity-80 relative z-10">
-                Universal Card Game Engine
-              </p>
-
-              <div className="relative z-10 mt-4 flex items-center justify-center gap-2">
-                <button
-                  onClick={cycleTheme}
-                  className="button-base button-ghost flex items-center gap-1.5 px-3 py-1.5 text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors rounded-lg"
-                  title="Toggle Theme"
-                >
-                  <span className="text-sm font-medium">Theme</span>
-                  {themeSetting === "system" ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="w-4 h-4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25"
-                      />
-                    </svg>
-                  ) : themeSetting === "dark" ? (
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
-                <div className="w-px h-4 bg-surface-3"></div>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className={`button-base button-ghost flex items-center gap-1.5 px-3 py-1.5 transition-colors rounded-lg ${
-                    showSettings
-                      ? "text-primary bg-primary/10"
-                      : "text-ink-muted hover:text-ink hover:bg-surface-2"
-                  }`}
-                  title="Configure AI & Settings"
-                >
-                  <span className="text-sm font-medium">Config</span>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {showSettings && (
-                <div className="relative z-10 mt-4 mx-4 p-4 bg-surface-1 border border-surface-3 rounded-xl shadow-lg animate-in slide-in-from-top-2">
-                  <AiSettings
-                    preference={aiRuntimePreference}
-                    onChangePreference={setAiRuntimePreference}
-                    aiConfig={localAiConfig}
-                    onChangeAiConfig={setLocalAiConfig}
-                    serverAiEnabled={serverAiEnabled}
-                  />
-                </div>
-              )}
-
-              <div className="relative z-10">
-                <SuitDivider />
-              </div>
-            </header>
-
-            <div className="shrink-0 z-10 flex flex-col relative">
-              <div className="px-4 flex-1">
-                <JoinGameInput onJoin={handleManualJoin} />
-                {!isLobbyLoading && availableGames.length === 0 && (
-                  <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-surface-3 bg-surface-1/50">
-                    <p className="text-ink-muted mb-4">The library is empty.</p>
-                    <button
-                      onClick={() => loadLobbyData()}
-                      className="button-base button-secondary px-4 py-2 text-sm"
-                    >
-                      Refresh
-                    </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 landscape:grid-cols-2 gap-3 pb-8">
-                  {sortedAvailableGames.map((game) => (
-                    <GameListItem
-                      key={game.id}
-                      game={game}
-                      activeCount={
-                        activeGames.filter(
-                          (g) => g.rulesId === game.id && g.status === "playing"
-                        ).length
-                      }
-                      seatedCount={
-                        recentGames.filter(
-                          (rg) =>
-                            rg.rulesId === game.id &&
-                            rg.lastRole === "player" &&
-                            activeGames.some((ag) => ag.gameId === rg.gameId)
-                        ).length
-                      }
-                      onClick={() => handleGameSelect(game)}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="relative mt-auto flex flex-col justify-end pt-2 pb-2">
-                <BottomCornerOrnaments />
-                <div className="relative z-10">
-                  <LobbyFooter
-                    onAboutClick={() => {
-                      setIsAboutFromMenu(false);
-                      setAboutVisible(true);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <LobbyScreen
+            themeSetting={themeSetting}
+            showSettings={showSettings}
+            onToggleSettings={() => setShowSettings(!showSettings)}
+            onCycleTheme={cycleTheme}
+            aiRuntimePreference={aiRuntimePreference}
+            onChangeAiRuntimePreference={setAiRuntimePreference}
+            localAiConfig={localAiConfig}
+            onChangeLocalAiConfig={setLocalAiConfig}
+            serverAiEnabled={serverAiEnabled}
+            onJoinManual={handleManualJoin}
+            onRefreshLobby={refreshLobby}
+            onGameSelect={handleGameSelect}
+            onAboutClick={() => {
+              setIsAboutFromMenu(false);
+              setAboutVisible(true);
+            }}
+            isLobbyLoading={isLobbyLoading}
+            availableGames={availableGames}
+            sortedAvailableGames={sortedAvailableGames}
+            activeGames={activeGames}
+            recentGames={recentGames}
+          />
         )}
 
         {/* MODAL: Game Details */}
@@ -3189,497 +1482,99 @@ export default function App() {
         )}
 
         {showRoomLobby && (
-          <FullScreenMessage
+          <RoomLobbyOverlay
             title={roomLobbyTitle}
-            overlayClassName="items-stretch justify-center !p-0 lg:items-center lg:justify-center lg:!p-6 !overflow-hidden"
-            panelClassName={`seat-selection-panel !max-w-none lg:!max-w-[640px] !h-full lg:!h-auto !min-h-0 !rounded-none lg:!rounded-2xl !p-0 !mb-0 !border-0 lg:!border lg:!max-h-[90vh] !overflow-y-auto ${!isGameActive ? "!bg-surface-1" : ""}`}
-            titleClassName="!text-center !font-serif-display !text-lg sm:!text-xl md:!text-2xl !py-4 sm:!py-5 !px-4 border-b border-surface-2 bg-surface-1/50 backdrop-blur-md relative z-10 !mb-0 !rounded-none lg:!rounded-t-2xl"
-            descriptionClassName="!text-ink !p-4 sm:!p-6 !mb-0"
-            translucent={isGameActive}
-            canMinimize={isGameActive && !allSeatsJoined}
-            onClose={handleExitToGameSelection}
-            showBackArrow={true}
-            description={
-              <div
-                className="seat-selection-body flex flex-col w-full mx-auto text-xs sm:text-sm"
-                style={{
-                  gap: "clamp(12px, 3vw, 20px)",
-                }}
-              >
-                {(() => {
-                  if (effectiveAiPreference !== "off") return null;
-
-                  return (
-                    <div className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
-                      AI runtime is Off. Enable it from the Home Config to
-                      toggle AI seats.
-                    </div>
-                  );
-                })()}
-
-                {seats.some((seat) => seat.aiRuntime === "frontend") && (
-                  <div className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 text-center">
-                    Warning: Frontend AI runs in a browser and can see hidden
-                    info.
-                  </div>
-                )}
-
-                {/* Room Status Badge */}
-
-                <div className="flex flex-col gap-1.5 items-center my-1">
-                  <div className="flex gap-2 items-center">
-                    <span
-                      className={`px-2 py-0.5 rounded text-2xs font-bold uppercase tracking-wider ${isCreator ? "bg-green-100 text-green-700 border border-green-200" : "bg-blue-100 text-blue-700 border border-blue-200"}`}
-                    >
-                      {isCreator
-                        ? "Room Created"
-                        : isGameActive
-                          ? "Room Joined"
-                          : "Room Found"}
-                    </span>
-
-                    {roomTypeLabel && (
-                      <span className="px-2 py-0.5 rounded text-2xs font-black uppercase tracking-tighter bg-primary/10 text-primary border border-primary/20">
-                        {roomTypeLabel}
-                      </span>
-                    )}
-
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-mono text-ink-muted bg-surface-2 px-2 py-0.5 rounded border border-surface-3">
-                        ID: {gameId}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await shareGameInfo(gameTitle || undefined);
-                          } catch (err) {
-                            console.error("Failed to share game info", err);
-                          }
-                        }}
-                        className="button-base button-icon button-secondary h-6 w-6 flex items-center justify-center"
-                        title="Share game"
-                      >
-                        <svg
-                          className="h-3.5 w-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                          <polyline points="16,6 12,2 8,6" />
-                          <line x1="12" y1="2" x2="12" y2="15" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {lobbySeed && (
-                    <div className="text-2xs text-ink-muted/70 font-mono italic">
-                      Seed: {lobbySeed}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  {isGameActive ? (
-                    <div className="flex flex-col items-center gap-2">
-                      {isSpectator ? (
-                        <div className="text-sm sm:text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
-                          <span>
-                            You are watching as a{" "}
-                            <span className="text-primary font-bold">
-                              spectator
-                              {view?.metadata?.isGodMode === "true" && (
-                                <span className="ml-1 opacity-60 font-normal">
-                                  (God mode)
-                                </span>
-                              )}
-                            </span>
-                          </span>
-                          <button
-                            onClick={handleLeaveSeat}
-                            className="px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
-                          >
-                            (leave)
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-sm sm:text-base font-medium flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
-                          <span>
-                            You have taken a seat:{" "}
-                            <span className="text-primary font-bold">
-                              {currentSeatLabel}
-                            </span>
-                          </span>
-                          <button
-                            onClick={handleLeaveSeat}
-                            className="px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-red-600/80 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer rounded underline underline-offset-2 decoration-dotted active:scale-95"
-                          >
-                            (leave)
-                          </button>
-                        </div>
-                      )}
-                      <p className="text-xs sm:text-sm text-ink-muted text-center">
-                        Waiting for other players to join the room before the
-                        game can begin.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="text-sm sm:text-base font-medium text-center">
-                        Choose a seat to join this room.
-                      </div>
-                      <p className="text-xs sm:text-sm text-ink-muted text-center">
-                        You can also watch as a spectator if you just want to
-                        observe.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {seats.length > 0 && (
-                  <div className="flex flex-col gap-1.5 items-center w-full max-w-xs">
-                    <div className="text-xs font-bold uppercase tracking-widest text-ink-muted">
-                      Seats filled: {seatsFilledCount} / {seats.length}
-                    </div>
-                  </div>
-                )}
-
-                {seats.length === 0 ? (
-                  <div className="text-xs text-ink-muted text-center">
-                    Loading seats...
-                  </div>
-                ) : (
-                  <div
-                    className="seat-selection-grid grid grid-cols-1 min-[440px]:grid-cols-2 w-full"
-                    style={{ gap: "clamp(10px, 3vw, 14px)" }}
-                  >
-                    {seats.map((seat) => {
-                      const aiRuntime =
-                        seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-
-                      const isAiSeat = aiRuntime !== "none";
-
-                      const isBrowserAi = aiRuntime === "frontend";
-                      const isSeatMine =
-                        playerId === seat.playerId && !isSpectator;
-                      const isHumanOccupied = seat.occupied && !isAiSeat;
-                      const isHumanOccupiedByOther =
-                        isHumanOccupied && !isSeatMine;
-
-                      const isJoinLocked = isAiSeat || isHumanOccupied;
-
-                      const canEnableAiSeat = effectiveAiPreference !== "off";
-                      // Backend AI: Can't enable AI on your own seat
-                      // Frontend AI: Can enable AI on your own seat (sponsoring)
-                      const aiToggleDisabled =
-                        (isSeatMine && effectiveAiPreference === "backend") ||
-                        (!canEnableAiSeat && !isAiSeat);
-
-                      return (
-                        <div
-                          key={seat.playerId}
-                          data-testid={`seat-card:${seat.playerId}`}
-                          className={`
-
-                                  seat-selection-card relative w-full rounded-xl border-2 transition-all flex flex-col items-stretch
-
-                                  ${
-                                    isJoinLocked
-                                      ? "bg-surface-2 border-surface-3 opacity-80"
-                                      : "bg-surface-1 border-surface-3 hover:border-primary/30 hover:bg-surface-1/80"
-                                  }
-
-                                `}
-                          style={{
-                            padding: "clamp(10px, 2.5vw, 16px)",
-
-                            gap: "clamp(8px, 2vw, 12px)",
-                          }}
-                        >
-                          <div className="w-full font-semibold text-xs sm:text-sm md:text-base text-ink flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center">
-                            <span className="truncate">
-                              {seat.name ?? seat.playerId}
-                            </span>
-
-                            {/* AI Status Text */}
-
-                            {isAiSeat && (
-                              <span className="text-2xs text-indigo-600 font-medium bg-indigo-50 rounded px-1 py-0.5">
-                                {isBrowserAi ? "AI (browser)" : "AI (server)"}
-                              </span>
-                            )}
-                          </div>
-
-                          {isJoinLocked ? (
-                            <div
-                              data-testid={`seat-state:${seat.playerId}`}
-                              data-state={
-                                playerId === seat.playerId ? "me" : "occupied"
-                              }
-                              className="w-full min-h-[36px] flex items-stretch"
-                            >
-                              <div className="w-full px-2 py-0.5 bg-surface-3 text-ink-muted text-2xs font-semibold uppercase tracking-wide rounded-full text-center flex items-center justify-center">
-                                {isAiSeat
-                                  ? "AI Controlled"
-                                  : isSeatMine
-                                    ? "Your Seat"
-                                    : "Occupied"}
-                              </div>
-                            </div>
-                          ) : (
-                            <div
-                              data-testid={`seat-state:${seat.playerId}`}
-                              data-state="open"
-                              className="w-full min-h-[36px] flex items-stretch"
-                            >
-                              <button
-                                onClick={() => handleJoin(seat.playerId)}
-                                data-testid={`seat-join:${seat.playerId}`}
-                                className="button-base button-primary mx-auto w-fit px-6 h-full min-h-[36px] text-xs shadow-sm hover:shadow-md"
-                              >
-                                Join Game
-                              </button>
-                            </div>
-                          )}
-
-                          {/* AI Control Toggle */}
-
-                          <div
-                            className={`w-full flex items-center justify-between pt-1 sm:pt-1.5 border-t border-surface-3/50 ${
-                              isHumanOccupiedByOther
-                                ? "opacity-50 pointer-events-none"
-                                : ""
-                            }`}
-                          >
-                            <span className="text-2xs font-medium text-ink-muted">
-                              AI Player
-                            </span>
-
-                            <button
-                              type="button"
-                              data-testid={`seat-ai-toggle:${seat.playerId}`}
-                              disabled={aiToggleDisabled}
-                              onClick={() =>
-                                applyAiSettingForSeat(seat.playerId, !isAiSeat)
-                              }
-                              className={`
-
-                                      relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50
-
-                                      ${isAiSeat ? "bg-indigo-600" : "bg-surface-3"}
-
-                                      ${
-                                        aiToggleDisabled
-                                          ? "opacity-50 cursor-not-allowed"
-                                          : "cursor-pointer"
-                                      }
-
-                                    `}
-                            >
-                              <span
-                                className={`
-
-                                        inline-block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform
-
-                                        ${isAiSeat ? "translate-x-4" : "translate-x-1"}
-
-                                      `}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {!isSpectator && (
-                  <div
-                    className="seat-selection-actions flex flex-col items-center w-full mt-2"
-                    style={{ gap: "clamp(12px, 3vw, 16px)" }}
-                  >
-                    <div className="w-full bg-surface-1 border-2 border-surface-3 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all hover:border-primary/30 hover:bg-surface-1/80">
-                      <div className="flex items-center gap-2 order-2 sm:order-1">
-                        <div
-                          className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer select-none"
-                          onClick={() => setJoinAsGodMode(!joinAsGodMode)}
-                        >
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={joinAsGodMode}
-                            className={`
-
-                                    relative inline-flex h-4 w-8 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50
-
-                                    ${joinAsGodMode ? "bg-blue-600" : "bg-surface-3"}
-
-                                  `}
-                          >
-                            <span
-                              className={`
-
-                                      inline-block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform
-
-                                      ${
-                                        joinAsGodMode
-                                          ? "translate-x-4"
-                                          : "translate-x-1"
-                                      }
-
-                                    `}
-                            />
-                          </button>
-
-                          <span>Enable God Mode</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleJoinAsSpectator(joinAsGodMode)}
-                        className="button-base button-secondary text-xs px-6 py-2 w-fit mx-auto sm:w-auto font-bold shadow-sm order-1 sm:order-2"
-                      >
-                        Watch as Spectator
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleExitToGameSelection}
-                  className="mt-2 px-3 py-1.5 text-2xs sm:text-xs font-bold uppercase tracking-widest text-ink-muted hover:text-ink hover:bg-surface-2 transition-all cursor-pointer rounded-lg border border-transparent hover:border-surface-3 active:scale-95 active:bg-surface-3/50 underline underline-offset-4 decoration-dotted"
-                >
-                  Back to game selection
-                </button>
-              </div>
-            }
+            gameId={gameId ?? ""}
+            lobbySeed={lobbySeed}
+            roomTypeLabel={roomTypeLabel}
+            isCreator={isCreator}
+            isGameActive={isGameActive}
+            allSeatsJoined={allSeatsJoined}
+            isSpectator={isSpectator}
+            isGodMode={view?.metadata?.isGodMode === "true"}
+            playerId={playerId}
+            seats={seats}
+            joinAsGodMode={joinAsGodMode}
+            effectiveAiPreference={effectiveAiPreference}
+            currentSeatLabel={currentSeatLabel}
+            onToggleGodMode={() => setJoinAsGodMode(!joinAsGodMode)}
+            onJoinSeat={handleJoin}
+            onJoinSpectator={handleJoinAsSpectator}
+            onLeaveSeat={handleLeaveSeat}
+            onApplyAiSetting={applyAiSettingForSeat}
+            onExitToSelection={handleExitToGameSelection}
+            onShare={async () => {
+              try {
+                await shareGameInfo(gameTitle || undefined);
+              } catch (err) {
+                console.error("Failed to share game info", err);
+              }
+            }}
           />
         )}
 
         {/* Show game board */}
         {isGameActive && view && playerId && (
-          <div className="game-layout flex flex-col h-full w-full overflow-hidden">
-            <GameHeader
-              className={isAnyEndOverlayVisible ? "z-[1100]" : "z-50"}
-              isOverlayActive={isAnyEndOverlayVisible}
-              transitionCards={headerTransitionCards}
-              onMenuClick={() =>
-                safeStartViewTransition(() => setIsMenuOpen(!isMenuOpen))
+          <GameShell
+            gameId={gameId}
+            view={view}
+            playerId={playerId}
+            seats={seats}
+            isConnected={isConnected}
+            suppressStartOverlay={suppressStartOverlay}
+            holdStartOverlay={holdStartOverlay}
+            isStartGameBusy={startGameBusy}
+            onStartGame={(isNextRound) => {
+              markStartGamePending();
+              setStartGamePendingKind(isNextRound ? "next" : "first");
+            }}
+            onSkipStartGameAnimations={requestSkipStartGameAnimations}
+            overrideStartOverlayIsNextRound={startOverlayIsNextRoundOverride}
+            highlightedWidget={highlightedWidget}
+            isAnyEndOverlayVisible={isAnyEndOverlayVisible}
+            headerTransitionCards={headerTransitionCards}
+            isMenuOpen={isMenuOpen}
+            onMenuClick={() =>
+              safeStartViewTransition(() => setIsMenuOpen(!isMenuOpen))
+            }
+            onRulesClick={() => setRulesVisible(true)}
+            onTurnBadgeClick={openAiLog}
+            onActionsClick={() => {
+              if (hasWidgetInLayout("actions")) {
+                setHighlightedWidget("actions");
+                setTimeout(() => setHighlightedWidget(null), 100);
+              } else {
+                setIsActionsOpen(!isActionsOpen);
               }
-              isMenuOpen={isMenuOpen}
-              onRulesClick={() => setRulesVisible(true)}
-              onTurnBadgeClick={openAiLog}
-              onActionsClick={() => {
-                if (hasWidgetInLayout("actions")) {
-                  setHighlightedWidget("actions");
-                  setTimeout(() => setHighlightedWidget(null), 100);
-                } else {
-                  setIsActionsOpen(!isActionsOpen);
-                }
-              }}
-              onScoreboardClick={() => {
-                if (hasWidgetInLayout("scoreboards")) {
-                  setHighlightedWidget("scoreboards");
-                  setTimeout(() => setHighlightedWidget(null), 100);
-                } else {
-                  setIsScoreboardOpen(!isScoreboardOpen);
-                }
-              }}
-              isActionsOpen={isActionsOpen}
-              isScoreboardOpen={isScoreboardOpen}
-            />
-            <div className="flex-1 relative overflow-hidden">
-              <GameRoot
-                view={view}
-                playerId={playerId}
-                disabled={!isConnected}
-                suppressStartOverlay={suppressStartOverlay}
-                holdStartOverlay={holdStartOverlay}
-                isStartGameBusy={startGameBusy}
-                onStartGame={(isNextRound) => {
-                  markStartGamePending();
-                  setStartGamePendingKind(isNextRound ? "next" : "first");
-                }}
-                onSkipStartGameAnimations={requestSkipStartGameAnimations}
-                overrideStartOverlayIsNextRound={
-                  startOverlayIsNextRoundOverride
-                }
-                highlightedWidget={highlightedWidget}
-              />
-              <FloatingActionOverlay
-                actions={announcementItems}
-                onComplete={handleAnnouncementComplete}
-                durationMs={2800}
-                viewTransitionName="announcement-overlay"
-              />
-              {gameId && (
-                <FatalErrorOverlay
-                  gameId={gameId}
-                  onExitToSelection={handleExitToGameSelection}
-                />
-              )}
-              <WinnerOverlay
-                winnerId={view.winner}
-                winnerLabel={gameMeta?.winnerLabel}
-                seats={seats}
-                onRestart={handleReset}
-                onExit={handleExitToGameSelection}
-              />
-              <GameHUD
-                gameId={gameId}
-                onExit={handleLeaveSeat}
-                onReset={handleReset}
-                onAboutClick={() => {
-                  setIsAboutFromMenu(true);
-                  setAboutVisible(true);
-                  safeStartViewTransition(() => setIsMenuOpen(false));
-                }}
-              />
-              <div
-                className={`header-floating-panel fixed top-16 right-2 sm:right-4 pointer-events-none flex flex-col items-end ${isAnyEndOverlayVisible ? "z-[1110]" : "z-[70]"}`}
-              >
-                {/* Header-triggered Scoreboard Panel */}
-                <div className="header-panel-slot" data-open={isScoreboardOpen}>
-                  <FloatingWidget
-                    config={{ widget: "scoreboards", position: "top-right" }}
-                    view={view}
-                    onActionClick={() => {}}
-                    isOpen={isScoreboardOpen}
-                    onToggle={setIsScoreboardOpen}
-                    showTrigger={false}
-                    className="relative flex flex-col items-end"
-                    panelClassName="header-protrude w-72 sm:w-80 max-h-[70vh] overflow-y-auto rounded-xl shadow-floating bg-surface-1/95 backdrop-blur-md border border-surface-3 animate-in fade-in zoom-in-95 duration-200"
-                  />
-                </div>
-
-                {/* Header-triggered Actions Panel */}
-                <div className="header-panel-slot" data-open={isActionsOpen}>
-                  <FloatingWidget
-                    config={{ widget: "actions", position: "top-right" }}
-                    view={view}
-                    onActionClick={(action) => {
-                      sfx.playClick();
-                      if (playerId) sendActionIntent(gameId, playerId, action);
-                    }}
-                    actionsDisabled={Boolean(
-                      view.seats?.find((s) => s.seatId === playerId)
-                        ?.aiRuntime !== "none"
-                    )}
-                    isOpen={isActionsOpen}
-                    onToggle={setIsActionsOpen}
-                    showTrigger={false}
-                    className="relative flex flex-col items-end"
-                    panelClassName="header-protrude w-72 sm:w-80 max-h-[70vh] overflow-y-auto rounded-xl shadow-floating bg-surface-1/95 backdrop-blur-md border border-surface-3 animate-in fade-in zoom-in-95 duration-200"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+            }}
+            onScoreboardClick={() => {
+              if (hasWidgetInLayout("scoreboards")) {
+                setHighlightedWidget("scoreboards");
+                setTimeout(() => setHighlightedWidget(null), 100);
+              } else {
+                setIsScoreboardOpen(!isScoreboardOpen);
+              }
+            }}
+            onActionsToggle={setIsActionsOpen}
+            onScoreboardToggle={setIsScoreboardOpen}
+            isActionsOpen={isActionsOpen}
+            isScoreboardOpen={isScoreboardOpen}
+            announcementItems={announcementItems}
+            onAnnouncementComplete={handleAnnouncementComplete}
+            onExitToSelection={handleExitToGameSelection}
+            winnerLabel={gameMeta?.winnerLabel}
+            onRestart={handleReset}
+            onExit={handleExitToGameSelection}
+            onExitSeat={handleLeaveSeat}
+            onAboutClick={() => {
+              setIsAboutFromMenu(true);
+              setAboutVisible(true);
+              safeStartViewTransition(() => setIsMenuOpen(false));
+            }}
+            onActionIntent={(action) =>
+              sendActionIntent(gameId, playerId, action)
+            }
+          />
         )}
 
         {isRulesVisible && (
