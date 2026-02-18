@@ -1,0 +1,10 @@
+{
+  "id": "joker-trump-selection-rules",
+  "rulesId": "joker",
+  "seed": "JOKER-TRUMP-SELECTION-1",
+  "intents": [{ "type": "action", "playerId": "N", "action": "start-game" }],
+  "expect": {
+    "currentPlayer": "E"
+  },
+  "description": "Test that trump is determined by turning up a card for non-9-card hands"
+}

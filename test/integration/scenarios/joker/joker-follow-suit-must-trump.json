@@ -1,7 +1,7 @@
 {
-  "id": "joker-low-joker-leading",
+  "id": "joker-follow-suit-must-trump",
   "rulesId": "joker",
-  "seed": "JOKER-LOWLEAD-1",
+  "seed": "JOKER-FOLLOWSUIT-1",
   "intents": [
     { "type": "action", "playerId": "N", "action": "start-game" },
     { "type": "action", "playerId": "E", "action": "bid-0" },
@@ -12,5 +12,5 @@
   "expect": {
     "currentPlayer": "E"
   },
-  "description": "Test low Joker leading rules - must specify a suit when leading"
+  "description": "Test follow-suit and must-trump behavior when void in lead suit"
 }

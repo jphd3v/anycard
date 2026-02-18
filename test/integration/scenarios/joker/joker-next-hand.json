@@ -13,28 +13,28 @@
       "playerId": "E",
       "fromPileId": "hand-E",
       "toPileId": "trick",
-      "cardId": 17
+      "cardId": 15
     },
     {
       "type": "move",
       "playerId": "S",
       "fromPileId": "hand-S",
       "toPileId": "trick",
-      "cardId": 1
+      "cardId": 17
     },
     {
       "type": "move",
       "playerId": "W",
       "fromPileId": "hand-W",
       "toPileId": "trick",
-      "cardId": 10
+      "cardId": 1
     },
     {
       "type": "move",
       "playerId": "N",
       "fromPileId": "hand-N",
       "toPileId": "trick",
-      "cardId": 15
+      "cardId": 10
     },
     { "type": "action", "playerId": "E", "action": "next-hand" }
   ],
@@ -51,12 +51,12 @@
       "pendingJokerCardId": null,
       "currentTrick": [],
       "leadSuit": null,
-      "trumpSuit": "diamonds",
+      "trumpSuit": "clubs",
       "tricksWon": { "N": 0, "E": 0, "S": 0, "W": 0 },
       "handScores": {},
-      "setScores": { "N": 50, "E": 50, "S": 50, "W": 10 },
-      "gameScores": { "N": 50, "E": 50, "S": 50, "W": 10 },
-      "setSuccesses": { "N": [50], "E": [50], "S": [50], "W": [] }
+      "setScores": { "N": 10, "E": 50, "S": 50, "W": 50 },
+      "gameScores": { "N": 10, "E": 50, "S": 50, "W": 50 },
+      "setSuccesses": { "N": [], "E": [50], "S": [50], "W": [50] }
     },
     "scoreboards": [
       {
@@ -110,7 +110,7 @@
           { "row": 1, "col": 1, "text": "0", "align": "right" },
           { "row": 1, "col": 2, "text": "0", "align": "right" },
           { "row": 1, "col": 3, "text": "0", "align": "right" },
-          { "row": 1, "col": 4, "text": "50", "align": "right" },
+          { "row": 1, "col": 4, "text": "10", "align": "right" },
           {
             "row": 2,
             "col": 0,
@@ -143,7 +143,7 @@
           { "row": 4, "col": 1, "text": "0", "align": "right" },
           { "row": 4, "col": 2, "text": "0", "align": "right" },
           { "row": 4, "col": 3, "text": "0", "align": "right" },
-          { "row": 4, "col": 4, "text": "10", "align": "right" }
+          { "row": 4, "col": 4, "text": "50", "align": "right" }
         ]
       }
     ]

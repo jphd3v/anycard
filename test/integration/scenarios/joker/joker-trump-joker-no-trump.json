@@ -1,0 +1,10 @@
+{
+  "id": "joker-trump-joker-no-trump",
+  "rulesId": "joker",
+  "seed": "JOKER-NOTRUMP-1",
+  "intents": [{ "type": "action", "playerId": "N", "action": "start-game" }],
+  "expect": {
+    "currentPlayer": "E"
+  },
+  "description": "Test that when a Joker is turned up as trump, there is no trump suit"
+}

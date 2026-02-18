@@ -1,7 +1,7 @@
 {
-  "id": "joker-low-joker-leading",
+  "id": "joker-trump-dealer-last-card",
   "rulesId": "joker",
-  "seed": "JOKER-LOWLEAD-1",
+  "seed": "JOKER-9CARD-TRUMP-1",
   "intents": [
     { "type": "action", "playerId": "N", "action": "start-game" },
     { "type": "action", "playerId": "E", "action": "bid-0" },
@@ -12,5 +12,5 @@
   "expect": {
     "currentPlayer": "E"
   },
-  "description": "Test low Joker leading rules - must specify a suit when leading"
+  "description": "Test that trump is determined correctly for 1-card hands"
 }

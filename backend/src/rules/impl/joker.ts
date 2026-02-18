@@ -230,9 +230,14 @@ function buildDealEvents(
     `${dealer.id}-${rs.currentSet}-${rs.currentHandInSet}`
   );
 
-  // Deal cards to players
-  const handPiles = state.players.map((p) => `hand-${p.id}`);
-  const { events: dealEvents } = distributeRoundRobin(
+  // Deal cards to players, starting from left of dealer
+  const handPiles = [];
+  for (let i = 0; i < 4; i++) {
+    const playerIdx = (rs.dealerSeat + 1 + i) % 4;
+    handPiles.push(`hand-${state.players[playerIdx].id}`);
+  }
+
+  const { events: dealEvents, nextIndex } = distributeRoundRobin(
     shuffled,
     handPiles,
     cardsPerPlayer
@@ -244,18 +249,19 @@ function buildDealEvents(
   let trumpCard: Card | null = null;
 
   if (cardsPerPlayer > 0) {
-    const afterDeal = projectPilesAfterEvents(state, events);
     let trumpCardId: number | undefined;
 
     if (cardsPerPlayer === 9) {
+      // For 9-card hands, trump is dealer's last card
+      const afterDeal = projectPilesAfterEvents(state, events);
       const dealerHand = afterDeal[`hand-${dealer.id}`];
       if (dealerHand?.cardIds && dealerHand.cardIds.length > 0) {
         trumpCardId = dealerHand.cardIds[dealerHand.cardIds.length - 1];
       }
     } else {
-      const deckPile = afterDeal["deck"];
-      if (deckPile?.cardIds && deckPile.cardIds.length > 0) {
-        trumpCardId = deckPile.cardIds[deckPile.cardIds.length - 1];
+      // For non-9-card hands, trump is the next card from the shuffled deck
+      if (nextIndex < shuffled.length) {
+        trumpCardId = shuffled[nextIndex];
       }
     }
 

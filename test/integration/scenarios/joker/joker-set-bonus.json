@@ -1,7 +1,7 @@
 {
-  "id": "joker-low-joker-leading",
+  "id": "joker-set-bonus",
   "rulesId": "joker",
-  "seed": "JOKER-LOWLEAD-1",
+  "seed": "JOKER-SETBONUS-1",
   "intents": [
     { "type": "action", "playerId": "N", "action": "start-game" },
     { "type": "action", "playerId": "E", "action": "bid-0" },
@@ -12,5 +12,5 @@
   "expect": {
     "currentPlayer": "E"
   },
-  "description": "Test low Joker leading rules - must specify a suit when leading"
+  "description": "Test 4-set / 24-hand structure and set bonus application"
 }
