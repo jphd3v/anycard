@@ -445,12 +445,12 @@ export default function App() {
   useEffect(() => {
     isAnyOverlayOpenRef.current = isAnyModalOverlayOpen;
   }, [isAnyModalOverlayOpen]);
-  // Auto-open scoreboard when game/round ends if it's a widget
+  // Auto-open scoreboard when a round/game ends.
   useEffect(() => {
-    if (isAnyEndOverlayVisible && !hasWidgetInLayout("scoreboards")) {
+    if (isAnyEndOverlayVisible) {
       setIsScoreboardOpen(true);
     }
-  }, [isAnyEndOverlayVisible, hasWidgetInLayout, setIsScoreboardOpen]);
+  }, [isAnyEndOverlayVisible, setIsScoreboardOpen]);
 
   // Update document title based on current game state
   useEffect(() => {
@@ -836,6 +836,28 @@ export default function App() {
   const setHighlightedScoreboardCells = useSetAtom(
     highlightedScoreboardCellsAtom
   );
+  const previousUiGameIdRef = useRef(gameId);
+
+  useEffect(() => {
+    if (previousUiGameIdRef.current !== gameId) {
+      // Prevent transient overlay/highlight state from leaking between games.
+      closeAll();
+      setRulesVisible(false);
+      setAboutVisible(false);
+      setIsAboutFromMenu(false);
+      setHighlightedWidget(null);
+      setHighlightedActionId(null);
+      setHighlightedActionLabel(null);
+      setHighlightedScoreboardCells({});
+    }
+    previousUiGameIdRef.current = gameId;
+  }, [
+    closeAll,
+    gameId,
+    setHighlightedActionId,
+    setHighlightedActionLabel,
+    setHighlightedScoreboardCells,
+  ]);
 
   const lastToastIdRef = useRef<number | null>(null);
 
@@ -1893,12 +1915,7 @@ export default function App() {
               }
             }}
             onScoreboardClick={() => {
-              if (hasWidgetInLayout("scoreboards")) {
-                setHighlightedWidget("scoreboards");
-                setTimeout(() => setHighlightedWidget(null), 100);
-              } else {
-                setIsScoreboardOpen(!isScoreboardOpen);
-              }
+              setIsScoreboardOpen(!isScoreboardOpen);
             }}
             onActionsToggle={setIsActionsOpen}
             onScoreboardToggle={setIsScoreboardOpen}

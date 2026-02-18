@@ -111,7 +111,10 @@ export async function readRoomIdFromLobby(page: Page): Promise<string> {
   return gameId;
 }
 
-export async function rejoinAsPlayer(page: Page): Promise<void> {
+export async function rejoinAsPlayer(
+  page: Page,
+  rulesId: string = DEFAULT_RULES_ID
+): Promise<void> {
   const gameId = await readRoomIdFromLobby(page);
 
   await page.evaluate(
@@ -128,7 +131,7 @@ export async function rejoinAsPlayer(page: Page): Promise<void> {
       ];
       window.localStorage.setItem("recent-games", JSON.stringify(recentGames));
     },
-    { gameId, rulesId: DEFAULT_RULES_ID }
+    { gameId, rulesId }
   );
 
   await page.reload();

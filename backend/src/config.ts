@@ -93,7 +93,8 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       process.argv.some((arg) => arg.includes("test")) ||
       // Detect when running under Playwright or other test environments
       Boolean(process.env.PLAYWRIGHT_TEST_BASE_URL) ||
-      process.env.PORT === "3010", // Playwright uses port 3010 for tests
+      process.env.PORT === "3010" ||
+      process.env.PORT === "3011", // Playwright default test ports
   };
 }
 
