@@ -49,6 +49,13 @@ import { sfx } from "../utils/audio";
 import { getRotationAngle, rotateLayout } from "../utils/layoutRotation";
 import { useRef } from "react";
 
+const MOBILE_COMPACT_HANDS_QUERY =
+  "(pointer: coarse) and ((max-width: 900px) or (max-height: 520px))";
+const COMPACT_RAIL_COLUMN_WEIGHT = 0.35;
+const COMPACT_RAIL_COLUMN_MIN = "2.2rem";
+const COMPACT_RAIL_ROW_WEIGHT = 0.2;
+const COMPACT_RAIL_ROW_MIN = "1.5rem";
+
 interface Props {
   view: GameView;
   playerId: string;
@@ -98,6 +105,11 @@ export function GameRoot({
   const lastActionKeyRef = useRef<string | null>(null);
   const dragCursorRef = useRef<string | null>(null);
   const activeTransitionCardIdsRef = useRef<Set<number> | null>(null);
+  const [isCompactMobileView, setIsCompactMobileView] = useState(false);
+  const [expandedOpponentHands, setExpandedOpponentHands] = useState<
+    Set<string>
+  >(new Set());
+  const localSeatId = playerId;
 
   const layout = useMemo(() => {
     if (!rawLayout || !view || !playerId || !autoRotateSeat) return rawLayout;
@@ -116,13 +128,173 @@ export function GameRoot({
     return map;
   }, [layout]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia(MOBILE_COMPACT_HANDS_QUERY);
+    const update = () => setIsCompactMobileView(media.matches);
+    update();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  const isCompactModeEnabled =
+    isCompactMobileView && !!layout?.mobileCompactOpponentHands;
+
+  const compactOpponentHandPileIds = useMemo(() => {
+    const compactIds = new Set<string>();
+    if (!isCompactModeEnabled) return compactIds;
+
+    for (const pile of view.piles) {
+      const isHandPile =
+        layout?.pileStyles?.[pile.id]?.isHand ?? pile.id.includes("hand");
+      const isOpponentHand =
+        isHandPile &&
+        typeof pile.ownerId === "string" &&
+        pile.ownerId !== localSeatId;
+      if (!isOpponentHand) continue;
+      if (expandedOpponentHands.has(pile.id)) continue;
+      compactIds.add(pile.id);
+    }
+
+    return compactIds;
+  }, [
+    expandedOpponentHands,
+    isCompactModeEnabled,
+    layout,
+    localSeatId,
+    view.piles,
+  ]);
+
+  const compactRailColumns = useMemo(() => {
+    const cols = new Set<number>();
+    if (!layout || !isCompactModeEnabled) return cols;
+
+    for (const zone of layout.zones) {
+      if ((zone.cell.colspan ?? 1) !== 1) continue;
+      if (zone.piles.length !== 1) continue;
+      const pileId = zone.piles[0];
+      if (!compactOpponentHandPileIds.has(pileId)) continue;
+
+      const pileLayout =
+        layout.pileStyles?.[pileId]?.layout ??
+        view.piles.find((p) => p.id === pileId)?.layout;
+      if (pileLayout !== "vertical") continue;
+
+      cols.add(zone.cell.col);
+    }
+    return cols;
+  }, [compactOpponentHandPileIds, isCompactModeEnabled, layout, view.piles]);
+
+  const compactRailRows = useMemo(() => {
+    const rows = new Set<number>();
+    if (!layout || !isCompactModeEnabled) return rows;
+
+    for (const zone of layout.zones) {
+      if ((zone.cell.rowspan ?? 1) !== 1) continue;
+      if (zone.piles.length !== 1) continue;
+      const pileId = zone.piles[0];
+      if (!compactOpponentHandPileIds.has(pileId)) continue;
+
+      const pileLayout =
+        layout.pileStyles?.[pileId]?.layout ??
+        view.piles.find((p) => p.id === pileId)?.layout;
+      if (pileLayout !== "horizontal") continue;
+
+      rows.add(zone.cell.row);
+    }
+    return rows;
+  }, [compactOpponentHandPileIds, isCompactModeEnabled, layout, view.piles]);
+
+  const columnWeights = useMemo(() => {
+    if (!layout) return undefined;
+    const weights = Array.from({ length: layout.cols }, () => 1);
+    for (const col of compactRailColumns) {
+      if (col >= 0 && col < weights.length) {
+        weights[col] = COMPACT_RAIL_COLUMN_WEIGHT;
+      }
+    }
+    return weights;
+  }, [compactRailColumns, layout]);
+
+  const rowWeights = useMemo(() => {
+    if (!layout) return undefined;
+    const weights = Array.from({ length: layout.rows }, () => 1);
+    for (const row of compactRailRows) {
+      if (row >= 0 && row < weights.length) {
+        weights[row] = COMPACT_RAIL_ROW_WEIGHT;
+      }
+    }
+    return weights;
+  }, [compactRailRows, layout]);
+
+  const gridTemplateColumns = useMemo(() => {
+    if (!layout || !columnWeights) return "";
+    return columnWeights
+      .map((weight, colIdx) =>
+        compactRailColumns.has(colIdx)
+          ? `minmax(${COMPACT_RAIL_COLUMN_MIN}, ${weight}fr)`
+          : `minmax(0, ${weight}fr)`
+      )
+      .join(" ");
+  }, [columnWeights, compactRailColumns, layout]);
+
+  const gridTemplateRows = useMemo(() => {
+    if (!layout || !rowWeights) return "";
+    return rowWeights
+      .map((weight, rowIdx) =>
+        compactRailRows.has(rowIdx)
+          ? `minmax(${COMPACT_RAIL_ROW_MIN}, ${weight}fr)`
+          : `minmax(0, ${weight}fr)`
+      )
+      .join(" ");
+  }, [compactRailRows, layout, rowWeights]);
+
+  useEffect(() => {
+    setExpandedOpponentHands((prev) => {
+      if (!isCompactModeEnabled) {
+        return prev.size === 0 ? prev : new Set<string>();
+      }
+
+      let changed = false;
+      const visiblePileIds = new Set(view.piles.map((pile) => pile.id));
+      const next = new Set<string>();
+      for (const pileId of prev) {
+        if (visiblePileIds.has(pileId)) {
+          next.add(pileId);
+        } else {
+          changed = true;
+        }
+      }
+      if (!changed && next.size === prev.size) return prev;
+      return next;
+    });
+  }, [isCompactModeEnabled, view.piles]);
+
+  useEffect(() => {
+    setExpandedOpponentHands(new Set<string>());
+  }, [view.gameId]);
+
   const cardSetId = useAtomValue(cardSetAtom);
   const cardAspectRatio = useCardSetAspectRatio(cardSetId);
   const freeDragEnabled = useAtomValue(freeDragEnabledAtom);
-  const mySeat = view.seats?.find((s) => s.seatId === playerId);
+  const mySeat = view.seats?.find((s) => s.seatId === localSeatId);
   const isAutomatedSeat = !!mySeat && mySeat.aiRuntime !== "none";
   const uiDisabled = disabled || isEvaluatingMove || isAutomatedSeat;
-  const { boardRef, styleVars } = useCardSizing(layout, view, cardAspectRatio);
+  const { boardRef, styleVars } = useCardSizing(
+    layout,
+    view,
+    cardAspectRatio,
+    compactOpponentHandPileIds,
+    columnWeights,
+    rowWeights
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -418,6 +590,22 @@ export function GameRoot({
       ? (val as PileLayout)
       : undefined;
 
+  const toggleOpponentHandCompact = useCallback(
+    (pileId: string) => {
+      if (!isCompactModeEnabled) return;
+      setExpandedOpponentHands((prev) => {
+        const next = new Set(prev);
+        if (next.has(pileId)) {
+          next.delete(pileId);
+        } else {
+          next.add(pileId);
+        }
+        return next;
+      });
+    },
+    [isCompactModeEnabled]
+  );
+
   const renderPileFromLayout = (pileId: string, zone?: LayoutZone) => {
     const basePile = view.piles.find((p) => p.id === pileId);
     if (!basePile) return null;
@@ -467,6 +655,14 @@ export function GameRoot({
     const allowReorderFromRules = pileToRender.allowReorder ?? false;
     const allowReorder =
       allowReorderFromRules && pileToRender.cards.length >= 2;
+    const isHandPile = pileToRender.isHand ?? pileId.includes("hand");
+    const isOpponentHandPile =
+      isHandPile &&
+      typeof pileToRender.ownerId === "string" &&
+      pileToRender.ownerId !== localSeatId;
+    const canUseCompactMode = isCompactModeEnabled && isOpponentHandPile;
+    const isCompact =
+      canUseCompactMode && compactOpponentHandPileIds.has(pileId);
 
     return (
       <Pile
@@ -482,6 +678,12 @@ export function GameRoot({
         allowViewerToggle={allowViewerToggle}
         allowReorder={allowReorder}
         isProxyTarget={isSinglePileZone}
+        compact={isCompact}
+        onToggleCompact={
+          canUseCompactMode
+            ? () => toggleOpponentHandCompact(pileId)
+            : undefined
+        }
         onChangeSort={
           allowViewerToggle && sort?.options?.length
             ? (id) => {
@@ -615,8 +817,10 @@ export function GameRoot({
             // CSS GRID MAGIC:
             // 1fr = distribute space equally
             // minmax(0, ...) = allow shrinking below content size (prevents overflow)
-            gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
-            gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+            gridTemplateRows:
+              gridTemplateRows || `repeat(${layout.rows}, minmax(0, 1fr))`,
+            gridTemplateColumns:
+              gridTemplateColumns || `repeat(${layout.cols}, minmax(0, 1fr))`,
             gap: "var(--zone-gap)",
 
             // Constrain to viewport so it never scrolls

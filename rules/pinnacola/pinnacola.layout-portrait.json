@@ -2,25 +2,28 @@
   "rulesId": "pinnacola",
   "autoRotate": false,
   "mobileCompactOpponentHands": true,
-  "rows": 7,
-  "cols": 10,
+  "rows": 9,
+  "cols": 5,
   "zones": [
     {
       "id": "north",
       "label": "N",
-      "cell": { "row": 0, "col": 1, "colspan": 8 },
+      "cell": {
+        "row": 0,
+        "col": 0,
+        "colspan": 5
+      },
       "piles": ["N-hand"]
-    },
-    {
-      "id": "west",
-      "label": "W",
-      "cell": { "row": 0, "col": 0, "rowspan": 7 },
-      "piles": ["W-hand"]
     },
     {
       "id": "team-a-melds",
       "label": "S/N Melds",
-      "cell": { "row": 1, "col": 1, "rowspan": 2, "colspan": 8 },
+      "cell": {
+        "row": 1,
+        "col": 1,
+        "rowspan": 3,
+        "colspan": 3
+      },
       "piles": [
         "A-meld-0",
         "A-meld-1",
@@ -37,21 +40,45 @@
       ]
     },
     {
-      "id": "east",
-      "label": "E",
-      "cell": { "row": 0, "col": 9, "rowspan": 7 },
-      "piles": ["E-hand"]
+      "id": "west",
+      "label": "W",
+      "cell": {
+        "row": 1,
+        "col": 0,
+        "rowspan": 7
+      },
+      "piles": ["W-hand"]
     },
     {
       "id": "center",
       "label": "Stock/Discard",
-      "cell": { "row": 3, "col": 1, "colspan": 8 },
+      "cell": {
+        "row": 4,
+        "col": 1,
+        "rowspan": 1,
+        "colspan": 3
+      },
       "piles": ["deck", "discard"]
+    },
+    {
+      "id": "east",
+      "label": "E",
+      "cell": {
+        "row": 1,
+        "col": 4,
+        "rowspan": 7
+      },
+      "piles": ["E-hand"]
     },
     {
       "id": "team-b-melds",
       "label": "W/E Melds",
-      "cell": { "row": 4, "col": 1, "rowspan": 2, "colspan": 8 },
+      "cell": {
+        "row": 5,
+        "col": 1,
+        "rowspan": 3,
+        "colspan": 3
+      },
       "piles": [
         "B-meld-0",
         "B-meld-1",
@@ -70,12 +97,20 @@
     {
       "id": "south",
       "label": "S",
-      "cell": { "row": 6, "col": 1, "colspan": 8 },
+      "cell": {
+        "row": 8,
+        "col": 0,
+        "colspan": 5
+      },
       "piles": ["S-hand"]
     }
   ],
   "pileStyles": {
-    "deck": { "layout": "complete", "label": "Stock", "showDetails": true },
+    "deck": {
+      "layout": "complete",
+      "label": "Stock",
+      "showDetails": true
+    },
     "discard": {
       "layout": "horizontal",
       "label": "Discard",
@@ -88,7 +123,11 @@
       "sort": {
         "default": "rank-asc",
         "options": [
-          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
           {
             "id": "rank-asc",
             "label": "Ranks A-2..K",
@@ -140,7 +179,11 @@
       "sort": {
         "default": "rank-asc",
         "options": [
-          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
           {
             "id": "rank-asc",
             "label": "Ranks A-2..K",
@@ -192,7 +235,11 @@
       "sort": {
         "default": "rank-asc",
         "options": [
-          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
           {
             "id": "rank-asc",
             "label": "Ranks A-2..K",
@@ -244,7 +291,11 @@
       "sort": {
         "default": "rank-asc",
         "options": [
-          { "id": "unsorted", "label": "Native order", "type": "bySuitRank" },
+          {
+            "id": "unsorted",
+            "label": "Native order",
+            "type": "bySuitRank"
+          },
           {
             "id": "rank-asc",
             "label": "Ranks A-2..K",
@@ -290,29 +341,125 @@
         ]
       }
     },
-    "A-meld-0": { "layout": "horizontal", "label": "A1", "hideTitle": true },
-    "A-meld-1": { "layout": "horizontal", "label": "A2", "hideTitle": true },
-    "A-meld-2": { "layout": "horizontal", "label": "A3", "hideTitle": true },
-    "A-meld-3": { "layout": "horizontal", "label": "A4", "hideTitle": true },
-    "A-meld-4": { "layout": "horizontal", "label": "A5", "hideTitle": true },
-    "A-meld-5": { "layout": "horizontal", "label": "A6", "hideTitle": true },
-    "A-meld-6": { "layout": "horizontal", "label": "A7", "hideTitle": true },
-    "A-meld-7": { "layout": "horizontal", "label": "A8", "hideTitle": true },
-    "A-meld-8": { "layout": "horizontal", "label": "A9", "hideTitle": true },
-    "A-meld-9": { "layout": "horizontal", "label": "A10", "hideTitle": true },
-    "A-meld-10": { "layout": "horizontal", "label": "A11", "hideTitle": true },
-    "A-meld-11": { "layout": "horizontal", "label": "A12", "hideTitle": true },
-    "B-meld-0": { "layout": "horizontal", "label": "B1", "hideTitle": true },
-    "B-meld-1": { "layout": "horizontal", "label": "B2", "hideTitle": true },
-    "B-meld-2": { "layout": "horizontal", "label": "B3", "hideTitle": true },
-    "B-meld-3": { "layout": "horizontal", "label": "B4", "hideTitle": true },
-    "B-meld-4": { "layout": "horizontal", "label": "B5", "hideTitle": true },
-    "B-meld-5": { "layout": "horizontal", "label": "B6", "hideTitle": true },
-    "B-meld-6": { "layout": "horizontal", "label": "B7", "hideTitle": true },
-    "B-meld-7": { "layout": "horizontal", "label": "B8", "hideTitle": true },
-    "B-meld-8": { "layout": "horizontal", "label": "B9", "hideTitle": true },
-    "B-meld-9": { "layout": "horizontal", "label": "B10", "hideTitle": true },
-    "B-meld-10": { "layout": "horizontal", "label": "B11", "hideTitle": true },
-    "B-meld-11": { "layout": "horizontal", "label": "B12", "hideTitle": true }
+    "A-meld-0": {
+      "layout": "horizontal",
+      "label": "A1",
+      "hideTitle": true
+    },
+    "A-meld-1": {
+      "layout": "horizontal",
+      "label": "A2",
+      "hideTitle": true
+    },
+    "A-meld-2": {
+      "layout": "horizontal",
+      "label": "A3",
+      "hideTitle": true
+    },
+    "A-meld-3": {
+      "layout": "horizontal",
+      "label": "A4",
+      "hideTitle": true
+    },
+    "A-meld-4": {
+      "layout": "horizontal",
+      "label": "A5",
+      "hideTitle": true
+    },
+    "A-meld-5": {
+      "layout": "horizontal",
+      "label": "A6",
+      "hideTitle": true
+    },
+    "A-meld-6": {
+      "layout": "horizontal",
+      "label": "A7",
+      "hideTitle": true
+    },
+    "A-meld-7": {
+      "layout": "horizontal",
+      "label": "A8",
+      "hideTitle": true
+    },
+    "A-meld-8": {
+      "layout": "horizontal",
+      "label": "A9",
+      "hideTitle": true
+    },
+    "A-meld-9": {
+      "layout": "horizontal",
+      "label": "A10",
+      "hideTitle": true
+    },
+    "A-meld-10": {
+      "layout": "horizontal",
+      "label": "A11",
+      "hideTitle": true
+    },
+    "A-meld-11": {
+      "layout": "horizontal",
+      "label": "A12",
+      "hideTitle": true
+    },
+    "B-meld-0": {
+      "layout": "horizontal",
+      "label": "B1",
+      "hideTitle": true
+    },
+    "B-meld-1": {
+      "layout": "horizontal",
+      "label": "B2",
+      "hideTitle": true
+    },
+    "B-meld-2": {
+      "layout": "horizontal",
+      "label": "B3",
+      "hideTitle": true
+    },
+    "B-meld-3": {
+      "layout": "horizontal",
+      "label": "B4",
+      "hideTitle": true
+    },
+    "B-meld-4": {
+      "layout": "horizontal",
+      "label": "B5",
+      "hideTitle": true
+    },
+    "B-meld-5": {
+      "layout": "horizontal",
+      "label": "B6",
+      "hideTitle": true
+    },
+    "B-meld-6": {
+      "layout": "horizontal",
+      "label": "B7",
+      "hideTitle": true
+    },
+    "B-meld-7": {
+      "layout": "horizontal",
+      "label": "B8",
+      "hideTitle": true
+    },
+    "B-meld-8": {
+      "layout": "horizontal",
+      "label": "B9",
+      "hideTitle": true
+    },
+    "B-meld-9": {
+      "layout": "horizontal",
+      "label": "B10",
+      "hideTitle": true
+    },
+    "B-meld-10": {
+      "layout": "horizontal",
+      "label": "B11",
+      "hideTitle": true
+    },
+    "B-meld-11": {
+      "layout": "horizontal",
+      "label": "B12",
+      "hideTitle": true
+    }
   }
 }

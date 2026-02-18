@@ -1,5 +1,6 @@
 {
   "rulesId": "canasta",
+  "mobileCompactOpponentHands": true,
   "rows": 5,
   "cols": 10,
   "zones": [

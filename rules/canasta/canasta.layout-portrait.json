@@ -1,6 +1,7 @@
 {
   "rulesId": "canasta",
-  "rows": 10,
+  "mobileCompactOpponentHands": true,
+  "rows": 9,
   "cols": 5,
   "zones": [
     {
@@ -32,25 +33,25 @@
     {
       "id": "west",
       "label": "W",
-      "cell": { "row": 1, "col": 0, "rowspan": 8 },
+      "cell": { "row": 1, "col": 0, "rowspan": 7 },
       "piles": ["W-hand"]
     },
     {
       "id": "center",
       "label": "Stock/Discard",
-      "cell": { "row": 4, "col": 1, "rowspan": 2, "colspan": 3 },
+      "cell": { "row": 4, "col": 1, "rowspan": 1, "colspan": 3 },
       "piles": ["deck", "discard"]
     },
     {
       "id": "east",
       "label": "E",
-      "cell": { "row": 1, "col": 4, "rowspan": 8 },
+      "cell": { "row": 1, "col": 4, "rowspan": 7 },
       "piles": ["E-hand"]
     },
     {
       "id": "team-a-melds",
       "label": "S/N Melds",
-      "cell": { "row": 6, "col": 1, "rowspan": 3, "colspan": 3 },
+      "cell": { "row": 5, "col": 1, "rowspan": 3, "colspan": 3 },
       "piles": [
         "A-red3",
         "A-meld-4",
@@ -70,7 +71,7 @@
     {
       "id": "south",
       "label": "S",
-      "cell": { "row": 9, "col": 0, "colspan": 5 },
+      "cell": { "row": 8, "col": 0, "colspan": 5 },
       "piles": ["S-hand"]
     }
   ],

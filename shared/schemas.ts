@@ -739,6 +739,7 @@ export const GameLayoutSchema = z.object({
   zones: z.array(LayoutZoneSchema),
   pileStyles: z.record(z.string(), LayoutPileStyleSchema).optional(),
   autoRotate: z.boolean().optional(),
+  mobileCompactOpponentHands: z.boolean().optional(),
 });
 
 export type GameLayout = z.infer<typeof GameLayoutSchema>;

@@ -18,6 +18,7 @@ const MIN_FAN_RATIO_TOUCH = 0.3; // do not collapse fanning too far on touch
 
 const PILE_CHROME_Y = { coarse: 72, fine: 64 }; // label + counters + breathing room
 const HARD_MIN_HEIGHT = 32; // absolute floor to avoid complete collapse
+const EMPTY_COMPACT_PILES = new Set<string>();
 
 // Determine if a pile layout is horizontal or vertical; others don't fan.
 const layoutOrientation = (
@@ -35,7 +36,10 @@ const layoutOrientation = (
 export function useCardSizing(
   layout: GameLayout | null,
   view: GameView | null,
-  cardAspectRatio: number
+  cardAspectRatio: number,
+  compactPileIds?: ReadonlySet<string>,
+  columnWeights?: number[],
+  rowWeights?: number[]
 ) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [styleVars, setStyleVars] = useState<Record<string, string>>({});
@@ -67,6 +71,24 @@ export function useCardSizing(
     []
   );
 
+  const normalizedColumnWeights = useMemo(() => {
+    if (!layout) return [];
+    const fallback = Array.from({ length: layout.cols }, () => 1);
+    if (!columnWeights || columnWeights.length !== layout.cols) {
+      return fallback;
+    }
+    return columnWeights.map((w) => (Number.isFinite(w) && w > 0 ? w : 1));
+  }, [columnWeights, layout]);
+
+  const normalizedRowWeights = useMemo(() => {
+    if (!layout) return [];
+    const fallback = Array.from({ length: layout.rows }, () => 1);
+    if (!rowWeights || rowWeights.length !== layout.rows) {
+      return fallback;
+    }
+    return rowWeights.map((w) => (Number.isFinite(w) && w > 0 ? w : 1));
+  }, [rowWeights, layout]);
+
   useEffect(() => {
     if (
       !layout ||
@@ -78,6 +100,8 @@ export function useCardSizing(
       applyCssVars({});
       return;
     }
+
+    const compactPileSet = compactPileIds ?? EMPTY_COMPACT_PILES;
 
     let rafId: number | null = null;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -106,10 +130,26 @@ export function useCardSizing(
           )
         ) || 24;
 
-      const cellWidth =
-        (rect.width - zoneGapX * (layout.cols - 1)) / layout.cols;
-      const cellHeight =
-        (rect.height - zoneGapY * (layout.rows - 1)) / layout.rows;
+      const totalGapX = zoneGapX * (layout.cols - 1);
+      const availableWidthForCols = Math.max(rect.width - totalGapX, 0);
+      const totalColumnWeight = normalizedColumnWeights.reduce(
+        (sum, weight) => sum + weight,
+        0
+      );
+      const safeWeightTotal = totalColumnWeight > 0 ? totalColumnWeight : 1;
+      const colWidths = normalizedColumnWeights.map(
+        (weight) => availableWidthForCols * (weight / safeWeightTotal)
+      );
+      const totalGapY = zoneGapY * (layout.rows - 1);
+      const availableHeightForRows = Math.max(rect.height - totalGapY, 0);
+      const totalRowWeight = normalizedRowWeights.reduce(
+        (sum, weight) => sum + weight,
+        0
+      );
+      const safeRowWeightTotal = totalRowWeight > 0 ? totalRowWeight : 1;
+      const rowHeights = normalizedRowWeights.map(
+        (weight) => availableHeightForRows * (weight / safeRowWeightTotal)
+      );
 
       // Cap based on viewport; keep touch devices smaller but avoid undersizing landscape.
       const maxCap = isCoarsePointer
@@ -134,13 +174,27 @@ export function useCardSizing(
       let needsFanTightening = false;
       let maxAllowedFanForMinHeight = Number.POSITIVE_INFINITY;
 
-      const getPileSlotSize = (zone: LayoutZone, currentFanRatio: number) => {
+      const getPileSlotSize = (
+        zone: LayoutZone,
+        currentFanRatio: number,
+        activePileIds: string[]
+      ) => {
         const colSpan = zone.cell.colspan ?? 1;
         const rowSpan = zone.cell.rowspan ?? 1;
-        const zoneWidth = cellWidth * colSpan + zoneGapX * (colSpan - 1);
-        const zoneHeight = cellHeight * rowSpan + zoneGapY * (rowSpan - 1);
+        const colStart = zone.cell.col;
+        const zoneWidth =
+          colWidths
+            .slice(colStart, colStart + colSpan)
+            .reduce((sum, width) => sum + width, 0) +
+          zoneGapX * (colSpan - 1);
+        const rowStart = zone.cell.row;
+        const zoneHeight =
+          rowHeights
+            .slice(rowStart, rowStart + rowSpan)
+            .reduce((sum, height) => sum + height, 0) +
+          zoneGapY * (rowSpan - 1);
 
-        const pileSlots = Math.max(zone.piles?.length ?? 1, 1);
+        const pileSlots = Math.max(activePileIds.length, 1);
 
         let bestBound = -1;
         let bestSlot = { availableWidth: 0, availableHeight: 0 };
@@ -151,7 +205,7 @@ export function useCardSizing(
         let maxVertFanFactor = 1;
         let zoneMaxChrome = compactChrome;
 
-        for (const pileId of zone.piles) {
+        for (const pileId of activePileIds) {
           const count = pileCountById.get(pileId) ?? 0;
           const style = layout.pileStyles?.[pileId];
           const chrome = style?.hideTitle ? compactChrome : normalChrome;
@@ -201,9 +255,14 @@ export function useCardSizing(
 
       for (const zone of layout.zones) {
         if (!zone.piles?.length) continue;
+        const activePileIds = zone.piles.filter(
+          (pileId) => !compactPileSet.has(pileId)
+        );
+        if (activePileIds.length === 0) continue;
         const { availableWidth, availableHeight } = getPileSlotSize(
           zone,
-          baseFanRatio
+          baseFanRatio,
+          activePileIds
         );
 
         const baseBound = Math.min(
@@ -214,7 +273,7 @@ export function useCardSizing(
           baseZoneBound = Math.min(baseZoneBound, baseBound);
         }
 
-        for (const pileId of zone.piles) {
+        for (const pileId of activePileIds) {
           const count = pileCountById.get(pileId) ?? 0;
           const orientation = layoutOrientation(zone, pileId, layout);
           if (count <= 1 || orientation === "other") continue;
@@ -259,12 +318,17 @@ export function useCardSizing(
         limitingHeight = Number.POSITIVE_INFINITY;
         for (const zone of layout.zones) {
           if (!zone.piles?.length) continue;
+          const activePileIds = zone.piles.filter(
+            (pileId) => !compactPileSet.has(pileId)
+          );
+          if (activePileIds.length === 0) continue;
           const { availableWidth, availableHeight } = getPileSlotSize(
             zone,
-            fanRatio
+            fanRatio,
+            activePileIds
           );
 
-          for (const pileId of zone.piles) {
+          for (const pileId of activePileIds) {
             const count = pileCountById.get(pileId) ?? 0;
             const orientation = layoutOrientation(zone, pileId, layout);
             if (count <= 1 || orientation === "other") continue;
@@ -343,7 +407,16 @@ export function useCardSizing(
       }
       applyCssVars({});
     };
-  }, [layout, view, isCoarsePointer, applyCssVars, cardAspect]);
+  }, [
+    layout,
+    view,
+    isCoarsePointer,
+    applyCssVars,
+    cardAspect,
+    compactPileIds,
+    normalizedColumnWeights,
+    normalizedRowWeights,
+  ]);
 
   return { boardRef, styleVars };
 }
