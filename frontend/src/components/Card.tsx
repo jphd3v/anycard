@@ -22,6 +22,7 @@ import {
 } from "../state";
 import { normalizeRank, normalizeSuit } from "../utils/cardCodes";
 import { isTestMode } from "../utils/testMode";
+import { sfx } from "../utils/audio";
 
 const frontCacheByGame = new Map<string, Map<number, string>>();
 
@@ -239,10 +240,12 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         selectedCard.cardId === card.id &&
         selectedCard.fromPileId === pileId
       ) {
+        sfx.playCardLower();
         setSelectedCard(null);
         return;
       }
 
+      sfx.playCardRaise();
       setSelectedCard({ fromPileId: pileId, cardId: card.id });
     };
 
@@ -289,7 +292,12 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
           setIsHovered(false);
           setIsPressed(false);
         }}
-        onPointerDown={() => !isClickMoveActive && setIsPressed(true)}
+        onPointerDown={() => {
+          if (!isClickMoveActive && isMovable) {
+            sfx.playCardRaise();
+            setIsPressed(true);
+          }
+        }}
         onPointerUp={() => {
           setIsPressed(false);
           setIsHovered(false); // Clear hover on pointer up to fix sticky hover on mobile

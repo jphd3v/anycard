@@ -553,6 +553,7 @@ export function GameRoot({
   );
 
   const handleDragCancel = useCallback(() => {
+    sfx.playCardLower();
     if (dragCursorRef.current !== null) {
       document.body.style.cursor = dragCursorRef.current;
       dragCursorRef.current = null;

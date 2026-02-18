@@ -180,6 +180,64 @@ class AudioEngine {
       // Ignore
     }
   }
+
+  // Rising sound for card selection/raise
+  playCardRaise() {
+    if (!this._enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.15, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.1);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Lowering sound for card deselection/lower
+  playCardLower() {
+    if (!this._enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(500, t);
+      osc.frequency.exponentialRampToValueAtTime(300, t + 0.12);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.1, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.12);
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export const sfx = new AudioEngine();

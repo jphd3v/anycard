@@ -48,6 +48,7 @@ import {
   DEFAULT_CARD_SET,
   DEFAULT_MOBILE_CARD_SET,
 } from "./cardSets";
+import { sfx } from "./utils/audio";
 import { useGameMeta } from "./hooks/useGameMeta";
 import {
   fetchActiveGames,
@@ -64,7 +65,6 @@ import {
   setSeatAsAi,
   setSeatFrontendAi,
 } from "./socket";
-import { sfx } from "./utils/audio";
 import { shareGameInfo } from "./utils/share";
 import type {
   CardView,
@@ -1583,6 +1583,7 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && selectedCard) {
+        sfx.playCardLower();
         setSelectedCard(null);
       }
     };
