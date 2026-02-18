@@ -14,6 +14,8 @@
     "android": "npm run android:sync && ORG_GRADLE_PROJECT_usesCleartextTraffic=false npx cap run android",
     "android:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure Android run. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; npm run android:sync:insecure && ORG_GRADLE_PROJECT_usesCleartextTraffic=true npx cap run android",
     "android:apk:debug": "npm run android:sync && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=false ./gradlew assembleDebug)",
+    "android:apk:release": "npm run android:sync && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=false ./gradlew assembleRelease)",
+    "android:aab:release": "npm run android:sync && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=false ./gradlew bundleRelease)",
     "android:apk:debug:insecure": "if [ \"$MOBILE_INSECURE\" != \"true\" ]; then echo \"Refusing insecure Android APK build. Set MOBILE_INSECURE=true explicitly.\"; exit 1; fi; npm run android:sync:insecure && (cd android && ORG_GRADLE_PROJECT_usesCleartextTraffic=true ./gradlew assembleDebug)",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",

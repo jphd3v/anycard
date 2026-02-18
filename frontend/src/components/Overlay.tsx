@@ -90,6 +90,11 @@ export function Overlay({
       onClick={handleDialogClick}
       onCancel={(event) => {
         event.preventDefault();
+        // On Android Chrome, system Back while <dialog> is open emits "cancel".
+        // Treat it like a dismiss request for overlays that support backdrop close.
+        if (onClick) {
+          onClick(event as unknown as MouseEvent<HTMLDialogElement>);
+        }
       }}
       aria-modal="true"
       {...dialogProps}

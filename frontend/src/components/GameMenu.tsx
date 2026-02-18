@@ -114,11 +114,11 @@ export function GameMenu({
   return (
     <Overlay
       blurred
-      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+      className="items-stretch justify-stretch p-0 lg:items-center lg:justify-center lg:p-8 xl:p-12"
       onClick={handleBackdropClick}
     >
       <div
-        className="relative w-full max-w-[1280px] h-full sm:max-h-[900px] bg-surface-1 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-surface-3"
+        className="relative w-full h-full bg-surface-1 rounded-none shadow-2xl flex flex-col overflow-hidden border-0 lg:border lg:border-surface-3 lg:rounded-2xl lg:h-auto lg:max-h-[900px] lg:max-w-[1280px]"
         onClick={(e) => e.stopPropagation()}
         style={{ viewTransitionName: "game-menu-content" }}
       >

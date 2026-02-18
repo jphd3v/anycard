@@ -59,7 +59,7 @@ export function LobbyScreen({
 }: LobbyScreenProps) {
   return (
     <div className="flex-1 w-full flex flex-col max-w-lg landscape:max-w-none landscape:px-12 mx-auto h-full overflow-y-auto relative bg-surface-1 scrollbar-hide">
-      <header className="relative pt-12 pb-2 px-6 text-center z-10 shrink-0">
+      <header className="relative pb-2 px-6 text-center z-10 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:pt-12">
         <TopCornerOrnaments />
         <h1 className="text-5xl md:text-6xl font-serif-display font-black text-ink mb-2 tracking-tight drop-shadow-sm relative z-10">
           AnyCard

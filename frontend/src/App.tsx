@@ -869,6 +869,8 @@ export default function App() {
   const [hasServerUrlOverride, setHasServerUrlOverride] = useState(() =>
     Boolean(getServerUrlOverride())
   );
+  const [isServerSettingsExpanded, setIsServerSettingsExpanded] =
+    useState(false);
 
   const applyServerUrlOverride = useCallback(() => {
     const normalized = setServerUrlOverride(serverUrlInput);
@@ -891,6 +893,30 @@ export default function App() {
   const handleGameSelect = (game: AvailableGame) => {
     setSelectedGameForDetails(game);
   };
+
+  const lobbyStatus = serverUrlInputError
+    ? {
+        tone: "error" as const,
+        label: "Input error",
+        message: serverUrlInputError,
+      }
+    : lobbyLoadError
+      ? {
+          tone: "error" as const,
+          label: "Connection error",
+          message: lobbyLoadError,
+        }
+      : isLobbyLoading
+        ? {
+            tone: "loading" as const,
+            label: "Loading",
+            message: "Connecting to server and loading games.",
+          }
+        : {
+            tone: "idle" as const,
+            label: "Idle",
+            message: "Waiting for lobby updates.",
+          };
 
   const showStatus = useCallback(
     (message: Omit<StatusMessage, "id">) => {
@@ -1587,9 +1613,12 @@ export default function App() {
   const lobbySeed = view?.metadata?.seed ?? roomSeed ?? null;
   const roomLobbyTitle = gameTitle ? `${gameTitle} Room Lobby` : "Room Lobby";
   const showRoomLobby =
-    Boolean(gameId) && !hasGameStarted && (!isGameActive || !allSeatsJoined);
+    Boolean(gameId) &&
+    (playerId === null ||
+      (!hasGameStarted && (!isGameActive || !allSeatsJoined)));
+  const showInRoomFallback = Boolean(gameId) && !isGameActive && !showRoomLobby;
   const rootLayoutClass = isLobbyView
-    ? "relative w-full h-full"
+    ? "relative w-full h-[100dvh] md:h-full"
     : "relative h-[100dvh] overflow-hidden touch-none";
   const contentLayoutClass = gameId
     ? "absolute inset-0 w-full h-full px-0 py-0"
@@ -1621,56 +1650,74 @@ export default function App() {
                   Current:{" "}
                   <span className="font-mono break-all">{SERVER_URL}</span>
                 </div>
-                <>
-                  <label className="mb-2 mt-3 block text-xs font-semibold text-ink-muted">
-                    Backend Server (Override)
-                  </label>
-                  <input
-                    type="text"
-                    value={serverUrlInput}
-                    onChange={(event) => {
-                      setServerUrlInput(event.target.value);
-                      setServerUrlInputError(null);
-                    }}
-                    placeholder="192.168.1.50:3000"
-                    className="w-full rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-sm text-ink outline-none focus:border-brand-500"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                </>
-                {serverUrlInputError && (
-                  <div className="mt-2 text-xs text-red-500">
-                    {serverUrlInputError}
-                  </div>
-                )}
-                {lobbyLoadError && (
-                  <div className="mt-2 text-xs text-red-500">
-                    Last connection error: {lobbyLoadError}
-                  </div>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    className="button-base button-primary rounded-full px-4 py-2 text-xs"
-                    onClick={applyServerUrlOverride}
+                <div className="mt-3 min-h-[3rem] rounded-lg border border-surface-3/80 bg-surface-2/70 px-3 py-2 text-xs">
+                  <div
+                    className={
+                      lobbyStatus.tone === "error"
+                        ? "font-semibold text-red-500"
+                        : "font-semibold text-ink-muted"
+                    }
                   >
-                    Save and Retry
-                  </button>
+                    {lobbyStatus.label}
+                  </div>
+                  <div
+                    className={
+                      lobbyStatus.tone === "error"
+                        ? "mt-0.5 break-words text-red-500"
+                        : "mt-0.5 break-words text-ink-muted"
+                    }
+                  >
+                    {lobbyStatus.message}
+                  </div>
+                </div>
+                <div className="mt-3">
                   <button
                     className="button-base rounded-full px-4 py-2 text-xs"
-                    onClick={refreshLobby}
+                    onClick={() =>
+                      setIsServerSettingsExpanded((expanded) => !expanded)
+                    }
                   >
-                    Retry Now
+                    {isServerSettingsExpanded
+                      ? "Hide Server Settings"
+                      : "Show Server Settings"}
                   </button>
-                  {hasServerUrlOverride && (
-                    <button
-                      className="button-base rounded-full px-4 py-2 text-xs"
-                      onClick={resetServerUrlOverride}
-                    >
-                      Use Default
-                    </button>
-                  )}
                 </div>
+                {isServerSettingsExpanded && (
+                  <>
+                    <label className="mb-2 mt-3 block text-xs font-semibold text-ink-muted">
+                      Backend Server (Override)
+                    </label>
+                    <input
+                      type="text"
+                      value={serverUrlInput}
+                      onChange={(event) => {
+                        setServerUrlInput(event.target.value);
+                        setServerUrlInputError(null);
+                      }}
+                      placeholder="192.168.1.50:3000"
+                      className="w-full rounded-lg border border-surface-3 bg-surface-2 px-3 py-2 text-sm text-ink outline-none focus:border-brand-500"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        className="button-base button-primary rounded-full px-4 py-2 text-xs"
+                        onClick={applyServerUrlOverride}
+                      >
+                        Save and Retry
+                      </button>
+                      {hasServerUrlOverride && (
+                        <button
+                          className="button-base rounded-full px-4 py-2 text-xs"
+                          onClick={resetServerUrlOverride}
+                        >
+                          Use Default
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           }
@@ -1896,6 +1943,10 @@ export default function App() {
 
         {gameId && (!view || !playerId) && isInitialGameLoad && (
           <LoadingOverlay message="Loading game..." />
+        )}
+
+        {showInRoomFallback && (
+          <LoadingOverlay message="Returning to room lobby..." />
         )}
       </div>
 

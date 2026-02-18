@@ -122,8 +122,8 @@ dialog[open] {
   inset: 0;
   width: 100dvw;
   height: 100dvh;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  /* Full edge-to-edge dialog surface; overlays handle their own inner spacing. */
+  padding: 0;
 }
 
 dialog::backdrop {

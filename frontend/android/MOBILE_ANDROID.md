@@ -35,10 +35,20 @@ npm --prefix frontend run android:sync
 npm --prefix frontend run android:apk:debug
 ```
 
-5. Install to phone:
+5. Build optimized release APK:
 
 ```bash
+npm --prefix frontend run android:apk:release
+```
+
+6. Install to phone:
+
+```bash
+# Debug
 adb install -r frontend/android/app/build/outputs/apk/debug/app-debug.apk
+
+# Release (unsigned unless signing is configured)
+adb install -r frontend/android/app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 ## 3. Backend URL for device testing
@@ -95,9 +105,8 @@ MOBILE_INSECURE=true VITE_SERVER_URL=http://<your-lan-ip>:3000 npm --prefix fron
 Release APK/AAB (after signing config is in place):
 
 ```bash
-cd frontend/android
-./gradlew assembleRelease
-./gradlew bundleRelease
+npm --prefix frontend run android:apk:release
+npm --prefix frontend run android:aab:release
 ```
 
 ## 7. Quick troubleshooting

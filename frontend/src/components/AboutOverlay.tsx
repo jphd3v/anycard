@@ -33,11 +33,11 @@ export function AboutOverlay({ onClose, showBackArrow = false }: Props) {
     <Overlay
       translucent
       blurred
-      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+      className="items-stretch justify-stretch p-0 lg:items-center lg:justify-center lg:p-8 xl:p-12"
       onClick={onClose}
     >
       <div
-        className="about-modal relative w-full max-w-[1280px] bg-surface-1 rounded-2xl shadow-floating flex flex-col h-full sm:max-h-[820px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="about-modal relative w-full h-full bg-surface-1 rounded-none shadow-floating flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 lg:rounded-2xl lg:h-auto lg:max-h-[820px] lg:max-w-[1280px]"
         role="dialog"
         aria-modal="true"
         aria-label="About AnyCard"

@@ -57,7 +57,7 @@ export function RoomLobbyOverlay({
   return (
     <FullScreenMessage
       title={title}
-      overlayClassName="items-stretch justify-center !p-0 lg:items-center lg:justify-center lg:!p-6 !overflow-hidden"
+      overlayClassName="items-stretch justify-stretch !p-0 lg:items-center lg:justify-center lg:!p-6 !overflow-hidden"
       panelClassName={`seat-selection-panel !max-w-none lg:!max-w-[640px] !h-full lg:!h-auto !min-h-0 !rounded-none lg:!rounded-2xl !p-0 !mb-0 !border-0 lg:!border lg:!max-h-[90vh] !overflow-y-auto ${!isGameActive ? "!bg-surface-1" : ""}`}
       titleClassName="!text-center !font-serif-display !text-lg sm:!text-xl md:!text-2xl !py-4 sm:!py-5 !px-4 border-b border-surface-2 bg-surface-1/50 backdrop-blur-md relative z-10 !mb-0 !rounded-none lg:!rounded-t-2xl"
       descriptionClassName="!text-ink !p-4 sm:!p-6 !mb-0"

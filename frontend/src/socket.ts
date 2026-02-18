@@ -111,6 +111,44 @@ async function fetchWithTimeout(
   }
 }
 
+async function readJsonOrThrow<T>(
+  response: Response,
+  context: string
+): Promise<T> {
+  const rawBody = await response.text();
+
+  let parsed: unknown;
+  try {
+    parsed = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    const compactBody = rawBody.replace(/\s+/g, " ").trim();
+    const preview =
+      compactBody.length > 120
+        ? `${compactBody.slice(0, 120)}...`
+        : compactBody || "<empty>";
+    const isHtmlResponse =
+      preview.toLowerCase().includes("<!doctype html") ||
+      preview.toLowerCase().includes("<html");
+    const endpoint = response.url || context;
+
+    if (isHtmlResponse) {
+      throw new Error(
+        `${context}: server returned HTML at ${endpoint}. This usually means the backend URL points to a frontend site instead of the API server.`
+      );
+    }
+
+    throw new Error(
+      `${context}: server returned invalid JSON at ${endpoint} (${preview})`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(`${context}: ${response.status}`);
+  }
+
+  return parsed as T;
+}
+
 type StatusPayload = {
   tone: StatusTone;
   message: string;
@@ -472,11 +510,10 @@ export function setSeatFrontendAi(
 
 export async function fetchAvailableGames(): Promise<AvailableGame[]> {
   const response = await fetchWithTimeout(`${SERVER_URL}/games`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch available games: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await readJsonOrThrow<{ games?: unknown }>(
+    response,
+    "Failed to fetch available games"
+  );
   const games: unknown[] = Array.isArray(data.games) ? data.games : [];
   const normalized: AvailableGame[] = [];
 
@@ -520,10 +557,10 @@ export async function fetchAvailableGames(): Promise<AvailableGame[]> {
 
 export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
   const response = await fetchWithTimeout(`${SERVER_URL}/active-games`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch active games: ${response.status}`);
-  }
-  const data = await response.json();
+  const data = await readJsonOrThrow<{ games?: unknown }>(
+    response,
+    "Failed to fetch active games"
+  );
   const games: unknown[] = Array.isArray(data.games) ? data.games : [];
   return games.map((g) => {
     const game = g as {
@@ -564,11 +601,11 @@ export async function fetchGameInfo(
     `${SERVER_URL}/active-games/${encodeURIComponent(gameId)}`
   );
   if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`Failed to fetch game info: ${response.status}`);
-  }
-  const data = await response.json();
-  return data.game;
+  const data = await readJsonOrThrow<{ game?: GameSummary }>(
+    response,
+    "Failed to fetch game info"
+  );
+  return data.game ?? null;
 }
 
 export async function closeGame(gameId: string): Promise<void> {
@@ -590,10 +627,7 @@ export type ServerConfig = {
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   const response = await fetchWithTimeout(`${SERVER_URL}/config`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch config: ${response.status}`);
-  }
-  const data = (await response.json()) as {
+  const data = (await readJsonOrThrow(response, "Failed to fetch config")) as {
     ruleEngineMode?: unknown;
     serverAiEnabled?: unknown;
     llmShowPromptsInFrontend?: unknown;

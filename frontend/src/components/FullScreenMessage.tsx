@@ -19,6 +19,7 @@ interface Props {
   position?: "center" | "bottom";
   viewTransitionName?: string;
   overlayClassName?: string;
+  minimizedOverlayClassName?: string;
   showBackArrow?: boolean;
 }
 
@@ -40,6 +41,7 @@ export function FullScreenMessage({
   position = "center",
   viewTransitionName,
   overlayClassName = "",
+  minimizedOverlayClassName = "items-end justify-center pb-8 pointer-events-none",
   showBackArrow = false,
 }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -67,11 +69,13 @@ export function FullScreenMessage({
   `;
 
   const overlayLayout = isMinimized
-    ? "items-end justify-center pb-8 pointer-events-none"
+    ? minimizedOverlayClassName
     : position === "bottom"
       ? "items-end justify-center pb-4 px-4 sm:px-6"
       : "items-center justify-center p-4 overflow-y-auto";
-  const overlayClasses = `${overlayLayout} ${overlayClassName}`.trim();
+  const overlayClasses = isMinimized
+    ? overlayLayout
+    : `${overlayLayout} ${overlayClassName}`.trim();
   const overlayStyle = viewTransitionName ? { viewTransitionName } : undefined;
 
   return (
