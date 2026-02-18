@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SeatStatus } from "../../../shared/schemas";
 import { Overlay } from "./Overlay";
 
@@ -8,6 +8,7 @@ interface WinnerOverlayProps {
   seats: SeatStatus[];
   onRestart: () => void;
   onExit: () => void;
+  onMinimizedChange?: (isMinimized: boolean) => void;
 }
 
 export function WinnerOverlay({
@@ -16,8 +17,12 @@ export function WinnerOverlay({
   seats,
   onRestart,
   onExit,
+  onMinimizedChange,
 }: WinnerOverlayProps) {
   const [isMinimized, setIsMinimized] = useState(false);
+  useEffect(() => {
+    onMinimizedChange?.(Boolean(winnerId) && isMinimized);
+  }, [isMinimized, onMinimizedChange, winnerId]);
 
   if (!winnerId) return null;
 

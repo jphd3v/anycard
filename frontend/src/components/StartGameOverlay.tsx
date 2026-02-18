@@ -16,6 +16,7 @@ interface StartGameOverlayProps {
   onStartGame?: (isNextRound: boolean) => void;
   onSkipAnimations?: () => void;
   overrideIsNextRound?: boolean | null;
+  onMinimizedChange?: (isMinimized: boolean) => void;
 }
 
 /**
@@ -114,6 +115,7 @@ export function StartGameOverlay({
   onStartGame,
   onSkipAnimations,
   overrideIsNextRound = null,
+  onMinimizedChange,
 }: StartGameOverlayProps) {
   const allSeatsJoined = useAtomValue(allSeatsJoinedAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
@@ -353,6 +355,7 @@ export function StartGameOverlay({
         forceMinimized={isStartGameBusy}
         disableRestore={isStartGameBusy}
         minimizedContent={minimizedSkipButton}
+        onMinimizedChange={onMinimizedChange}
         action={
           !isSpectator || canSpectatorStart ? (
             <div className={isShortScreen ? "" : "mt-4 md:mt-6"}>

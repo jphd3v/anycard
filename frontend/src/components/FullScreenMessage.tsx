@@ -21,6 +21,7 @@ interface Props {
   overlayClassName?: string;
   minimizedOverlayClassName?: string;
   showBackArrow?: boolean;
+  onMinimizedChange?: (isMinimized: boolean) => void;
 }
 
 export function FullScreenMessage({
@@ -43,6 +44,7 @@ export function FullScreenMessage({
   overlayClassName = "",
   minimizedOverlayClassName = "items-end justify-center pb-8 pointer-events-none",
   showBackArrow = false,
+  onMinimizedChange,
 }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   useEffect(() => {
@@ -50,6 +52,14 @@ export function FullScreenMessage({
       setIsMinimized(true);
     }
   }, [forceMinimized]);
+  useEffect(() => {
+    onMinimizedChange?.(isMinimized);
+  }, [isMinimized, onMinimizedChange]);
+  useEffect(() => {
+    return () => {
+      onMinimizedChange?.(false);
+    };
+  }, [onMinimizedChange]);
 
   const panelFill = translucent ? "bg-surface-2/80" : "bg-surface-2";
   const panelBorder =

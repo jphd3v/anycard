@@ -185,6 +185,8 @@ export default function App() {
   const [highlightedWidget, setHighlightedWidget] = useState<
     "actions" | "scoreboards" | null
   >(null);
+  const [isActionsAttentionPulse, setIsActionsAttentionPulse] = useState(false);
+  const [isEndOverlayMinimized, setIsEndOverlayMinimized] = useState(false);
   const [headerTransitionCards, setHeaderTransitionCards] = useState<
     CardView[]
   >([]);
@@ -209,6 +211,7 @@ export default function App() {
   const lastAnnouncementQueuedAtRef = useRef(0);
   const announcementBurstCountRef = useRef(0);
   const announcementGameIdRef = useRef("");
+  const actionOnlyAttentionHandledRef = useRef(false);
 
   useEffect(() => {
     pendingDragMoveRef.current = pendingDragMove;
@@ -385,6 +388,7 @@ export default function App() {
   const { closeAll } = useMenuControls();
 
   const gameTitle = useGameTitle(activeRulesId);
+  const hasScoreboardsInLayout = hasWidgetInLayout("scoreboards");
 
   // Detect if we are in a "next round" or "game winner" state to pop out the scoreboard
   const isWinnerOverlayVisible = !!view?.winner;
@@ -445,12 +449,51 @@ export default function App() {
   useEffect(() => {
     isAnyOverlayOpenRef.current = isAnyModalOverlayOpen;
   }, [isAnyModalOverlayOpen]);
+
+  useEffect(() => {
+    if (!isAnyEndOverlayVisible) {
+      setIsEndOverlayMinimized(false);
+    }
+  }, [isAnyEndOverlayVisible]);
+
+  useEffect(() => {
+    if (lastAction?.action === "start-game") {
+      setIsScoreboardOpen(false);
+    }
+  }, [lastAction, setIsScoreboardOpen]);
+
   // Auto-open scoreboard when a round/game ends.
   useEffect(() => {
-    if (isAnyEndOverlayVisible) {
-      setIsScoreboardOpen(true);
+    if (!isAnyEndOverlayVisible || isEndOverlayMinimized) {
+      setIsScoreboardOpen(false);
+      return;
     }
-  }, [isAnyEndOverlayVisible, setIsScoreboardOpen]);
+    if (hasScoreboardsInLayout) {
+      setIsScoreboardOpen(false);
+      setHighlightedWidget("scoreboards");
+      const timer = window.setTimeout(() => setHighlightedWidget(null), 1200);
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+    setIsScoreboardOpen(true);
+  }, [
+    hasScoreboardsInLayout,
+    isEndOverlayMinimized,
+    isAnyEndOverlayVisible,
+    setIsScoreboardOpen,
+    setHighlightedWidget,
+  ]);
+
+  useEffect(() => {
+    setIsScoreboardOpen(false);
+  }, [gameId, setIsScoreboardOpen]);
+
+  useEffect(() => {
+    if (hasScoreboardsInLayout) {
+      setIsScoreboardOpen(false);
+    }
+  }, [hasScoreboardsInLayout, setIsScoreboardOpen]);
 
   // Update document title based on current game state
   useEffect(() => {
@@ -476,8 +519,25 @@ export default function App() {
 
   // Auto-open actions widget when game starts and actions become available
   const hasActions = (view?.actions?.cells?.length ?? 0) > 0;
+  const legalIntents = view?.legalIntents ?? [];
+  const legalActionIntentCount = legalIntents.filter(
+    (intent) => intent.type === "action"
+  ).length;
+  const legalMoveIntentCount = legalIntents.filter(
+    (intent) => intent.type === "move"
+  ).length;
+  const shouldDrawActionsAttention =
+    hasGameDealt(view) &&
+    hasActions &&
+    legalActionIntentCount > 0 &&
+    legalMoveIntentCount === 0;
   const lastHasDealtRef = useRef(false);
   const [hasSeenNotDealt, setHasSeenNotDealt] = useState(false);
+
+  useEffect(() => {
+    actionOnlyAttentionHandledRef.current = false;
+    setIsActionsAttentionPulse(false);
+  }, [gameId]);
 
   useEffect(() => {
     if (view && !hasGameDealt(view)) {
@@ -508,6 +568,51 @@ export default function App() {
     hasWidgetInLayout,
     gameLayout,
     hasSeenNotDealt,
+  ]);
+
+  useEffect(() => {
+    if (!shouldDrawActionsAttention) {
+      actionOnlyAttentionHandledRef.current = false;
+      setIsActionsAttentionPulse(false);
+      return;
+    }
+
+    if (actionOnlyAttentionHandledRef.current) {
+      return;
+    }
+    actionOnlyAttentionHandledRef.current = true;
+
+    if (hasWidgetInLayout("actions")) {
+      setIsActionsAttentionPulse(false);
+      setHighlightedWidget("actions");
+      const highlightTimer = window.setTimeout(
+        () => setHighlightedWidget(null),
+        1200
+      );
+      return () => {
+        window.clearTimeout(highlightTimer);
+      };
+    }
+
+    setIsActionsAttentionPulse(true);
+    const pulseTimer = window.setTimeout(
+      () => setIsActionsAttentionPulse(false),
+      1500
+    );
+    const openTimer = window.setTimeout(() => {
+      setIsActionsOpen((prev) => (prev ? prev : true));
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(pulseTimer);
+      window.clearTimeout(openTimer);
+      setIsActionsAttentionPulse(false);
+    };
+  }, [
+    hasWidgetInLayout,
+    setHighlightedWidget,
+    setIsActionsOpen,
+    shouldDrawActionsAttention,
   ]);
 
   const sortedAvailableGames = [...availableGames].sort((a, b) =>
@@ -1892,6 +1997,7 @@ export default function App() {
             holdStartOverlay={holdStartOverlay}
             isStartGameBusy={startGameBusy}
             onStartGame={(isNextRound) => {
+              setIsScoreboardOpen(false);
               markStartGamePending();
               setStartGamePendingKind(isNextRound ? "next" : "first");
             }}
@@ -1915,12 +2021,19 @@ export default function App() {
               }
             }}
             onScoreboardClick={() => {
+              if (hasScoreboardsInLayout) {
+                setIsScoreboardOpen(false);
+                setHighlightedWidget("scoreboards");
+                setTimeout(() => setHighlightedWidget(null), 100);
+                return;
+              }
               setIsScoreboardOpen(!isScoreboardOpen);
             }}
             onActionsToggle={setIsActionsOpen}
             onScoreboardToggle={setIsScoreboardOpen}
             isActionsOpen={isActionsOpen}
             isScoreboardOpen={isScoreboardOpen}
+            isActionsAttentionPulse={isActionsAttentionPulse}
             announcementItems={announcementItems}
             onAnnouncementComplete={handleAnnouncementComplete}
             onExitToSelection={handleExitToGameSelection}
@@ -1936,6 +2049,7 @@ export default function App() {
             onActionIntent={(action) =>
               sendActionIntent(gameId, playerId, action)
             }
+            onEndOverlayMinimizedChange={setIsEndOverlayMinimized}
           />
         )}
 

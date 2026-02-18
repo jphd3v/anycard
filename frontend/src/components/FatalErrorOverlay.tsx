@@ -68,11 +68,11 @@ export function FatalErrorOverlay({ gameId, onExitToSelection }: Props) {
       translucent
       blurred
       lockScroll
-      className="items-center justify-center p-4"
+      className="items-center justify-center p-0 lg:p-4"
     >
       <div
         data-testid="fatal-error"
-        className="max-w-md w-full rounded-2xl border border-surface-3 bg-surface-1 shadow-xl p-6 flex flex-col gap-4 pointer-events-auto"
+        className="w-full h-full max-w-none rounded-none border-0 bg-surface-1 shadow-xl p-6 flex flex-col gap-4 pointer-events-auto lg:h-auto lg:max-w-md lg:rounded-2xl lg:border lg:border-surface-3"
         role="alertdialog"
         aria-modal="true"
         aria-label="Fatal Error"

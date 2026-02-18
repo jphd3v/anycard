@@ -37,6 +37,7 @@ type GameShellProps = {
   onTurnBadgeClick: () => void;
   isActionsOpen: boolean;
   isScoreboardOpen: boolean;
+  isActionsAttentionPulse: boolean;
   onActionsClick: () => void;
   onScoreboardClick: () => void;
   onActionsToggle: SetState<boolean>;
@@ -50,6 +51,7 @@ type GameShellProps = {
   onExitSeat: () => void;
   onAboutClick: () => void;
   onActionIntent: (action: string) => void;
+  onEndOverlayMinimizedChange: (isMinimized: boolean) => void;
 };
 
 type SetState<T> = (update: T | ((prev: T) => T)) => void;
@@ -75,6 +77,7 @@ export function GameShell({
   onTurnBadgeClick,
   isActionsOpen,
   isScoreboardOpen,
+  isActionsAttentionPulse,
   onActionsClick,
   onScoreboardClick,
   onActionsToggle,
@@ -88,6 +91,7 @@ export function GameShell({
   onExitSeat,
   onAboutClick,
   onActionIntent,
+  onEndOverlayMinimizedChange,
 }: GameShellProps) {
   const actionsDisabled = Boolean(
     view.seats?.find((s: SeatView) => s.seatId === playerId)?.aiRuntime !==
@@ -108,6 +112,7 @@ export function GameShell({
         onScoreboardClick={onScoreboardClick}
         isActionsOpen={isActionsOpen}
         isScoreboardOpen={isScoreboardOpen}
+        isActionsAttentionPulse={isActionsAttentionPulse}
       />
       <div className="flex-1 relative overflow-hidden">
         <GameRoot
@@ -120,6 +125,7 @@ export function GameShell({
           onStartGame={onStartGame}
           onSkipStartGameAnimations={onSkipStartGameAnimations}
           overrideStartOverlayIsNextRound={overrideStartOverlayIsNextRound}
+          onStartOverlayMinimizedChange={onEndOverlayMinimizedChange}
           highlightedWidget={highlightedWidget}
         />
         <FloatingActionOverlay
@@ -137,6 +143,7 @@ export function GameShell({
           seats={seats}
           onRestart={onRestart}
           onExit={onExit}
+          onMinimizedChange={onEndOverlayMinimizedChange}
         />
         <GameHUD
           gameId={gameId}

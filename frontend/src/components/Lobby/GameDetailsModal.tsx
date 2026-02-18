@@ -273,12 +273,12 @@ export function GameDetailsModal({
     <Overlay
       translucent
       blurred
-      className="items-stretch justify-stretch p-0 lg:items-center lg:justify-center lg:p-6"
+      className="items-stretch justify-stretch p-0 xl:items-center xl:justify-center xl:p-6"
       onClick={onClose}
     >
       {/* Modal Content */}
       <div
-        className="relative w-full min-h-full lg:min-h-0 lg:w-auto lg:h-auto lg:max-w-[640px] lg:landscape:max-w-4xl bg-surface-1 rounded-none lg:rounded-2xl shadow-floating flex flex-col lg:max-h-[90vh] animate-in fade-in zoom-in-95 duration-300 overflow-y-auto lg:overflow-hidden"
+        className="relative w-full min-h-full xl:min-h-0 xl:w-auto xl:h-auto xl:max-w-[640px] xl:landscape:max-w-4xl bg-surface-1 rounded-none xl:rounded-2xl shadow-floating flex flex-col xl:max-h-[90vh] animate-in fade-in zoom-in-95 duration-300 overflow-y-auto xl:overflow-hidden"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
@@ -287,7 +287,7 @@ export function GameDetailsModal({
         ref={modalRef}
       >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-surface-2 flex items-center justify-center bg-surface-1/50 backdrop-blur-md lg:rounded-t-2xl lg:sticky lg:top-0 z-10 relative">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-surface-2 flex items-center justify-center bg-surface-1/50 backdrop-blur-md xl:rounded-t-2xl xl:sticky xl:top-0 z-10 relative">
           <button
             onClick={onClose}
             className="absolute left-2 sm:left-4 p-2 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-full transition-colors z-20"
@@ -352,8 +352,8 @@ export function GameDetailsModal({
         </div>
         {/* Content Area */}
         <ScrollShadowWrapper
-          className="flex-none lg:flex-1 relative z-10 lg:min-h-0 overflow-visible lg:overflow-hidden"
-          innerClassName="scrollbar-hide overflow-visible lg:overflow-auto"
+          className="flex-none xl:flex-1 relative z-10 xl:min-h-0 overflow-visible xl:overflow-hidden"
+          innerClassName="scrollbar-hide overflow-visible xl:overflow-auto"
         >
           <div className="p-4 sm:p-6 w-fit min-w-full">
             {activeTab === "play" && (

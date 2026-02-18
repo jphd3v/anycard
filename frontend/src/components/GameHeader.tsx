@@ -21,6 +21,7 @@ interface GameHeaderProps {
   onScoreboardClick: () => void;
   isActionsOpen: boolean;
   isScoreboardOpen: boolean;
+  isActionsAttentionPulse: boolean;
   className?: string;
   isOverlayActive?: boolean;
   transitionCards?: CardView[];
@@ -35,6 +36,7 @@ export function GameHeader({
   onScoreboardClick,
   isActionsOpen,
   isScoreboardOpen,
+  isActionsAttentionPulse,
   className,
   isOverlayActive = false,
   transitionCards = [],
@@ -162,6 +164,10 @@ export function GameHeader({
             disabled={isOverlayActive}
             className={`button-base button-icon transition-all relative h-9 w-9 sm:h-11 sm:w-11 shrink-0 ${
               isActionsOpen ? "button-primary shadow-inner" : "button-secondary"
+            } ${
+              isActionsAttentionPulse && !isActionsOpen
+                ? "ring-2 ring-primary/60 animate-pulse"
+                : ""
             } ${isOverlayActive ? "opacity-30 cursor-not-allowed" : ""}`}
             title="Actions"
           >

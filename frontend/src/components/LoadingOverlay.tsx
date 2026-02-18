@@ -11,10 +11,10 @@ export function LoadingOverlay({
     <Overlay
       translucent
       blurred
-      className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+      className="items-center justify-center p-0 lg:p-8 xl:p-12"
     >
       <div
-        className="w-full max-w-sm rounded-2xl border border-surface-3 bg-surface-1 shadow-floating p-6 flex flex-col items-center justify-center gap-4 h-full sm:h-auto"
+        className="w-full h-full max-w-none rounded-none border-0 bg-surface-1 shadow-floating p-6 flex flex-col items-center justify-center gap-4 lg:h-auto lg:max-w-sm lg:rounded-2xl lg:border lg:border-surface-3"
         role="dialog"
         aria-modal="true"
         aria-label="Loading game"

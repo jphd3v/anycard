@@ -173,6 +173,11 @@ export function applyViewEventToView(
       return { ...next, rulesState: event.rulesState };
 
     case "set-pile-visibility": {
+      if (animateOnlyCards) {
+        // During move-only replay (e.g. dealing), applying final visibility here
+        // would replace pile contents early and swallow move-cards animations.
+        return next;
+      }
       const pileId = event.pileId;
       const finalPile = finalView.piles.find((p) => p.id === pileId);
       if (!finalPile) {

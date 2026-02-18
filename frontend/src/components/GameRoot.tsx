@@ -67,6 +67,7 @@ interface Props {
   onStartGame?: (isNextRound: boolean) => void;
   onSkipStartGameAnimations?: () => void;
   overrideStartOverlayIsNextRound?: boolean | null;
+  onStartOverlayMinimizedChange?: (isMinimized: boolean) => void;
   highlightedWidget?: "actions" | "scoreboards" | null;
 }
 
@@ -81,6 +82,7 @@ export function GameRoot({
   onStartGame,
   onSkipStartGameAnimations,
   overrideStartOverlayIsNextRound = null,
+  onStartOverlayMinimizedChange,
   highlightedWidget = null,
 }: Props) {
   useAiSponsor();
@@ -897,6 +899,7 @@ export function GameRoot({
           onStartGame={onStartGame}
           onSkipAnimations={onSkipStartGameAnimations}
           overrideIsNextRound={overrideStartOverlayIsNextRound}
+          onMinimizedChange={onStartOverlayMinimizedChange}
         />
         <FloatingActionOverlay
           actions={floatingActions}

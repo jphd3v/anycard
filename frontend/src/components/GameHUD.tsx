@@ -347,11 +347,11 @@ export function GameHUD({
       {/* --- Game Log Modal --- */}
       {isAiLogVisible && (
         <Overlay
-          className="items-center justify-center p-0 sm:p-4 lg:p-8 xl:p-12"
+          className="items-center justify-center p-0 lg:p-8 xl:p-12"
           onClick={() => setAiLogVisible(false)}
         >
           <div
-            className="ai-log-modal w-full max-w-[1280px] h-full sm:max-h-[820px] overflow-hidden rounded-xl bg-surface-1 border border-surface-3 shadow-xl flex flex-col"
+            className="ai-log-modal w-full h-full max-w-none overflow-hidden rounded-none bg-surface-1 border-0 shadow-xl flex flex-col lg:max-h-[820px] lg:max-w-[1280px] lg:rounded-xl lg:border lg:border-surface-3"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

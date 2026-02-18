@@ -2474,12 +2474,6 @@ export function initSocket(io: Server) {
         if (state) {
           broadcastState(io, playerRegistry, state);
         }
-
-        io.to(gameId).emit("game:status", {
-          message: "Game reset",
-          tone: "neutral" as const,
-          source: "app" as const,
-        });
       } catch {
         socket.emit("game:error", {
           message: "Failed to reset game",
@@ -2551,12 +2545,6 @@ export function initSocket(io: Server) {
           if (state) {
             broadcastState(io, playerRegistry, state);
           }
-
-          io.to(gameId).emit("game:status", {
-            message: "Game reset with new seed",
-            tone: "neutral" as const,
-            source: "app" as const,
-          });
         } catch {
           socket.emit("game:error", {
             message: "Failed to reset game with new seed",
