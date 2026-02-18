@@ -23,6 +23,30 @@ const defaultServerUrl =
 
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? defaultServerUrl;
 
+const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * Fetch with AbortController timeout to prevent indefinite hangs.
+ */
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 type StatusPayload = {
   tone: StatusTone;
   message: string;
@@ -298,7 +322,7 @@ export function setSeatFrontendAi(
 }
 
 export async function fetchAvailableGames(): Promise<AvailableGame[]> {
-  const response = await fetch(`${SERVER_URL}/games`);
+  const response = await fetchWithTimeout(`${SERVER_URL}/games`);
   if (!response.ok) {
     throw new Error(`Failed to fetch available games: ${response.status}`);
   }
@@ -346,7 +370,7 @@ export async function fetchAvailableGames(): Promise<AvailableGame[]> {
 }
 
 export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
-  const response = await fetch(`${SERVER_URL}/active-games`);
+  const response = await fetchWithTimeout(`${SERVER_URL}/active-games`);
   if (!response.ok) {
     throw new Error(`Failed to fetch active games: ${response.status}`);
   }
@@ -387,28 +411,21 @@ export async function fetchActiveGames(): Promise<ActiveGameSummary[]> {
 export async function fetchGameInfo(
   gameId: string
 ): Promise<GameSummary | null> {
-  try {
-    const response = await fetch(
-      `${SERVER_URL}/active-games/${encodeURIComponent(gameId)}`
-    );
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      throw new Error(`Failed to fetch game info: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.game;
-  } catch (error) {
-    console.error("Error fetching game info:", error);
-    return null;
+  const response = await fetchWithTimeout(
+    `${SERVER_URL}/active-games/${encodeURIComponent(gameId)}`
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch game info: ${response.status}`);
   }
+  const data = await response.json();
+  return data.game;
 }
 
 export async function closeGame(gameId: string): Promise<void> {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${SERVER_URL}/active-games/${encodeURIComponent(gameId)}`,
-    {
-      method: "DELETE",
-    }
+    { method: "DELETE" }
   );
   if (!response.ok) {
     throw new Error(`Failed to close game: ${response.status}`);
@@ -423,7 +440,7 @@ export type ServerConfig = {
 };
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
-  const response = await fetch(`${SERVER_URL}/config`);
+  const response = await fetchWithTimeout(`${SERVER_URL}/config`);
   if (!response.ok) {
     throw new Error(`Failed to fetch config: ${response.status}`);
   }

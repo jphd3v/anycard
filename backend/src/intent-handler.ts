@@ -53,13 +53,6 @@ function resolveSeatRuntime(seat: {
   return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
 }
 
-function areAllSeatsAutomated(state: GameState): boolean {
-  return (
-    state.players.length > 0 &&
-    state.players.every((seat) => resolveSeatRuntime(seat) !== "none")
-  );
-}
-
 function findMoveLabel(
   state: GameState,
   intent: ClientIntent,
@@ -277,13 +270,10 @@ export async function handleClientIntent(
       intent.type === "action" &&
       intent.action === "start-game"
     ) {
-      const allSeatsAutomated = areAllSeatsAutomated(state);
-      if (!allSeatsAutomated) {
-        console.log(
-          `Rejecting start-game action from AI seat ${playerId} in game ${gameId}`
-        );
-        return { success: false };
-      }
+      console.log(
+        `Rejecting start-game action from AI seat ${playerId} in game ${gameId}`
+      );
+      return { success: false };
     }
 
     const events = getEvents(gameId);

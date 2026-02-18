@@ -12,6 +12,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
 import { ALL_GAME_PLUGINS } from "../backend/src/rules/registry.js";
+import { runAgnosticCheck } from "../scripts/check-agnostic.js";
 
 describe("Agnostic Contract Tests", () => {
   const plugins = ALL_GAME_PLUGINS;
@@ -119,18 +120,30 @@ describe("Agnostic Contract Tests", () => {
   describe("No Game-Specific Code in Engine", () => {
     it("should pass agnostic boundary checks", async () => {
       // This is a meta-test that ensures check-agnostic.js runs clean
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
+      const { violations } = runAgnosticCheck();
 
-      try {
-        await execAsync("node scripts/check-agnostic.js");
-      } catch (error: unknown) {
-        const err = error as { stdout?: string; message?: string };
-        // check-agnostic.js exits with code 1 if violations found
-        assert.fail(
-          `Agnostic boundary violations detected:\n${err.stdout || err.message}`
-        );
+      if (violations.length > 0) {
+        const details = violations
+          .map(
+            (violation: {
+              file: string;
+              line: number;
+              type: string;
+              token?: string;
+              context?: string;
+            }) => {
+              const summary =
+                violation.type === "forbidden-token"
+                  ? `Forbidden token "${violation.token ?? "unknown"}"`
+                  : "rulesId switching detected";
+              const context = violation.context
+                ? `\n  ${violation.context}`
+                : "";
+              return `${violation.file}:${violation.line} ${summary}${context}`;
+            }
+          )
+          .join("\n");
+        assert.fail(`Agnostic boundary violations detected:\n${details}`);
       }
     });
   });

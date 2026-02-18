@@ -69,7 +69,7 @@ export async function runAiTurn(
     typeof hasDealt === "boolean" && hasDealt === false;
 
   if (!currentPlayerId || currentPlayerId !== playerId) {
-    if (!(canStartGameWithoutTurn && currentPlayerId == null)) {
+    if (!(canStartGameWithoutTurn && currentPlayerId === null)) {
       // Turn changed while we waited; abort.
       return;
     }
@@ -198,10 +198,25 @@ export async function runAiTurn(
         chosenIntent = randomCandidate.intent;
       }
 
+      // Handle late-resolving promise to prevent unhandled rejection warnings.
+      // The late result is intentionally discarded since we've already selected
+      // a random fallback move. The LLM call continues running but its result
+      // won't affect game state since chosenIntent is already set.
       if (aiPromise) {
-        aiPromise.catch((laterErr) => {
-          console.error("AI choose intent rejected after timeout", laterErr);
-        });
+        aiPromise
+          .then((lateIntent) => {
+            if (lateIntent) {
+              console.debug(
+                `AI promise resolved late after timeout (result discarded): ${lateIntent.type}`
+              );
+            }
+          })
+          .catch((laterErr) => {
+            console.debug(
+              "AI promise rejected after timeout (expected)",
+              laterErr
+            );
+          });
       }
     } else if (aiError.type === "policy") {
       appendAiLogEntry({

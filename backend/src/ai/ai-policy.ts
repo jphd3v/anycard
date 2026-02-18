@@ -198,20 +198,6 @@ export class AiPolicyError extends Error {
 
 const MAX_TOTAL_CANDIDATES = 120; // hard cap to protect the LLM
 
-function resolveSeatRuntime(seat: {
-  aiRuntime?: "none" | "backend" | "frontend";
-  isAi?: boolean;
-}): "none" | "backend" | "frontend" {
-  return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-}
-
-function areAllSeatsAutomated(game: GameState): boolean {
-  return (
-    game.players.length > 0 &&
-    game.players.every((seat) => resolveSeatRuntime(seat) !== "none")
-  );
-}
-
 function isPassAction(intent: ClientIntent): boolean {
   return (
     intent.type === "action" && intent.action.trim().toLowerCase() === "pass"
@@ -463,7 +449,6 @@ export function getAiDecisionContext(
   playerId: string
 ): {
   candidates: AiIntentCandidate[];
-  allowStartGame: boolean;
 } {
   let rawCandidates: AiIntentCandidate[] = [];
   const idCounter = { value: 0 };
@@ -509,22 +494,16 @@ export function getAiDecisionContext(
     );
   }
 
-  const allowStartGame = areAllSeatsAutomated(game);
-
-  // Only allow AI to consider "start-game" in fully automated tables.
+  // AI should never initiate start-game; filter it out regardless of table state.
   const filteredCandidates = rawCandidates.filter((c) => {
     const intent = c.intent;
-    return !(
-      intent.type === "action" &&
-      intent.action === "start-game" &&
-      !allowStartGame
-    );
+    return !(intent.type === "action" && intent.action === "start-game");
   });
 
   // Deduplicate summaries by adding minimal suffixes (#1, #2) for identical cards
   const candidates = deduplicateCandidateSummaries(filteredCandidates);
 
-  return { candidates, allowStartGame };
+  return { candidates };
 }
 
 /**
@@ -648,7 +627,7 @@ export async function chooseAiIntent(
 
   if (candidates.length === 0) {
     console.log(
-      `AI ${playerId} has no non-start-game candidates (game may not have started yet); skipping AI move.`
+      `AI ${playerId} has no candidates (game may not have started yet); skipping AI move.`
     );
     appendAiLogEntry({
       gameId,

@@ -20,7 +20,7 @@
 
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,7 +63,7 @@ const RULES_ID_SWITCH_PATTERN =
 const EXCEPTION_MARKER_PATTERN = /\/\/\s*agnostic-allow:\s*(.+)/;
 
 // Results
-const violations = [];
+let violations = [];
 let filesScanned = 0;
 
 /**
@@ -196,19 +196,31 @@ function scanDirectory(dirPath) {
   }
 }
 
-/**
- * Main execution
- */
-function main() {
-  console.log("🔍 Checking engine agnostic boundary...\n");
-  console.log(`Scanning ${SCAN_PATHS.length} path(s):`);
-  SCAN_PATHS.forEach((p) => console.log(`  - ${path.relative(ROOT, p)}`));
-  console.log();
+export function runAgnosticCheck() {
+  violations = [];
+  filesScanned = 0;
 
   // Scan all configured paths
   for (const scanPath of SCAN_PATHS) {
     scanDirectory(scanPath);
   }
+
+  return {
+    violations,
+    filesScanned,
+    scanPaths: SCAN_PATHS,
+  };
+}
+
+/**
+ * Main execution
+ */
+function main() {
+  const { violations, filesScanned, scanPaths } = runAgnosticCheck();
+  console.log("🔍 Checking engine agnostic boundary...\n");
+  console.log(`Scanning ${scanPaths.length} path(s):`);
+  scanPaths.forEach((p) => console.log(`  - ${path.relative(ROOT, p)}`));
+  console.log();
 
   console.log(`✓ Scanned ${filesScanned} files\n`);
 
@@ -251,4 +263,8 @@ function main() {
   process.exit(1);
 }
 
-main();
+const invokedAsScript =
+  process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (invokedAsScript) {
+  main();
+}

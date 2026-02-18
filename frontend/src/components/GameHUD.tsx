@@ -1,14 +1,12 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from "react";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   availableGamesAtom,
   rulesIdAtom,
   gameViewAtom,
   aiLogAtom,
   allSeatsAutomatedAtom,
-  toastAutoCloseEnabledAtom,
   soundEnabledAtom,
-  statusMessageAtom,
   isMenuOpenAtom,
 } from "../state";
 import type { AiLogEntry } from "../state";
@@ -16,6 +14,7 @@ import type { AiLogEntry } from "../state";
 import { resetGameWithSeed, setGodMode } from "../socket";
 import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { useAiLog } from "../hooks/useAiLog";
+import { useToast } from "../hooks/useToast";
 import { sfx } from "../utils/audio";
 import { copyToClipboard } from "../utils/clipboard";
 import { ScrollShadowWrapper } from "./ScrollShadowWrapper";
@@ -46,30 +45,9 @@ export function GameHUD({
   const { isAiLogVisible, setAiLogVisible } = useAiLog();
   const aiLog = useAtomValue(aiLogAtom);
   const allSeatsAutomated = useAtomValue(allSeatsAutomatedAtom);
-  const toastAutoCloseEnabled = useAtomValue(toastAutoCloseEnabledAtom);
   const soundEnabled = useAtomValue(soundEnabledAtom);
-  const addStatusMessage = useSetAtom(statusMessageAtom);
   const [, setIsMenuOpen] = useAtom(isMenuOpenAtom);
-
-  const showToast = useCallback(
-    (
-      message: string,
-      tone: "success" | "error" | "neutral" | "warning" = "success"
-    ) => {
-      const id = Date.now() + Math.random();
-      addStatusMessage((prev) => [
-        { id, message, tone, source: "app" },
-        ...prev,
-      ]);
-
-      if (toastAutoCloseEnabled) {
-        setTimeout(() => {
-          addStatusMessage((prev) => prev.filter((m) => m.id !== id));
-        }, 3000);
-      }
-    },
-    [addStatusMessage, toastAutoCloseEnabled]
-  );
+  const { showToast } = useToast();
 
   const handleCopy = useCallback(
     async (text: string, label: string) => {

@@ -25,24 +25,6 @@ const pendingReschedule = new Map<
   }
 >(); // gameId -> pending scheduling request
 
-type SeatRuntime = "none" | "backend" | "frontend";
-
-function resolveSeatRuntime(seat: {
-  aiRuntime?: SeatRuntime;
-  isAi?: boolean;
-}): SeatRuntime {
-  return seat.aiRuntime ?? (seat.isAi ? "backend" : "none");
-}
-
-function areAllSeatsAutomated(game: {
-  players: Array<{ aiRuntime?: SeatRuntime; isAi?: boolean }>;
-}): boolean {
-  return (
-    game.players.length > 0 &&
-    game.players.every((seat) => resolveSeatRuntime(seat) !== "none")
-  );
-}
-
 function requestRescheduleAfterInFlight(
   gameId: string,
   broadcastStateCallback?: (
@@ -112,36 +94,17 @@ export function maybeScheduleAiTurn(
   }
 
   // For games that use the start-game / hasDealt pattern,
-  // do not schedule AI turns before the game has started unless the table is AI-only.
+  // do not schedule AI turns before the game has started.
   const rulesState = game.rulesState ?? {};
   const hasDealt = (rulesState as { hasDealt?: boolean }).hasDealt;
-  const allSeatsAutomated = areAllSeatsAutomated(game);
-  if (
-    typeof hasDealt === "boolean" &&
-    hasDealt === false &&
-    !allSeatsAutomated
-  ) {
+  if (typeof hasDealt === "boolean" && hasDealt === false) {
     return;
   }
 
   // Use whatever you already have to determine current player.
-  let currentPlayerId = game.currentPlayer; // adapt to your actual field
+  const currentPlayerId = game.currentPlayer; // adapt to your actual field
   if (!currentPlayerId) {
-    if (
-      typeof hasDealt === "boolean" &&
-      hasDealt === false &&
-      allSeatsAutomated
-    ) {
-      const fallbackSeat = game.players.find(
-        (seat) => resolveSeatRuntime(seat) === "backend"
-      );
-      if (!fallbackSeat) {
-        return;
-      }
-      currentPlayerId = fallbackSeat.id;
-    } else {
-      return;
-    }
+    return;
   }
 
   const seat = game.players.find(

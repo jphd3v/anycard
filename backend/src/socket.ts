@@ -1042,17 +1042,13 @@ export function initSocket(io: Server) {
 
       const info = playerRegistry.get(socket.id);
       const departedGameId = info?.gameId;
-      if (info) {
-        if (info.role === "player") {
-          const seatKeyValue = seatKey(info.gameId, info.playerId);
-          if (seatAssignments.get(seatKeyValue) === socket.id) {
-            seatAssignments.delete(seatKeyValue);
-          }
+      if (info?.role === "player") {
+        const seatKeyValue = seatKey(info.gameId, info.playerId);
+        if (seatAssignments.get(seatKeyValue) === socket.id) {
+          seatAssignments.delete(seatKeyValue);
         }
-        playerRegistry.delete(socket.id);
-      } else {
-        playerRegistry.delete(socket.id);
       }
+      playerRegistry.delete(socket.id);
 
       let shouldBroadcastSeats = true;
       if (departedGameId) {

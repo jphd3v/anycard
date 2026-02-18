@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, RefObject, useRef } from "react";
+import { useState, useEffect, RefObject, useRef } from "react";
 
 export interface ScrollShadows {
   top: boolean;
@@ -17,41 +17,42 @@ export function useScrollShadows(ref: RefObject<HTMLElement | null>) {
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const checkScroll = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    // Use a small buffer (1px) to avoid flickering due to sub-pixel rendering
-    const top = el.scrollTop > 1;
-    const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-    const left = el.scrollLeft > 1;
-    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-
-    setShadows((prev) => {
-      if (
-        prev.top === top &&
-        prev.bottom === bottom &&
-        prev.left === left &&
-        prev.right === right
-      ) {
-        return prev;
-      }
-      return { top, bottom, left, right };
-    });
-  }, [ref]);
-
-  const debouncedCheckScroll = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      checkScroll();
-    }, 500);
-  }, [checkScroll]);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    // Define handlers inside effect to ensure stable references for cleanup
+    const checkScroll = () => {
+      const element = ref.current;
+      if (!element) return;
+
+      // Use a small buffer (1px) to avoid flickering due to sub-pixel rendering
+      const top = element.scrollTop > 1;
+      const bottom =
+        element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+      const left = element.scrollLeft > 1;
+      const right =
+        element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+
+      setShadows((prev) => {
+        if (
+          prev.top === top &&
+          prev.bottom === bottom &&
+          prev.left === left &&
+          prev.right === right
+        ) {
+          return prev;
+        }
+        return { top, bottom, left, right };
+      });
+    };
+
+    const debouncedCheckScroll = () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(checkScroll, 500);
+    };
 
     // Initial check
     checkScroll();
@@ -74,7 +75,7 @@ export function useScrollShadows(ref: RefObject<HTMLElement | null>) {
       el.removeEventListener("scroll", checkScroll);
       window.removeEventListener("resize", debouncedCheckScroll);
     };
-  }, [ref, checkScroll, debouncedCheckScroll]);
+  }, [ref]);
 
   return shadows;
 }

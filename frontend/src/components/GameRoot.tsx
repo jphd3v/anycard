@@ -22,12 +22,12 @@ import {
   gameIdAtom,
   gameViewAtom,
   isEvaluatingMoveAtom,
-  statusMessageAtom,
   freeDragEnabledAtom,
   autoRotateSeatAtom,
   pendingDragMoveAtom,
   pileSortSelectionsAtom,
 } from "../state";
+import { useToast } from "../hooks/useToast";
 import { sendMoveIntent, sendActionIntent, sendClientIntent } from "../socket";
 import { Card } from "./Card";
 import { Pile } from "./Pile";
@@ -129,7 +129,7 @@ export function GameRoot({
     })
   );
 
-  const addStatusMessage = useSetAtom(statusMessageAtom);
+  const { showToast } = useToast();
 
   const [activeHighlight, setActiveHighlight] = useState<
     "actions" | "scoreboards" | null
@@ -268,22 +268,7 @@ export function GameRoot({
         view.currentPlayer &&
         view.currentPlayer !== playerId
       ) {
-        // Show "not your turn" status message
-        const id = Date.now() + Math.random();
-        const statusMessage = {
-          tone: "error" as const,
-          message: "It's not your turn",
-          source: "app" as const,
-          id,
-        };
-        // Prepend the new message (similar to App.tsx logic)
-        addStatusMessage((prev) => [statusMessage, ...prev]);
-
-        // Auto-dismiss to match App.tsx behavior
-        setTimeout(() => {
-          addStatusMessage((prev) => prev.filter((m) => m.id !== id));
-        }, 3750);
-
+        showToast("It's not your turn", "error", "app");
         return;
       }
 
@@ -337,7 +322,7 @@ export function GameRoot({
       playerId,
       setIsEvaluating,
       setView,
-      addStatusMessage,
+      showToast,
       view.currentPlayer,
       view.legalIntents,
       freeDragEnabled,

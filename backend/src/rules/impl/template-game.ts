@@ -1,5 +1,8 @@
 // backend/src/rules/impl/template-game.ts
 
+// NOTE: This template is intentionally not registered in the rules registry and
+// is not used at runtime. It exists as a scaffold for AI-assisted game creation.
+//
 // NOTE: When turning this template into a real game with AI, you MUST implement
 // listLegalIntentsForPlayer so the AI subsystem knows what moves are legal.
 

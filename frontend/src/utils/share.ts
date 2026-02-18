@@ -15,7 +15,7 @@ export interface ShareResult {
   type?: "share" | "clipboard";
 }
 
-export async function shareData(data: ShareData): Promise<ShareResult> {
+async function shareData(data: ShareData): Promise<ShareResult> {
   // Check if the Web Share API is supported
   if (navigator.share) {
     try {

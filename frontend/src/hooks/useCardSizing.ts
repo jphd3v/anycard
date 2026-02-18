@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameLayout, GameView, LayoutZone } from "../../../shared/schemas";
 
 type CardVars = {
@@ -67,7 +67,7 @@ export function useCardSizing(
     []
   );
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (
       !layout ||
       !view ||
@@ -78,6 +78,9 @@ export function useCardSizing(
       applyCssVars({});
       return;
     }
+
+    let rafId: number | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const compute = () => {
       const board = boardRef.current;
@@ -311,12 +314,33 @@ export function useCardSizing(
       applyCssVars(vars);
     };
 
-    const observer = new ResizeObserver(compute);
+    // Debounced compute to avoid layout thrashing during rapid resize events
+    const debouncedCompute = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+        rafId = requestAnimationFrame(compute);
+      }, 16); // ~60fps debounce
+    };
+
+    const observer = new ResizeObserver(debouncedCompute);
     observer.observe(boardRef.current);
-    compute();
+
+    // Initial compute using rAF to avoid blocking first paint
+    rafId = requestAnimationFrame(compute);
 
     return () => {
       observer.disconnect();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       applyCssVars({});
     };
   }, [layout, view, isCoarsePointer, applyCssVars, cardAspect]);

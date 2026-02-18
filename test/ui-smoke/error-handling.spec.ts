@@ -139,7 +139,7 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
     assertNoConsoleErrors(consoleMessages);
   });
 
-  test("Spectator cannot start game", async ({ page }) => {
+  test("Spectator can start AI-only game", async ({ page }) => {
     const consoleMessages = trackConsoleMessages(page);
 
     await seedLocalStorage(page, {
@@ -161,10 +161,13 @@ test.describe("UI Smoke Tests - Error Handling & Edge Cases", () => {
     await page.getByTestId("seat-ai-toggle:P2").click();
 
     // Start button should appear
-    await expect(page.getByTestId("start-game")).toBeVisible();
+    const startButton = page.getByTestId("start-game");
+    await expect(startButton).toBeVisible();
 
-    // TODO: Verify spectator can or cannot click start
-    // This depends on game rules - some games allow spectators to start AI-only games
+    // Spectator should be able to start fully-automated rooms
+    await startButton.click();
+    await skipStartGameOverlayIfPresent(page);
+    await page.locator(".game-layout").first().waitFor({ timeout: 15000 });
 
     assertNoConsoleErrors(consoleMessages);
   });

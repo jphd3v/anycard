@@ -11,8 +11,6 @@ import {
   fatalErrorAtom,
   gameViewAtom,
   localAiConfigAtom,
-  statusMessageAtom,
-  toastAutoCloseEnabledAtom,
 } from "../state";
 import {
   fetchAiPrompt,
@@ -23,6 +21,7 @@ import {
 } from "../socket";
 import type { ClientIntent } from "../../../shared/schemas";
 import { AiError } from "../../../shared/src/ai/types";
+import { useToast } from "./useToast";
 
 let policyLlmAllowsSystemRole = true;
 
@@ -36,9 +35,8 @@ export function useAiSponsor() {
   const view = useAtomValue(gameViewAtom);
   const aiConfig = useAtomValue(localAiConfigAtom);
   const aiShowExceptions = useAtomValue(aiShowExceptionsAtom);
-  const toastAutoCloseEnabled = useAtomValue(toastAutoCloseEnabledAtom);
   const setFatalError = useSetAtom(fatalErrorAtom);
-  const addStatusMessage = useSetAtom(statusMessageAtom);
+  const { showToast } = useToast();
   const processingRef = useRef(false);
   const lastLogRef = useRef<string | null>(null);
   const lastRunKeyRef = useRef<Map<string, string>>(new Map());
@@ -371,21 +369,11 @@ export function useAiSponsor() {
         if (aiError.type === "timeout" && candidates.length > 0) {
           const randomCandidate =
             candidates[Math.floor(Math.random() * candidates.length)];
-          const toastId = Date.now() + Math.random();
-          addStatusMessage((prev) => [
-            {
-              id: toastId,
-              message: `AI for player ${seat.seatId} timed out and thus a random move was chosen.`,
-              tone: "warning",
-              source: "ai",
-            },
-            ...prev,
-          ]);
-          if (toastAutoCloseEnabled) {
-            setTimeout(() => {
-              addStatusMessage((prev) => prev.filter((m) => m.id !== toastId));
-            }, 3750);
-          }
+          showToast(
+            `AI for player ${seat.seatId} timed out and thus a random move was chosen.`,
+            "warning",
+            "ai"
+          );
 
           if (
             randomCandidate.intent &&
@@ -426,9 +414,8 @@ export function useAiSponsor() {
     aiConfig.enabled,
     aiConfig.model,
     aiShowExceptions,
-    addStatusMessage,
+    showToast,
     setFatalError,
-    toastAutoCloseEnabled,
     view,
     view?.currentSeatId,
     view?.gameId,
