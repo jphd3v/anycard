@@ -1096,6 +1096,12 @@ In your rule module:
    - set `currentPlayer` appropriately,
    - emit `set-actions` and `set-scoreboards` **immediately after dealing**.
 
+   **Dealing animation safety:** Do **not** emit `set-pile-visibility` before the
+   dealing `move-cards` events. Early visibility changes can make the UI snap the
+   cards into their final piles, which kills the deal animation. If you must
+   adjust visibility (e.g. Golf), do it **after** the deal or at a later phase
+   transition.
+
 **Important:** The lifecycle overlay sends exactly one action: `"start-game"`.
 Do **not** require a second `"deal"` click immediately after. If you want a
 manual "Deal" button between hands, keep it for _later_ rounds but still handle

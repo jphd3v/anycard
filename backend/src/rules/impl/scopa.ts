@@ -554,15 +554,6 @@ const scopaRules: GameRuleModule = {
       // Gather all cards back to deck explicitly (avoid using 'any')
       engineEvents.push(...gatherAllCards(state));
 
-      // Reset all hand visibilities to owner-only for the next deal
-      for (const player of rulesState.players) {
-        engineEvents.push({
-          type: "set-pile-visibility",
-          pileId: `${player}-hand`,
-          visibility: "owner",
-        });
-      }
-
       nextRulesState = {
         ...rulesState,
         hasDealt: true,

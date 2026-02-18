@@ -1478,15 +1478,6 @@ export const ginRules: GameRuleModule = {
 
       engineEvents.push(...gatherAllCards(state));
 
-      // Reset all hand visibilities to owner-only for the next deal
-      for (const player of players) {
-        engineEvents.push({
-          type: "set-pile-visibility",
-          pileId: `${player}-hand`,
-          visibility: "owner",
-        });
-      }
-
       const shuffledCardIds = shuffleAllCards(state, nextDealNumber, "GIN");
 
       // Add hand start to recap (keeps previous hand summaries)

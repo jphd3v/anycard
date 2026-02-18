@@ -453,31 +453,6 @@ export const golfRules: GameRuleModule = {
         ...gatherAllCards(state, { previousEvents: engineEvents })
       );
 
-      for (const playerId of players) {
-        engineEvents.push(
-          {
-            type: "set-pile-visibility",
-            pileId: `${playerId}-near-left`,
-            visibility: "owner",
-          },
-          {
-            type: "set-pile-visibility",
-            pileId: `${playerId}-near-right`,
-            visibility: "owner",
-          },
-          {
-            type: "set-pile-visibility",
-            pileId: `${playerId}-far-left`,
-            visibility: "hidden",
-          },
-          {
-            type: "set-pile-visibility",
-            pileId: `${playerId}-far-right`,
-            visibility: "hidden",
-          }
-        );
-      }
-
       const projected = projectPilesAfterEvents(state, engineEvents);
       const deckCardIds = projected["deck"]?.cardIds ?? [];
       if (deckCardIds.length < players.length * 4 + 1) {
@@ -538,6 +513,31 @@ export const golfRules: GameRuleModule = {
         toPileId: "discard",
         cardIds: [discardId],
       });
+
+      for (const playerId of players) {
+        engineEvents.push(
+          {
+            type: "set-pile-visibility",
+            pileId: `${playerId}-near-left`,
+            visibility: "owner",
+          },
+          {
+            type: "set-pile-visibility",
+            pileId: `${playerId}-near-right`,
+            visibility: "owner",
+          },
+          {
+            type: "set-pile-visibility",
+            pileId: `${playerId}-far-left`,
+            visibility: "hidden",
+          },
+          {
+            type: "set-pile-visibility",
+            pileId: `${playerId}-far-right`,
+            visibility: "hidden",
+          }
+        );
+      }
 
       nextRulesState = {
         ...nextRulesState,
