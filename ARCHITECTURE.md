@@ -43,6 +43,34 @@ features, read this end-to-end.
   - Decides whether the move is valid.
   - Emits **engine events** to mutate the game (including the actual card moves).
 
+### Optional Supabase integrations
+
+The core engine works without Supabase, but two optional integrations exist.
+
+#### Supabase autosave
+
+Backend autosave to Supabase is disabled by default and activates only when
+explicit backend environment variables are enabled and valid credentials are
+present.
+
+Setup guide: `supabase/SUPABASE_AUTOSAVE_SETUP.md`
+
+#### Supabase identity (magic link + guest)
+
+When enabled, the app supports two identity modes:
+
+- Guest mode with a stable local `guest-id` stored in browser local storage.
+- Email magic-link sign-in via Supabase (no password handling in app code).
+
+Rules still use game seat IDs (`north`, `south`, etc.). Identity is used only
+for seat ownership and player-facing labels.
+
+Privacy baseline in identity mode:
+
+- persisted server-side: pseudonymous user ID, seat ownership, host ownership
+  mapping
+- local storage/session: rejoin hints and Supabase browser session data
+
 ---
 
 ## 1. Stateless rule contract (pre-move model)

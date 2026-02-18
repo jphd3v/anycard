@@ -30,30 +30,6 @@ To get the project up and running locally, follow these steps:
 4.  **Play the game:**
     Open your browser and navigate to `http://localhost:5173`.
 
-## Optional Supabase Autosave
-
-Backend autosave to Supabase is available as an optional feature. It is disabled
-by default and only activates when explicitly enabled with backend environment
-variables and valid Supabase credentials.
-
-Setup guide: `supabase/SUPABASE_AUTOSAVE_SETUP.md`
-
-## Optional Supabase Identity (Magic Link + Guest)
-
-When enabled, the app supports two identity modes:
-
-- Guest mode with a stable local `guest-id` stored in browser local storage.
-- Email magic-link sign-in via Supabase (no password handling in app code).
-
-The game engine still uses seat IDs (`north`, `south`, etc.) for rules. Identity
-is used only for seat ownership and player-facing labels.
-
-Privacy baseline in identity mode:
-
-- persisted server-side: pseudonymous user ID, seat ownership, host ownership
-  mapping
-- local storage/session: rejoin hints and Supabase browser session data
-
 ## Note on View Transitions
 
 The engine leverages the **browser's native CSS View Transition API** to animate card movements and state changes. These transitions are not merely "eye candy"—they are **essential for gameplay**.
@@ -64,7 +40,7 @@ Thus, a **modern browser** that supports the View Transitions API is required.
 
 ## Development & Disclaimer
 
-This project was developed almost entirely through "vibe coding" techniques, utilizing various coding agents and LLMs. While very little manual code was written (though some manual fixes were applied), the project is driven by a clear intuition and vision of what I wanted to create.
+This project was developed largely through AI-assisted coding workflows using coding agents and language models. Manual fixes and reviews were still applied, and the project is driven by a clear intuition and vision of what I wanted to create.
 
 **Important:** This project is **not production-ready**. Due to its
 experimental development nature, the codebase may contain security
@@ -76,7 +52,7 @@ This is for **demo purposes only**. Please consult the `LICENSE.txt` file, which
 
 ## Background & Philosophy
 
-As software developers, we often assume card games are simple or even naive examples of what software can do, but they actually offer a surprising depth of features—and they happen to serve as an excellent playground for **vibe coding**.
+As software developers, we often assume card games are simple or even naive examples of what software can do, but they actually offer a surprising depth of features and serve as an excellent playground for **AI-assisted coding**.
 
 ### Scope & Mission
 
@@ -125,6 +101,7 @@ AnyCard includes several third-party assets with their own licenses. Thanks to t
   - **brescia**: CC BY-SA 4.0 by ZZandro.
   - **digitaldesignlabs**: LGPL 3.0 by Mike Hall, Warren Lockhart, Chris Aguilar, Byron Knoll.
   - **htdebeer**: LGPL-2.1 by Huub de Beer (htdebeer).
+  - **napoletane**: CC0 1.0 Universal by linux1306 (card set), with Jokers under CC BY by Roberto Tamburrino.
   - **notpeter**: Public Domain / WTFPL by Peter Tripp (notpeter) and Byron Knoll.
   - **RevK**: CC0 1.0 Universal by Adrian Kennard.
   - **Card back and Jokers used in several sets**: GNU LGPL v3.0 by David Bellot.
